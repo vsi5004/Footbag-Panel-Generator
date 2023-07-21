@@ -1,6 +1,5 @@
 document.getElementById("canvas").innerHTML = "";
 
-// initialize
 // initialize SVG.js
 var draw = SVG().addTo('body')
 
