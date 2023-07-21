@@ -1,5 +1,3 @@
-document.getElementById('date').innerHTML = new Date().toDateString();
-
 document.getElementById("canvas").innerHTML = "";
 
 // initialize

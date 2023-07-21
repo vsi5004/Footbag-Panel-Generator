@@ -2,38 +2,90 @@
 <html>
 
 <head>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.0.16/svg.js"
-      integrity="sha256-xvPMiuI2yhll8na232NQ1y4TB2G8QzRKc1gEqImu4Ms="
-      crossorigin="anonymous"
-    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.0.16/svg.js"
+        integrity="sha256-xvPMiuI2yhll8na232NQ1y4TB2G8QzRKc1gEqImu4Ms=" crossorigin="anonymous"></script>
     <meta charset="UTF-8" />
+    <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
     <title>Footbag Panel Generator</title>
     <meta name="description" content="A brief description of your site for search engines">
     <meta name="author" content="My name is Ivan Iakimenko and I like to build things">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
     <link rel="apple-touch-icon" sizes="180x180" href="./img/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./img/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./img/favicon-16x16.png">
     <link rel="manifest" href="./img/site.webmanifest">
+
     <!-- Stylesheets -->
     <!-- Reset default styles and add support for google fonts -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet"
+        type="text/css" />
     <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
-   
+
     <!-- Custom styles -->
     <link href="./styles/styles.css" rel="stylesheet" type="text/css" />
+
+    <script async src="./js/index.js"></script>
 </head>
 
 <body>
     <h1>Hello, World!</h1>
-    <h4 id='date'></h4>
-    <div id="pong"></div>
+    <div id="controls">
+        <fieldset>
+            <legend>Select Panel Shape:</legend>
+            <div>
+                <input type="radio" id="panelChoice1" name="panel_shape" value="4" checked />
+                <label for="panelChoice1">Square</label>
+
+                <input type="radio" id="panelChoice2" name="panel_shape" value="5" />
+                <label for="panelChoice2">Pentagon</label>
+
+                <input type="radio" id="panelChoice3" name="panel_shape" value="6" />
+                <label for="panelChoice3">Hexagon</label>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Panel Properties:</legend>
+            <div>
+                <input type="range" id="side_long" name="side_long" min="0" max="85"><label for="side_long">Side Length
+                    (mm)</label>
+            </div>
+            <div>
+                <input type="range" id="side_short" name="side_short" min="0" max="85"><label for="side_short">Short
+                    Side
+                    Length (mm)</label>
+            </div>
+            <div>
+                <input type="range" id="stitch_bite" name="stitch_bite" min="0" max="15"><label for="stitch_bite">Stitch
+                    Distance from Edge (mm)</label>
+            </div>
+            <div>
+                <input type="range" id="stitch_length" name="stitch_length" min="0" max="85"><label
+                    for="stitch_length">Individual Stitch Length (mm)</label>
+            </div>
+            <div>
+                <input type="range" id="stitch_number" name="stitch_number" min="0" max="25"><label
+                    for="stitch_number">Stitches per Edge</label>
+            </div>
+            <div>
+                <input type="range" id="stitch_diameter" name="stitch_diameter" min="0" max="1" step="0.1"><label
+                    for="stitch_diameter">Needle Hole Diameter (mm)</label>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Panel Grouping:</legend>
+            <div>
+                <input type="range" id="panel_rows" name="panel_rows" min="1" max="10"><label for="panel_rows">Rows of
+                    Panels</label>
+            </div>
+            <div>
+                <input type="range" id="panel_cols" name="panel_cols" min="1" max="10" step="2"><label
+                    for="panel_cols">Columns of Panels</label>
+            </div>
+        </fieldset>
+        <input type="button" value="Export SVG" />
+    </div>
     <div id="canvas"></div>
 </body>
-<footer>
-    <script async src="./js/index.js"></script>
-</footer>
 
 </html>
