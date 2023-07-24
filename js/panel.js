@@ -39,15 +39,34 @@ class Panel{
     }
 
     get_xy_coord_lists(){
-        const x_coords = []
-        const y_coords = []
+        const x_coords = [];
+        const y_coords = [];
         for (const point in this.vertices){
-            x_coords.push(point[0])
-            y_coords.push(point[1])
+            x_coords.push(point[0]);
+            y_coords.push(point[1]);
         }
             
-        return [x_coords, y_coords]
+        return [x_coords, y_coords];
     }
         
+    draw_stitch_row(){
+
+    }
+
+    draw_stitches(){
+
+    }
+
+    render(rows, cols){
+
+    }
+
+    draw_single(){
+
+    }
+
+    draw_panel_row(cols){
+
+    }
         
 }
