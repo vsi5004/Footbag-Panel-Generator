@@ -1,5 +1,6 @@
 class Panel{
     constructor(bite, stitches, hole_diameter, side_len, sides, skip_sides){
+        this.draw = SVG()
         this.bite = bite;
         this.stitches = stitches;
         this.stitch_len = stitch_length;
@@ -50,7 +51,17 @@ class Panel{
     }
         
     draw_stitch_row(){
-
+        var total_holes = this.stitches*2;
+        if (this.skip_sides){
+            total_holes = this.stitches * 2 + 2;
+        }
+        stitch_offset = this.side_len / 2 - (total_holes - 1) * this.stitch_len / 2;
+        var g_stitch_holes = this.draw.group();
+        for (var x=0; x<total_holes.length; x++){
+            g_stitch_holes.circle(this.hole_dia).move(this.stitch_len * x + stitch_offset,
+                this.bite);
+        }
+        return g_stitch_holes;
     }
 
     draw_stitches(){

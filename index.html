@@ -17,75 +17,95 @@
     <link rel="manifest" href="./img/site.webmanifest">
 
     <!-- Stylesheets -->
-    <!-- Reset default styles and add support for google fonts -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet"
-        type="text/css" />
-    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <!-- MDB -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.0/mdb.min.css" rel="stylesheet" />
+
 
     <!-- Custom styles -->
     <link href="./styles/styles.css" rel="stylesheet" type="text/css" />
 
-    <script async src="./js/index.js"></script>
+
 </head>
 
 <body>
     <h1>Footbag Panel Generator</h1>
-    <div id="controls">
-        <fieldset>
-            <legend>Select Panel Shape:</legend>
-            <div>
-                <input type="radio" id="panelChoice1" name="panel_shape" value="4" checked />
-                <label for="panelChoice1">Square</label>
+    <div id="controls" name="controls">
+        <div class="card w-25 ">
+            <h5 class="card-header">Panel Shape:</h5>
+            <div class="card-body">
 
-                <input type="radio" id="panelChoice2" name="panel_shape" value="5" />
-                <label for="panelChoice2">Pentagon</label>
-
-                <input type="radio" id="panelChoice3" name="panel_shape" value="6" />
-                <label for="panelChoice3">Hexagon</label>
+                <div class="form-check form-check-inline">
+                    <input type="radio" class="form-check-input" id="panelChoice1" name="panel_shape" value="4"
+                        onchange="hexagon_check()" checked />
+                    <label for="panelChoice1">Square</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input type="radio" class="form-check-input" id="panelChoice2" name="panel_shape" value="5"
+                        onchange="hexagon_check()" />
+                    <label for="panelChoice2">Pentagon</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input type="radio" class="form-check-input" id="panelChoice3" name="panel_shape" value="6"
+                        onchange="hexagon_check()" />
+                    <label for="panelChoice3">Hexagon</label>
+                </div>
             </div>
-        </fieldset>
-        <fieldset>
-            <legend>Panel Properties:</legend>
-            <div>
-                <input type="range" id="side_long" name="side_long" min="0" max="85"><label for="side_long">Side Length
-                    (mm)</label>
+        </div>
+        <div class="card w-25">
+            <h5 class="card-header">Panel Properties:</h5>
+            <div class="card-body">
+                <label class="form-label" for="side_long">Side Length (mm)</label>
+                <div class="range">
+                    <input type="range" class="form-range" id="side_long" name="side_long" min="5" max="85">
+                </div>
+                <div id="side_short_input">
+                    <label class="form-label" for="side_short">Short Side Length (mm)</label>
+                    <div class="range">
+                        <input type="range" class="form-range" id="side_short" name="side_short" min="5" max="85">
+                    </div>
+                </div>
+                <label class="form-label" for="stitch_bite">Stitch Distance from Edge (mm)</label>
+                <div class="range">
+                    <input type="range" class="form-range" id="stitch_bite" name="stitch_bite" min="0" max="15">
+                </div>
+                <label class="form-label" for="stitch_length">Individual Stitch Length (mm)</label>
+                <div class="range">
+                    <input type="range" class="form-range" id="stitch_length" name="stitch_length" min="0" max="85">
+                </div>
+                <label class="form-label" for="stitch_number">Stitches per Edge</label>
+                <div class="range">
+                    <input type="range" class="form-range" id="stitch_number" name="stitch_number" min="0" max="25">
+                </div>
+                <label class="form-label" for="stitch_diameter">Needle Hole Diameter (mm)</label>
+                <div class="range">
+                    <input type="range" class="form-range" id="stitch_diameter" name="stitch_diameter" min="0" max="1"
+                        step="0.1">
+                </div>
             </div>
-            <div>
-                <input type="range" id="side_short" name="side_short" min="0" max="85"><label for="side_short">Short
-                    Side
-                    Length (mm)</label>
+        </div>
+        <div class="card w-25">
+            <h5 class="card-header">Panel Grouping:</h5>
+            <div class="card-body">
+                <label class="form-label" for="panel_rows">Rows of Panels</label>
+                <div class="range">
+                    <input type="range" class="form-range" id="panel_rows" name="panel_rows" min="1" max="10">
+                </div>
+                <label class="form-label" for="panel_cols">Columns of Panels</label>
+                <div class="range">
+                    <input type="range" class="form-range" id="panel_cols" name="panel_cols" min="1" max="10" step="2">
+                </div>
             </div>
-            <div>
-                <input type="range" id="stitch_bite" name="stitch_bite" min="0" max="15"><label for="stitch_bite">Stitch
-                    Distance from Edge (mm)</label>
-            </div>
-            <div>
-                <input type="range" id="stitch_length" name="stitch_length" min="0" max="85"><label
-                    for="stitch_length">Individual Stitch Length (mm)</label>
-            </div>
-            <div>
-                <input type="range" id="stitch_number" name="stitch_number" min="0" max="25"><label
-                    for="stitch_number">Stitches per Edge</label>
-            </div>
-            <div>
-                <input type="range" id="stitch_diameter" name="stitch_diameter" min="0" max="1" step="0.1"><label
-                    for="stitch_diameter">Needle Hole Diameter (mm)</label>
-            </div>
-        </fieldset>
-        <fieldset>
-            <legend>Panel Grouping:</legend>
-            <div>
-                <input type="range" id="panel_rows" name="panel_rows" min="1" max="10"><label for="panel_rows">Rows of
-                    Panels</label>
-            </div>
-            <div>
-                <input type="range" id="panel_cols" name="panel_cols" min="1" max="10" step="2"><label
-                    for="panel_cols">Columns of Panels</label>
-            </div>
-        </fieldset>
-        <input type="button" value="Export SVG" />
+        </div>
+        <input type="button" class="btn btn-primary" value="Export SVG" />
     </div>
     <div id="canvas"></div>
+    <!-- MDB -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/6.4.0/mdb.min.js"></script>
+    <script type="text/javascript" src="./js/index.js"></script>
 </body>
 
 </html>
