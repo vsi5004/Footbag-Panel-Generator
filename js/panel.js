@@ -1,6 +1,6 @@
-class Panel{
-    constructor(bite, stitches, hole_diameter, side_len, sides, skip_sides){
-        this.draw = SVG()
+export class Panel{
+    constructor(bite, stitches, hole_diameter, side_len, sides, skip_sides, canvas){
+        this.draw = canvas;
         this.bite = bite;
         this.stitches = stitches;
         this.stitch_len = stitch_length;
@@ -33,9 +33,12 @@ class Panel{
         return [x_mid, y_mid];
     }
         
-    get_rotate_point(){
-        const x_rot = Math.floor(Math.sum(this.coords[0]) / this.coords[0].length);
-        const y_rot = Math.floor(Math.sum(this.coords[1]) / this.coords[1].length);
+    get_rotate_point() {
+        // Calculate the sum and then the average of the x coordinates
+        const x_rot = Math.floor(this.coords[0].reduce((acc, val) => acc + val, 0) / this.coords[0].length);
+        // Calculate the sum and then the average of the y coordinates
+        const y_rot = Math.floor(this.coords[1].reduce((acc, val) => acc + val, 0) / this.coords[1].length);
+        
         return [x_rot, y_rot];
     }
 
