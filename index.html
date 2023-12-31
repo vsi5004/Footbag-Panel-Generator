@@ -34,7 +34,7 @@
 <body>
     <div class="container-fluid">
         <div class="row">
-            <div class="col-md-2" id="controls" name="controls">
+            <div class="col-md-3" id="controls" name="controls">
                 <div class="card">
                     <h5 class="card-header">Panel Shape:</h5>
                     <div class="card-body">
@@ -60,34 +60,30 @@
                     <h5 class="card-header">Panel Properties:</h5>
                     <div class="card-body">
                         <label class="form-label" for="side_long">Side Length (mm)</label>
-                        <div class="range">
-                            <input type="range" class="form-range" id="side_long" name="side_long" min="5" max="85">
+                        <div class="form-outline" data-mdb-input-init>
+                            <input type="number" class="form-control" id="side_long" name="side_long" min="5" max="85" value="45">
                         </div>
                         <div id="side_short_input">
                             <label class="form-label" for="side_short">Short Side Length (mm)</label>
-                            <div class="range">
-                                <input type="range" class="form-range" id="side_short" name="side_short" min="5"
-                                    max="85">
+                            <div class="form-outline" data-mdb-input-init>
+                                <input type="number" class="form-control" id="side_short" name="side_short" min="5" max="85" value="20">
                             </div>
                         </div>
                         <label class="form-label" for="stitch_bite">Stitch Distance from Edge (mm)</label>
-                        <div class="range">
-                            <input type="range" class="form-range" id="stitch_bite" name="stitch_bite" min="0" max="15">
+                        <div class="form-outline" data-mdb-input-init>
+                            <input type="number" class="form-control" id="stitch_bite" name="stitch_bite" min="0" max="15" value="4">
                         </div>
                         <label class="form-label" for="stitch_length">Individual Stitch Length (mm)</label>
-                        <div class="range">
-                            <input type="range" class="form-range" id="stitch_length" name="stitch_length" min="0"
-                                max="8">
+                        <div class="form-outline" data-mdb-input-init>
+                            <input type="number" class="form-control" id="stitch_length" name="stitch_length" min="0" max="8" value="5">
                         </div>
                         <label class="form-label" for="stitch_number">Stitches per Edge</label>
-                        <div class="range">
-                            <input type="range" class="form-range" id="stitch_number" name="stitch_number" min="0"
-                                max="12">
+                        <div class="form-outline" data-mdb-input-init>
+                            <input type="number" class="form-control" id="stitch_number" name="stitch_number" min="0" max="12" value="4">
                         </div>
                         <label class="form-label" for="stitch_diameter">Needle Hole Diameter (mm)</label>
-                        <div class="range">
-                            <input type="range" class="form-range" id="stitch_diameter" name="stitch_diameter" min="0"
-                                max="1" step="0.1">
+                        <div class="form-outline" data-mdb-input-init>
+                            <input type="number" class="form-control" id="stitch_diameter" name="stitch_diameter" min="0" max="1" step="0.1" value="0.5">
                         </div>
                     </div>
                 </div>
@@ -107,7 +103,7 @@
                 </div>
                 <input type="button" id="exportBtn" class="btn btn-primary" value="Export SVG" />
             </div>
-            <div class="col-md-10 d-flex justify-content-center align-items-center" id="canvas"></div>
+            <div class="col-md-9 d-flex justify-content-center align-items-center" id="canvas"></div>
         </div>
     </div>
     <!-- MDB -->

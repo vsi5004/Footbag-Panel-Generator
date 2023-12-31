@@ -55,16 +55,16 @@ export class Panel {
         return maxX - minX;
     }
 
-    flip_vertices(vertices) {
+    flip_points_vertical(points) {
         // Calculate the midpoint
         const midY = this.height / 2;
 
         // Flip each vertex across the midpoint
-        const flippedVertices = vertices.map(([x, y]) => {
+        const flipped_points = points.map(([x, y]) => {
             return [x, midY - (y - midY)];
         });
 
-        return flippedVertices;
+        return flipped_points;
     }
 
     get_vertices() {
@@ -79,39 +79,58 @@ export class Panel {
         return vertices;
     }
 
-    draw_stitch_row() {
-        var total_holes = this.stitches * 2;
-        if (this.skip_sides) {
-            total_holes = this.stitches * 2 + 2;
-        }
-        const stitch_offset = this.side_len / 2 - (total_holes - 1) * this.stitch_len / 2;
-        for (var x = 0; x < total_holes.length; x++) {
-            this.draw.circle(50).fill('#f06').move(this.stitch_len * x + stitch_offset,
-                this.bite);
-        }
-        //return g_stitch_holes;
-    }
-
-    draw_stitches() {
-
-    }
-
     render(rows, cols) {
         for (let r = 0; r < rows; r++) {
             this.draw_panel_row(r, cols);
         }
     }
 
-    draw_single(x, y) {
-        this.vertices = this.flip_vertices(this.vertices);
+    draw_panel_at_coord(x, y) {
+        this.vertices = this.flip_points_vertical(this.vertices);
         const points = this.vertices.map(point => point.join(',')).join(' ');
         this.draw.polygon(points).fill('none').stroke('#f06').move(x, y);
+        this.draw_stitches(x, y);
     }
 
     draw_panel_row(r, cols) {
         for (let c = 0; c < cols; c++) {
-            this.draw_single(c * this.width, r * this.height);
+            this.draw_panel_at_coord(c * this.width, r * this.height);
         }
+    }
+
+    draw_stitches(x_offset, y_offset) {
+        for (let i = 0; i < this.vertices.length; i++) {
+            let start = this.vertices[i];
+            let end = this.vertices[(i + 1) % this.vertices.length]; // Wrap to the first vertex
+
+            // Calculate the total length of the stitches and the remaining space
+            let totalStitchLength = this.stitches * this.stitch_len;
+            let remainingSpace = this.side_len - totalStitchLength;
+
+            // Calculate the start position for the first stitch to center them
+            let startPosition = remainingSpace / 2;
+
+            for (let j = 0; j < this.stitches; j++) {
+                // Position of this stitch along the side
+                let position = startPosition + j * this.stitch_len;
+
+                // Calculate the point's position within the side
+                let ratio = position / this.side_len;
+                let x = start[0] + ratio * (end[0] - start[0]);
+                let y = start[1] + ratio * (end[1] - start[1]);
+
+                // Offset the point inside the shape
+                let angle = Math.atan2(end[1] - start[1], end[0] - start[0]);
+                let point = [x - this.bite * Math.cos(angle + Math.PI / 2), y - this.bite * Math.sin(angle + Math.PI / 2)];
+
+                this.draw.circle(this.hole_dia*2).move(point[0]+x_offset, point[1]+y_offset);
+            }
+        }          
+    }
+
+    distanceBetween(point1, point2) {
+        // Calculate the distance between two points
+        return Math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2);
     }
 
 }

@@ -59,11 +59,11 @@ function addShape() {
     canvas.clear();
 
     // Get the selected value from the radio buttons
-    const selectedValue = document.querySelector('input[name="panel_shape"]:checked').value;
+    const selectedShape = document.querySelector('input[name="panel_shape"]:checked').value;
     panelGroup = canvas.group();
 
     let shape;
-    switch (selectedValue) {
+    switch (selectedShape) {
         case '4':
             shape = new Square(side_len, bite, stitch_num, stitch_len, stitch_dia, canvas);
             break;
@@ -89,8 +89,6 @@ function addShape() {
 
 function parseInputChanges() {
     const inputs = document.getElementsByTagName("input");
-    console.log("Values Changed!");
-    console.log(inputs);
     side_len = inputs.side_long.valueAsNumber;
     side_len_short = inputs.side_short.valueAsNumber;
     bite = inputs.stitch_bite.valueAsNumber;
