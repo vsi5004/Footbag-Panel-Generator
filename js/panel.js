@@ -1,5 +1,5 @@
-export class Panel{
-    constructor(bite, stitches, hole_diameter, side_len, sides, skip_sides, canvas){
+export class Panel {
+    constructor(bite, stitches, stitch_length, hole_diameter, side_len, sides, skip_sides, canvas) {
         this.draw = canvas;
         this.bite = bite;
         this.stitches = stitches;
@@ -10,16 +10,68 @@ export class Panel{
         this.skip_sides = skip_sides;
         this.angle = 2 * Math.PI / sides.length;
         this.vertices = this.get_vertices();
-        this.coords = this.get_xy_coord_lists();
-        this.rotate_point = this.get_rotate_point();
+        this.height = this.get_height();
+        this.width = this.get_width();
     }
 
-    get_vertices(){
+    get_height() {
+        let minY = Infinity;
+        let maxY = -Infinity;
+        for (const vertex of this.vertices) {
+            minY = Math.min(minY, vertex[1]);
+            maxY = Math.max(maxY, vertex[1]);
+        }
+        return maxY - minY;
+    }
+
+    get_width() {
+        const midY = this.height / 2; // 50% of the shape's height
+
+        let minX = Infinity;
+        let maxX = -Infinity;
+
+        for (let i = 0; i < this.vertices.length; i++) {
+            let start = this.vertices[i];
+            let end = this.vertices[(i + 1) % this.vertices.length]; // Wrap around to the first vertex
+
+            // Ensure start is the lower point
+            if (start[1] > end[1]) {
+                [start, end] = [end, start];
+            }
+
+            // Check if the line crosses the midY point
+            if (start[1] <= midY && end[1] >= midY) {
+                // Find the x-coordinate of the intersection with the horizontal line at midY
+                const ratio = (midY - start[1]) / (end[1] - start[1]);
+                const intersectX = start[0] + ratio * (end[0] - start[0]);
+
+                // Update the minimum and maximum x-coordinates
+                minX = Math.min(minX, intersectX);
+                maxX = Math.max(maxX, intersectX);
+            }
+        }
+
+        // The width at 50% of the height is the difference between the max and min x-coordinates
+        return maxX - minX;
+    }
+
+    flip_vertices(vertices) {
+        // Calculate the midpoint
+        const midY = this.height / 2;
+
+        // Flip each vertex across the midpoint
+        const flippedVertices = vertices.map(([x, y]) => {
+            return [x, midY - (y - midY)];
+        });
+
+        return flippedVertices;
+    }
+
+    get_vertices() {
         const vertices = [];
         vertices.push([0, 0]);
 
-        for (let i = 0; i < (this.sides.length - 1); i++)
-        {
+        for (let i = 0; i < (this.sides.length - 1); i++) {
             const x = this.sides[i] * Math.cos(i * this.angle) + vertices[i][0];
             const y = this.sides[i] * Math.sin(i * this.angle) + vertices[i][1];
             vertices.push([x, y]);
@@ -27,60 +79,39 @@ export class Panel{
         return vertices;
     }
 
-    get_midway_point(){
-        const x_mid = Math.floor((Math.max(this.coords[0]) + Math.min(this.coords[0])) / 2);
-        const y_mid = Math.floor((Math.max(this.coords[1]) + Math.min(this.coords[1])) / 2);
-        return [x_mid, y_mid];
-    }
-        
-    get_rotate_point() {
-        // Calculate the sum and then the average of the x coordinates
-        const x_rot = Math.floor(this.coords[0].reduce((acc, val) => acc + val, 0) / this.coords[0].length);
-        // Calculate the sum and then the average of the y coordinates
-        const y_rot = Math.floor(this.coords[1].reduce((acc, val) => acc + val, 0) / this.coords[1].length);
-        
-        return [x_rot, y_rot];
-    }
-
-    get_xy_coord_lists(){
-        const x_coords = [];
-        const y_coords = [];
-        for (const point in this.vertices){
-            x_coords.push(point[0]);
-            y_coords.push(point[1]);
-        }
-            
-        return [x_coords, y_coords];
-    }
-        
-    draw_stitch_row(){
-        var total_holes = this.stitches*2;
-        if (this.skip_sides){
+    draw_stitch_row() {
+        var total_holes = this.stitches * 2;
+        if (this.skip_sides) {
             total_holes = this.stitches * 2 + 2;
         }
-        stitch_offset = this.side_len / 2 - (total_holes - 1) * this.stitch_len / 2;
-        var g_stitch_holes = this.draw.group();
-        for (var x=0; x<total_holes.length; x++){
-            g_stitch_holes.circle(this.hole_dia).move(this.stitch_len * x + stitch_offset,
+        const stitch_offset = this.side_len / 2 - (total_holes - 1) * this.stitch_len / 2;
+        for (var x = 0; x < total_holes.length; x++) {
+            this.draw.circle(50).fill('#f06').move(this.stitch_len * x + stitch_offset,
                 this.bite);
         }
-        return g_stitch_holes;
+        //return g_stitch_holes;
     }
 
-    draw_stitches(){
-
-    }
-
-    render(rows, cols){
+    draw_stitches() {
 
     }
 
-    draw_single(){
-
+    render(rows, cols) {
+        for (let r = 0; r < rows; r++) {
+            this.draw_panel_row(r, cols);
+        }
     }
 
-    draw_panel_row(cols){
-
+    draw_single(x, y) {
+        this.vertices = this.flip_vertices(this.vertices);
+        const points = this.vertices.map(point => point.join(',')).join(' ');
+        this.draw.polygon(points).fill('none').stroke('#f06').move(x, y);
     }
-        
+
+    draw_panel_row(r, cols) {
+        for (let c = 0; c < cols; c++) {
+            this.draw_single(c * this.width, r * this.height);
+        }
+    }
+
 }

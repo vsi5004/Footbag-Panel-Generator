@@ -3,22 +3,19 @@ import { Panel } from "./panel.js";
 export class Square extends Panel{
     constructor(side_len, bite, stitches, stitch_length, hole_diameter, canvas){
         const sides = [side_len, side_len, side_len, side_len];
-        super(bite, stitches, hole_diameter, side_len, sides, false, canvas);
-        this.width = side_len;
+        super(bite, stitches, stitch_length, hole_diameter, side_len, sides, false, canvas);
     }
 
-    render(rows, cols){
-        // Create rows and columns of squares
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                // Create a rectangle (square) for each position
-                this.draw_single(c*this.side_len, r*this.side_len);
-            }
+    draw_stitch_row(){
+        var total_holes = this.stitches*2;
+        if (this.skip_sides){
+            total_holes = this.stitches * 2 + 2;
         }
-        
-    }
-
-    draw_single(x, y){
-        this.draw.rect(this.side_len, this.side_len).stroke('#f06').move(x,y);
+        const g_stitch_holes = this.draw.group();
+        //const stitch_offset = this.side_len / 2 - (total_holes - 1) * this.stitch_len / 2;
+        for (var x=0; x<total_holes; x++){
+            g_stitch_holes.circle(this.hole_dia).fill('#f06').move(this.stitch_len * x,this.bite);
+        }
+        return g_stitch_holes;
     }
 }

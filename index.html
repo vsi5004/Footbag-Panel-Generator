@@ -34,7 +34,7 @@
 <body>
     <div class="container-fluid">
         <div class="row">
-            <div class="col-md-4" id="controls" name="controls">
+            <div class="col-md-2" id="controls" name="controls">
                 <div class="card">
                     <h5 class="card-header">Panel Shape:</h5>
                     <div class="card-body">
@@ -77,12 +77,12 @@
                         <label class="form-label" for="stitch_length">Individual Stitch Length (mm)</label>
                         <div class="range">
                             <input type="range" class="form-range" id="stitch_length" name="stitch_length" min="0"
-                                max="85">
+                                max="8">
                         </div>
                         <label class="form-label" for="stitch_number">Stitches per Edge</label>
                         <div class="range">
                             <input type="range" class="form-range" id="stitch_number" name="stitch_number" min="0"
-                                max="25">
+                                max="12">
                         </div>
                         <label class="form-label" for="stitch_diameter">Needle Hole Diameter (mm)</label>
                         <div class="range">
@@ -105,9 +105,9 @@
                         </div>
                     </div>
                 </div>
-                <input type="button" class="btn btn-primary" value="Export SVG" />
+                <input type="button" id="exportBtn" class="btn btn-primary" value="Export SVG" />
             </div>
-            <div class="col-md-8 d-flex justify-content-center align-items-center" id="canvas"></div>
+            <div class="col-md-10 d-flex justify-content-center align-items-center" id="canvas"></div>
         </div>
     </div>
     <!-- MDB -->
