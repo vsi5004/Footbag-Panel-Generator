@@ -11,6 +11,7 @@
     "side": { "type": "number", "minimum": 10, "maximum": 80 },
     "seam": { "type": "number", "minimum": 2, "maximum": 9 },
     "stitches": { "type": "integer", "minimum": 1, "maximum": 50 },
+    "showGrid": { "type": "boolean" },
     "cornerMargin": { "type": "number", "minimum": 0 },
     "holeSpacing": { "type": "number", "minimum": 1 },
     "dotSize": { "type": "number", "minimum": 0.2, "maximum": 1.5 },
@@ -27,4 +28,3 @@
   "required": ["version", "shape", "curved", "side", "seam", "stitches", "dotSize", "hex"],
   "additionalProperties": false
 }
-

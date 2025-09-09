@@ -1,6 +1,7 @@
 (function(){
   window.FB = window.FB || {};
   const { deg2rad } = window.FB.utils;
+  const { SAMPLING } = window.FB.CONSTANTS;
 
   function regularPolygonVertices(n, radius) {
     const verts = [];
@@ -44,7 +45,7 @@
     d += 'Z';
     return d;
   }
-  function approxEdgeSamples(a, b, depth, samples = 40) {
+  function approxEdgeSamples(a, b, depth, samples = SAMPLING.CURVE_SAMPLES_DEFAULT) {
     const m = edgeMidpoint(a, b);
     const nrm = outwardNormal(a, b);
     const c = { x: m.x + nrm.x * depth, y: m.y + nrm.y * depth };

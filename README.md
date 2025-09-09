@@ -32,6 +32,7 @@ See `footbag_spec.md` for the full specification and roadmap.
 - Optional curvature factor control (0.10–0.40) when edges are curved
 - Export/Import: Save and load panel settings as JSON
   - JSON Schema: `schema/settings.schema.json` (referenced in exported files via `$schema`)
+  - Persists UI state including grid toggle
 - Clean, printable SVG with units in millimeters
 - Visual stitch marks as dots
 - Optional light grid to verify print scaling (10mm)

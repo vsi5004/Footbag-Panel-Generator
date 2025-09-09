@@ -13,6 +13,7 @@
       side: clamp(parseFloat(el.side.value), 10, 80),
       seam: clamp(parseFloat(el.seam.value), 2, 9),
       stitches: parseInt(el.stitches.value, 10),
+      showGrid: el.showGrid ? !!el.showGrid.checked : undefined,
       cornerMargin: el.cornerMargin ? clamp(parseFloat(el.cornerMargin.value), 0, 999) : undefined,
       holeSpacing: el.holeSpacing ? clamp(parseFloat(el.holeSpacing.value), 1, 999) : undefined,
       dotSize: clamp(parseFloat(el.dotSize.value), 0.2, 1.5),
@@ -52,6 +53,7 @@
 
     if (s.stitches != null) set(el.stitches, clamp(parseInt(s.stitches, 10), 1, 50));
     if (el.stitchesNumber) set(el.stitchesNumber, el.stitches && el.stitches.value);
+    if (s.showGrid != null && el.showGrid) { el.showGrid.checked = !!s.showGrid; }
     if (s.cornerMargin != null && el.cornerMargin) { set(el.cornerMargin, Math.max(0, parseFloat(s.cornerMargin))); set(el.cornerMarginNumber, el.cornerMargin.value); }
     if (s.holeSpacing != null && el.holeSpacing) { set(el.holeSpacing, Math.max(1, parseFloat(s.holeSpacing))); set(el.holeSpacingNumber, el.holeSpacing.value); }
     if (s.dotSize != null) { set(el.dotSize, clamp(parseFloat(s.dotSize), 0.2, 1.5)); set(el.dotSizeNumber, el.dotSize.value); }

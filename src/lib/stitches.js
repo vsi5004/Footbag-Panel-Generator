@@ -2,8 +2,9 @@
   window.FB = window.FB || {};
   const { clamp } = window.FB.utils;
   const G = window.FB.geometry;
+  const { SAMPLING } = window.FB.CONSTANTS;
 
-  function stitchPositions(verts, depth, countPerSide, offset, prefSpacing, cornerMargin, samplesPerEdge = 120, edgeInclude = null) {
+  function stitchPositions(verts, depth, countPerSide, offset, prefSpacing, cornerMargin, samplesPerEdge = SAMPLING.EDGE_SAMPLES_DEFAULT, edgeInclude = null) {
     const n = verts.length; const out = [];
     for (let i = 0; i < n; i++) {
       if (edgeInclude && !edgeInclude(i)) continue;
@@ -36,7 +37,7 @@
     return out;
   }
 
-  function computeAllowableSpacing(verts, depth, countPerSide, cornerMargin, samplesPerEdge = 120, edgeInclude = null) {
+  function computeAllowableSpacing(verts, depth, countPerSide, cornerMargin, samplesPerEdge = SAMPLING.EDGE_SAMPLES_DEFAULT, edgeInclude = null) {
     const n = verts.length; let minAllowable = Infinity;
     for (let i = 0; i < n; i++) {
       if (edgeInclude && !edgeInclude(i)) continue;

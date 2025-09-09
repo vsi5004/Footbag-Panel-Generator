@@ -34,6 +34,7 @@ body {
   position: sticky;
   top: 12px;
   height: fit-content;
+  z-index: 2; /* keep above preview when sticky (desktop) */
 }
 
 .control { margin-bottom: 14px; }
@@ -60,6 +61,9 @@ button:hover { filter: brightness(1.05); }
 
 @media (max-width: 960px) {
   .app { grid-template-columns: 1fr; }
+  /* Disable sticky on mobile to avoid overlay issues */
+  .controls { position: static; top: auto; z-index: auto; }
+  .preview { position: relative; z-index: 1; }
 }
 
 .hidden { display: none !important; }
