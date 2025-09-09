@@ -1,36 +1,164 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.0.16/svg.js"
-      integrity="sha256-xvPMiuI2yhll8na232NQ1y4TB2G8QzRKc1gEqImu4Ms="
-      crossorigin="anonymous"
-    ></script>
-    <meta charset="UTF-8" />
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Footbag Panel Generator</title>
-    <meta name="description" content="A brief description of your site for search engines">
-    <meta name="author" content="My name is Ivan Iakimenko and I like to build things">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-    <link rel="icon" type="image/png" href="favicon.png">
-  
-    <!-- Stylesheets -->
-    <!-- Reset default styles and add support for google fonts -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" type="text/css" />
-    <link href="http://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" type="text/css" />
-   
-    <!-- Custom styles -->
-    <link href="style.css" rel="stylesheet" type="text/css" />
-</head>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Footbag Panel SVG Generator</h1>
+      <p class="subtitle">Generate printable SVG templates for footbag panels</p>
+    </header>
 
-<body>
-    <h1>Hello, World!</h1>
-    <h4 id='date'></h4>
-    <div id="pong"></div>
-    <div id="canvas"></div>
-</body>
-<footer>
-    <script async src="./js/index.js"></script>
-</footer>
+    <main class="app">
+      <section class="controls" aria-label="Panel Settings">
+        <div class="control">
+          <label for="shape">Shape</label>
+          <select id="shape">
+            <option value="3">Triangle (3)</option>
+            <option value="4">Square (4)</option>
+            <option value="5" selected>Pentagon (5)</option>
+            <option value="6">Hexagon (6)</option>
+          </select>
+        </div>
 
-</html>
+        <div class="control">
+          <label>Edge style</label>
+          <div class="switch-row">
+            <span class="switch-label">Straight</span>
+            <label class="switch" aria-label="Toggle curved edges">
+              <input id="curved" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+            <span class="switch-label">Curved</span>
+          </div>
+        </div>
+
+        <div class="control hidden" id="curveFactorRow">
+          <label for="curveFactor">Curvature factor</label>
+          <div class="range-row">
+            <input id="curveFactor" type="range" min="0.10" max="0.40" step="0.01" value="0.30" />
+            <input id="curveFactorNumber" type="number" min="0.10" max="0.40" step="0.01" value="0.30" />
+          </div>
+        </div>
+
+        
+        
+        <div class="control hex6-only hidden" id="hexTypeRow">
+          <label for="hexType">Hexagon type</label>
+          <select id="hexType">
+            <option value="regular" selected>Regular (equal sides)</option>
+            <option value="truncated">Truncated triangle</option>
+          </select>
+        </div>
+
+        <div class="control hex6-only hidden" id="hexLongRow">
+          <label for="hexLong">Long side length (mm)</label>
+          <div class="range-row">
+            <input id="hexLong" type="range" min="10" max="80" step="1" value="30" />
+            <input id="hexLongNumber" type="number" min="10" max="80" step="1" value="30" />
+          </div>
+        </div>
+
+        <div class="control hex6-only hidden" id="hexRatioRow">
+          <label for="hexRatio">Short side ratio (S = r × long)</label>
+          <div class="range-row">
+            <input id="hexRatio" type="range" min="0.1" max="0.9" step="0.05" value="0.5" />
+            <input id="hexRatioNumber" type="number" min="0.1" max="0.9" step="0.05" value="0.5" />
+          </div>
+        </div>
+
+        <div class="control" id="sideRow">
+          <label for="side">Side length (mm)</label>
+          <div class="range-row">
+            <input id="side" type="range" min="10" max="80" step="1" value="30" />
+            <input id="sideNumber" type="number" min="10" max="80" step="1" value="30" />
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="seam">Seam allowance (mm)</label>
+          <div class="range-row">
+            <input id="seam" type="range" min="2" max="9" step="0.5" value="5" />
+            <input id="seamNumber" type="number" min="2" max="9" step="0.5" value="5" />
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="stitches">Stitch holes per side</label>
+          <div class="range-row">
+            <input id="stitches" type="range" min="4" max="16" step="1" value="10" />
+            <input id="stitchesNumber" type="number" min="4" max="16" step="1" value="10" />
+          </div>
+        </div>
+
+        <details class="advanced" id="advanced">
+          <summary>Advanced parameters</summary>
+          <div class="advanced-content">
+            <!-- Corner margin -->
+            <div class="control">
+              <label for="cornerMargin">Corner margin (mm)</label>
+              <div class="range-row">
+                <input id="cornerMargin" type="range" min="0" max="20" step="0.5" value="2" />
+                <input id="cornerMarginNumber" type="number" min="0" max="20" step="0.5" value="2" />
+              </div>
+            </div>
+
+            <div class="control">
+              <label for="holeSpacing">Hole spacing (mm)</label>
+              <div class="range-row">
+                <input id="holeSpacing" type="range" min="1" max="20" step="0.5" value="5" />
+                <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.5" value="5" />
+              </div>
+            </div>
+
+            <div class="control">
+              <label for="dotSize">Dot size (mm diameter)</label>
+              <div class="range-row">
+                <input id="dotSize" type="range" min="0.2" max="1.5" step="0.1" value="1" />
+                <input id="dotSizeNumber" type="number" min="0.2" max="1.5" step="0.1" value="1" />
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button id="downloadSvg">Download SVG</button>
+          <button id="exportSettings" type="button">Export Settings</button>
+          <button id="importSettings" type="button">Import Settings</button>
+          <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
+        </div>
+      </section>
+
+      <section class="preview" aria-label="SVG Preview">
+        <div class="preview-inner">
+          <div class="preview-toolbar">
+            <button id="zoomOut" type="button" title="Zoom out">−</button>
+            <input id="zoom" type="range" min="20" max="200" step="5" value="100" />
+            <button id="zoomIn" type="button" title="Zoom in">+</button>
+            <button id="zoomReset" type="button" title="Reset zoom to 100%">Reset</button>
+            <span id="zoomLabel" class="zoom-label">100%</span>
+          </div>
+          <!-- SVG injected here -->
+          <div id="svgHost" class="svg-host"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <small>Units in millimeters. Black: cut lines. Gray: seam + marks.</small>
+    </footer>
+
+    <!-- Lightweight modules (kept non-module for file:// testing) -->
+    <script defer src="src/lib/utils.js"></script>
+    <script defer src="src/lib/constants.js"></script>
+    <script defer src="src/lib/geometry.js"></script>
+    <script defer src="src/lib/stitches.js"></script>
+    <script defer src="src/lib/svg.js"></script>
+    <script defer src="src/lib/state.js"></script>
+    <script defer src="src/lib/ui.js"></script>
+    <script defer src="src/main.js"></script>
+  </body>
+  </html>

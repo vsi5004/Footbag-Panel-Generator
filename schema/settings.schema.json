@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schema/settings.schema.json",
+  "title": "Footbag Panel Settings",
+  "type": "object",
+  "properties": {
+    "version": { "type": "integer" },
+    "shape": { "type": "integer", "enum": [3,4,5,6] },
+    "curved": { "type": "boolean" },
+    "curveFactor": { "type": "number", "minimum": 0.10, "maximum": 0.40 },
+    "side": { "type": "number", "minimum": 10, "maximum": 80 },
+    "seam": { "type": "number", "minimum": 2, "maximum": 9 },
+    "stitches": { "type": "integer", "minimum": 1, "maximum": 50 },
+    "cornerMargin": { "type": "number", "minimum": 0 },
+    "holeSpacing": { "type": "number", "minimum": 1 },
+    "dotSize": { "type": "number", "minimum": 0.2, "maximum": 1.5 },
+    "hex": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["regular", "truncated"] },
+        "long": { "type": "number", "minimum": 10, "maximum": 80 },
+        "ratio": { "type": "number", "minimum": 0.1, "maximum": 0.9 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["version", "shape", "curved", "side", "seam", "stitches", "dotSize", "hex"],
+  "additionalProperties": false
+}
+
