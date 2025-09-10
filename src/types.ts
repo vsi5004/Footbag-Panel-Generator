@@ -60,6 +60,7 @@ export interface UIConfig {
 export interface EdgeSample {
   p: Point;
   t: number;
+  n?: Point;
 }
 
 export interface Constants {
@@ -67,18 +68,24 @@ export interface Constants {
   STROKES: Record<string, number>;
   CURVATURE: Record<number, number>;
   SAMPLING: {
-    ARC_LENGTH_SAMPLES: number;
+    EDGE_SAMPLES_DEFAULT: number;
     EDGE_SAMPLES_HIGH_PRECISION: number;
-    BOUNDS_SAMPLES: number;
     CURVE_SAMPLES_DEFAULT: number;
+    BOUNDS_SAMPLES: number;
+    ARC_LENGTH_SAMPLES: number;
   };
   LAYOUT: {
     MARGIN_MM: number;
+    GRID_SPACING_MM: number;
   };
   PERFORMANCE: {
     DEBOUNCE_MS: number;
   };
-  VALIDATION: Record<string, any>;
+  VALIDATION: {
+    MIN_SPACING: number;
+    MIN_EDGE_LENGTH: number;
+    EPSILON: number;
+  };
 }
 
 export interface DOMElements {
@@ -159,7 +166,7 @@ declare global {
         createSvg: (panel: Panel, options: { dotDiameter: number }) => SVGElement;
       };
       ui: {
-        syncPair: (input: HTMLInputElement | null, display: HTMLElement | null, callback: () => void) => void;
+        syncPair: (input: HTMLInputElement | null, display: HTMLElement | null, callback?: () => void) => void;
         updateVisibility: (elements: DOMElements) => void;
         fixUiTextArtifacts: () => void;
         zoom: {

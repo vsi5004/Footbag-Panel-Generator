@@ -14,7 +14,7 @@ import type {
   DOMElements 
 } from './types';
 
-// Import the JavaScript modules
+// Import the TypeScript modules
 import './lib/utils.js';
 import './lib/constants.js';
 import './lib/geometry.js';
