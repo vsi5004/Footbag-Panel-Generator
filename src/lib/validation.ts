@@ -4,19 +4,22 @@
 import type { UIConfig, GeometryConfig, PanelConfig, GeometryResult, Point } from '../types';
 import { utils } from './utils';
 
-// Window.FB is already declared in types.ts, so we don't need to redeclare it
 
 type ValidatorFunction = (value: string | number, max?: number) => number;
 
 export const INPUT_VALIDATORS: Record<string, ValidatorFunction> = {
+  nSides: (value: string | number) => clamp(parseInt(value.toString(), 10), 3, 10),
   side: (value: string | number) => clamp(parseFloat(value.toString()), 10, 80),
   seam: (value: string | number) => clamp(parseFloat(value.toString()), 2, 9),
+  stitches: (value: string | number) => clamp(parseInt(value.toString(), 10), 0, 20),
   hexLong: (value: string | number) => clamp(parseFloat(value.toString()), 10, 80),
   hexRatio: (value: string | number) => clamp(parseFloat(value.toString()), 0.1, 0.9),
   curveFactor: (value: string | number) => clamp(parseFloat(value.toString()), 0.10, 0.40),
   cornerMargin: (value: string | number, max: number = 100) => clamp(parseFloat(value.toString()), 0, Math.max(0, max)),
   holeSpacing: (value: string | number, max: number = 100) => clamp(parseFloat(value.toString()), 1, max),
   dotSize: (value: string | number) => clamp(parseFloat(value.toString()), 0.2, 1.5),
+  starRootOffset: (value: string | number) => clamp(parseFloat(value.toString()), -3, 1),
+  starRootAngle: (value: string | number) => clamp(parseFloat(value.toString()), 100, 150),
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -28,10 +31,10 @@ function clamp(value: number, min: number, max: number): number {
  */
 export function collectInputValues(el: any): UIConfig {
   const { CURVATURE } = window.FB.CONSTANTS;
-  const nSides = parseInt(el.shape?.value ?? '5', 10);
+  const nSides = INPUT_VALIDATORS.nSides(el.shape?.value ?? '5');
   const side = INPUT_VALIDATORS.side(el.side?.value ?? '30');
   const seam = INPUT_VALIDATORS.seam(el.seam?.value ?? '5');
-  const stitches = parseInt(el.stitches?.value ?? '10', 10);
+  const stitches = INPUT_VALIDATORS.stitches(el.stitches?.value ?? '10');
   const curvedEdges = el.curved?.checked ?? false;
   const hexType = el.hexType?.value ?? 'regular';
   const hexLong = el.hexLong ? INPUT_VALIDATORS.hexLong(el.hexLong.value) : 30;
@@ -40,8 +43,8 @@ export function collectInputValues(el: any): UIConfig {
     INPUT_VALIDATORS.curveFactor(el.curveFactor.value) : 
     (CURVATURE[nSides] || 0.3);
   const dotSize = INPUT_VALIDATORS.dotSize(el.dotSize?.value ?? '1');
-  const starRootOffset = el.starRootOffset ? parseFloat(el.starRootOffset.value) : -1.5;
-  const starRootAngle = el.starRootAngle ? parseFloat(el.starRootAngle.value) : 128;
+  const starRootOffset = el.starRootOffset ? INPUT_VALIDATORS.starRootOffset(el.starRootOffset.value) : -1.5;
+  const starRootAngle = el.starRootAngle ? INPUT_VALIDATORS.starRootAngle(el.starRootAngle.value) : 128;
 
   return {
     nSides,
@@ -101,7 +104,7 @@ export function computeGeometry(config: GeometryConfig): GeometryResult {
  * Updates dynamic UI constraints based on current geometry
  */
 export function updateDynamicConstraints(config: UIConfig, geometry: GeometryResult, el: any): { cornerMargin: number; holeSpacing: number } {
-  const { nSides, hexType, hexLong, side, stitches, curvedEdges, curveFactor } = config;
+  const { nSides, hexType, hexLong, side, stitches, curvedEdges, curveFactor, starRootOffset } = config;
   const { verts, curveScaleR, edgeInclude } = geometry;
   const { SAMPLING } = window.FB.CONSTANTS;
   const { stitches: stitchHelpers } = window.FB;
@@ -119,7 +122,7 @@ export function updateDynamicConstraints(config: UIConfig, geometry: GeometryRes
   const depth = curvedEdges ? curveScaleR * curveFactor : 0;
   const allowableSpacing = stitchHelpers.computeAllowableSpacing(
     verts, depth, stitches, cornerMargin, 
-    SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude
+    SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset
   );
   
   if (el.holeSpacing) {

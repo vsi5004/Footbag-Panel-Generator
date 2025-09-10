@@ -116,7 +116,8 @@ function computeAllowableSpacing(
   countPerSide: number, 
   cornerMargin: number, 
   samplesPerEdge: number = SAMPLING.EDGE_SAMPLES_DEFAULT, 
-  edgeInclude: ((i: number) => boolean) | null = null
+  edgeInclude: ((i: number) => boolean) | null = null,
+  starRootOffset: number = -1.5
 ): number {
   const n = verts.length; 
   let minAllowable = Infinity;
@@ -145,21 +146,13 @@ function computeAllowableSpacing(
       const startIsOuterPoint = i % 2 === 0;
       const endIsOuterPoint = ((i + 1) % n) % 2 === 0;
       
-      cmStart = startIsOuterPoint ? cornerMargin * 2.0 : -cornerMargin * 1.5; // More negative margin extends further past roots
-      cmEnd = endIsOuterPoint ? cornerMargin * 2.0 : -cornerMargin * 1.5;     // More negative margin extends further past roots
-    }
-    
-    cmStart = Math.max(0, Math.min(cmStart, Math.max(0, edgeLen / 2 - 0.1)));
-    cmEnd = Math.max(0, Math.min(cmEnd, Math.max(0, edgeLen / 2 - 0.1)));
-    
-    // For stars, allow negative margins at roots
-    if (isStar) {
-      const startIsOuterPoint = i % 2 === 0;
-      const endIsOuterPoint = ((i + 1) % n) % 2 === 0;
-      
-      // Recalculate with negative margins allowed at roots
-      cmStart = startIsOuterPoint ? Math.max(0, Math.min(cornerMargin * 2.0, Math.max(0, edgeLen / 2 - 0.1))) : -cornerMargin * 1.5;
-      cmEnd = endIsOuterPoint ? Math.max(0, Math.min(cornerMargin * 2.0, Math.max(0, edgeLen / 2 - 0.1))) : -cornerMargin * 1.5;
+      // Calculate margins: larger positive margins at outer points, negative margins at roots
+      cmStart = startIsOuterPoint ? Math.max(0, Math.min(cornerMargin * 2.0, Math.max(0, edgeLen / 2 - 0.1))) : -cornerMargin * Math.abs(starRootOffset);
+      cmEnd = endIsOuterPoint ? Math.max(0, Math.min(cornerMargin * 2.0, Math.max(0, edgeLen / 2 - 0.1))) : -cornerMargin * Math.abs(starRootOffset);
+    } else {
+      // For non-stars, apply standard positive margin constraints
+      cmStart = Math.max(0, Math.min(cmStart, Math.max(0, edgeLen / 2 - 0.1)));
+      cmEnd = Math.max(0, Math.min(cmEnd, Math.max(0, edgeLen / 2 - 0.1)));
     }
     
     const usable = Math.max(0, edgeLen - cmStart - cmEnd);

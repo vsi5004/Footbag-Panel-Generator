@@ -19,25 +19,18 @@ function regularPolygonVertices(n: number, radius: number): Point[] {
 function starVertices(outerRadius: number, rootAngle: number = 128): Point[] {
   const verts: Point[] = [];
   
-  // For a 5-pointed star with user-configurable root angles
+  // Creates a 5-pointed star with configurable root angles
   // 
-  // Given constraints:
-  // - 5 outer points separated by 72° (360°/5)
-  // - Obtuse angle at each root = rootAngle
-  // - Acute angle at each tip = 180° - rootAngle (since tip + adjacent roots must sum to 360°/5 * 2 = 144°, and roots are symmetric)
+  // Mathematical relationship:
+  // - 5 outer points (tips) at radius R, separated by 72° (360°/5)
+  // - 5 inner points (roots) at radius r, with obtuse angle = rootAngle
+  // - Acute angle at tips = 180° - rootAngle
   //
-  // Actually, for proper star geometry:
-  // Acute angle at tips = 180° - rootAngle
-  // The relationship comes from the constraint that alternating vertices form the star pattern
+  // From the geometry of the isosceles triangle formed by a tip and its two adjacent roots:
+  // tan((180° - rootAngle)/2) = (r * sin(36°)) / (R - r * cos(36°))
   //
-  // From the tip constraint: if a tip is at angle θ, and the acute angle is (180° - rootAngle),
-  // then the two adjacent inner points subtend (180° - rootAngle) from that tip.
-  // 
-  // For exact geometry: in triangle from tip to two adjacent inner points,
-  // if inner radius = r and outer radius = R, and inner points are at ±36° from tip,
-  // then: tan((180° - rootAngle)/2) = (r * sin(36°)) / (R - r * cos(36°))
-  //
-  // Solving for r/R:
+  // Solving for inner radius: r = R * tan(halfAcute) / (sin(36°) + tan(halfAcute) * cos(36°))
+  
   const acuteAngle = 180 - rootAngle; // Acute angle at tips in degrees
   const halfAcute = (acuteAngle / 2) * Math.PI / 180; // Half of acute angle in radians
   const tan_half_acute = Math.tan(halfAcute);
@@ -163,6 +156,5 @@ export const geometry = {
   truncatedHexagonVertices,
 };
 
-// For backward compatibility with global window.FB
 window.FB = window.FB || {};
 window.FB.geometry = geometry;

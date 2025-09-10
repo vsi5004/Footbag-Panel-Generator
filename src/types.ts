@@ -180,7 +180,8 @@ declare global {
           count: number,
           cornerMargin: number,
           precision: number,
-          edgeInclude?: ((i: number) => boolean) | null
+          edgeInclude?: ((i: number) => boolean) | null,
+          starRootOffset?: number
         ) => number;
       };
       svg: {

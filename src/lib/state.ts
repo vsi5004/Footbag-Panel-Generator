@@ -1,5 +1,6 @@
 import type { DOMElements } from '../types';
 import { utils } from './utils';
+import { INPUT_VALIDATORS } from './validation';
 
 const { clamp } = utils;
 
@@ -38,18 +39,18 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
   return {
     $schema: './schema/settings.schema.json',
     version: 1,
-    shape: parseInt(el.shape?.value || '5', 10),
+    shape: INPUT_VALIDATORS.nSides(el.shape?.value || '5'),
     curved: !!el.curved?.checked,
-    curveFactor: el.curved?.checked && el.curveFactor ? clamp(parseFloat(el.curveFactor.value), 0.10, 0.40) : undefined,
-    side: clamp(parseFloat(el.side?.value || '30'), 10, 80),
-    seam: clamp(parseFloat(el.seam?.value || '5'), 2, 9),
-    stitches: parseInt(el.stitches?.value || '10', 10),
+    curveFactor: el.curved?.checked && el.curveFactor ? INPUT_VALIDATORS.curveFactor(el.curveFactor.value) : undefined,
+    side: INPUT_VALIDATORS.side(el.side?.value || '30'),
+    seam: INPUT_VALIDATORS.seam(el.seam?.value || '5'),
+    stitches: INPUT_VALIDATORS.stitches(el.stitches?.value || '10'),
     showGrid: el.showGrid ? !!el.showGrid.checked : undefined,
     cornerMargin: el.cornerMargin ? clamp(parseFloat(el.cornerMargin.value), 0, 999) : undefined,
     holeSpacing: el.holeSpacing ? clamp(parseFloat(el.holeSpacing.value), 1, 999) : undefined,
-    dotSize: clamp(parseFloat(el.dotSize?.value || '1'), 0.2, 1.5),
-    starRootOffset: el.starRootOffset ? parseFloat(el.starRootOffset.value) : undefined,
-    starRootAngle: el.starRootAngle ? parseFloat(el.starRootAngle.value) : undefined,
+    dotSize: INPUT_VALIDATORS.dotSize(el.dotSize?.value || '1'),
+    starRootOffset: el.starRootOffset ? INPUT_VALIDATORS.starRootOffset(el.starRootOffset.value) : undefined,
+    starRootAngle: el.starRootAngle ? INPUT_VALIDATORS.starRootAngle(el.starRootAngle.value) : undefined,
     hex: {
       type: el.hexType?.value || 'regular',
       long: el.hexLong ? clamp(parseFloat(el.hexLong.value), 10, 80) : undefined,
@@ -122,12 +123,12 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
   }
 
   if (s.starRootOffset != null && el.starRootOffset) {
-    set(el.starRootOffset, clamp(parseFloat(String(s.starRootOffset)), -3, 1));
+    set(el.starRootOffset, INPUT_VALIDATORS.starRootOffset(s.starRootOffset));
     if (el.starRootOffsetNumber) el.starRootOffsetNumber.textContent = el.starRootOffset.value;
   }
 
   if (s.starRootAngle != null && el.starRootAngle) {
-    set(el.starRootAngle, clamp(parseFloat(String(s.starRootAngle)), 100, 150));
+    set(el.starRootAngle, INPUT_VALIDATORS.starRootAngle(s.starRootAngle));
     if (el.starRootAngleNumber) el.starRootAngleNumber.textContent = el.starRootAngle.value;
   }
 
