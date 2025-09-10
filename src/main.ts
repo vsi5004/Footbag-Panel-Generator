@@ -107,11 +107,70 @@ if (!el.shape || !el.side || !el.seam || !el.curved || !el.stitches || !el.dotSi
   console.error('Critical DOM elements missing');
 }
 
+// Secondary block: page layout preview elements
+const pageEl: DOMElements = {
+  shape: null,
+  side: null,
+  seam: null,
+  curved: null,
+  stitches: null,
+  dotSize: null,
+  svgHost: document.getElementById('pageSvgHost'),
+  downloadSvg: document.getElementById('downloadPageSvg') as HTMLButtonElement,
+  sideNumber: null,
+  sideRow: null,
+  seamNumber: null,
+  curveFactorRow: null,
+  curveFactor: null,
+  curveFactorNumber: null,
+  stitchesNumber: null,
+  cornerMargin: null,
+  cornerMarginNumber: null,
+  holeSpacing: null,
+  holeSpacingNumber: null,
+  dotSizeNumber: null,
+  hexTypeRow: null,
+  hexLongRow: null,
+  hexRatioRow: null,
+  hexType: null,
+  hexLong: null,
+  hexLongNumber: null,
+  hexRatio: null,
+  hexRatioNumber: null,
+  exportSettings: null,
+  importSettings: null,
+  importFile: null,
+  zoom: document.getElementById('pageZoom') as HTMLInputElement,
+  zoomIn: document.getElementById('pageZoomIn') as HTMLButtonElement,
+  zoomOut: document.getElementById('pageZoomOut') as HTMLButtonElement,
+  zoomReset: document.getElementById('pageZoomReset') as HTMLButtonElement,
+  zoomLabel: document.getElementById('pageZoomLabel') as HTMLSpanElement,
+  showGrid: document.getElementById('pageShowGrid') as HTMLInputElement,
+};
+
+// Page layout controls
+const pageRows = document.getElementById('pageRows') as HTMLInputElement | null;
+const pageRowsNumber = document.getElementById('pageRowsNumber') as HTMLInputElement | null;
+const pageCols = document.getElementById('pageCols') as HTMLInputElement | null;
+const pageColsNumber = document.getElementById('pageColsNumber') as HTMLInputElement | null;
+const pageHSpace = document.getElementById('pageHSpace') as HTMLInputElement | null;
+const pageHSpaceNumber = document.getElementById('pageHSpaceNumber') as HTMLInputElement | null;
+const pageVSpace = document.getElementById('pageVSpace') as HTMLInputElement | null;
+const pageVSpaceNumber = document.getElementById('pageVSpaceNumber') as HTMLInputElement | null;
+const pageInvert = document.getElementById('pageInvert') as HTMLInputElement | null;
+
 const { clamp } = window.FB.utils;
 
 const geometry = window.FB.geometry;
 
 const stitchHelpers = window.FB.stitches;
+
+// Keep the most recent single-panel result for the layout preview
+let lastPanel: Panel | null = null;
+let lastDotSize: number = 1;
+let lastLayoutWpx = 0;
+let lastLayoutHpx = 0;
+let isFirstLayoutRender = true;
 
 // Utility function for edge arc length calculation (currently unused)
 // function edgeArcLength(verts: Point[], depth: number, samplesPerEdge: number = SAMPLING.ARC_LENGTH_SAMPLES): { lens: number[]; total: number } {
@@ -313,6 +372,173 @@ function renderSVGToDOM(panel: Panel, dotDiameter: number): void {
   }
 }
 
+// Build a sheet layout composed of multiple copies of the current panel
+function createLayoutSvg(
+  panel: Panel,
+  opts: { rows: number; cols: number; hSpace: number; vSpace: number; dotDiameter: number; showGrid: boolean; invertOdd: boolean }
+): SVGElement {
+  const { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd } = opts;
+  const { COLORS, STROKES, LAYOUT } = window.FB.CONSTANTS;
+
+  // Use the panel's tight bounds (without the per-panel margin) so spacing=0
+  // produces a snug, waste-minimizing layout.
+  const margin = LAYOUT.MARGIN_MM;
+  const cellW = Math.max(0, panel.bounds.width - 2 * margin);
+  const cellH = Math.max(0, panel.bounds.height - 2 * margin);
+  const width = cols * cellW + (cols - 1) * hSpace;
+  const height = rows * cellH + (rows - 1) * vSpace;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  svg.setAttribute('width', `${width}mm`);
+  svg.setAttribute('height', `${height}mm`);
+  svg.setAttribute('viewBox', `0 0 ${width.toFixed(3)} ${height.toFixed(3)}`);
+  svg.setAttribute('fill', 'none');
+  svg.style.background = 'white';
+
+  // Optional sheet grid
+  const grid = document.createElementNS(svg.namespaceURI, 'g');
+  grid.setAttribute('id', 'grid');
+  grid.setAttribute('stroke', '#bfbfbf');
+  grid.setAttribute('stroke-width', '0.1mm');
+  grid.setAttribute('opacity', '0.22');
+  const gridSpacing = LAYOUT.GRID_SPACING_MM;
+  for (let x = 0; x <= width; x += gridSpacing) {
+    const l = document.createElementNS(svg.namespaceURI, 'line');
+    l.setAttribute('x1', x.toFixed(3));
+    l.setAttribute('y1', '0');
+    l.setAttribute('x2', x.toFixed(3));
+    l.setAttribute('y2', height.toFixed(3));
+    grid.appendChild(l);
+  }
+  for (let y = 0; y <= height; y += gridSpacing) {
+    const l = document.createElementNS(svg.namespaceURI, 'line');
+    l.setAttribute('x1', '0');
+    l.setAttribute('y1', y.toFixed(3));
+    l.setAttribute('x2', width.toFixed(3));
+    l.setAttribute('y2', y.toFixed(3));
+    grid.appendChild(l);
+  }
+  svg.appendChild(grid);
+  if (!showGrid) grid.setAttribute('style', 'display:none');
+
+  // Translation to align panel's local coords (which include viewMin offsets)
+  // Translate so that the panel's content minX/minY (excluding margin) sits at (0,0)
+  const dx0 = -(panel.bounds.viewMinX + margin);
+  const dy0 = -(panel.bounds.viewMinY + margin);
+  const r = Math.max(0.1, dotDiameter / 2);
+
+  for (let ri = 0; ri < rows; ri++) {
+    for (let ci = 0; ci < cols; ci++) {
+      const offX = ci * (cellW + hSpace) + dx0;
+      const offY = ri * (cellH + vSpace) + dy0;
+      // Cell container at cell origin
+      const gCell = document.createElementNS(svg.namespaceURI, 'g');
+      gCell.setAttribute('transform', `translate(${offX.toFixed(3)} ${offY.toFixed(3)})`);
+      // Inner group for optional flip within the cell box
+      const g = document.createElementNS(svg.namespaceURI, 'g');
+      if (invertOdd && (ci % 2 === 1)) {
+        // Flip vertically within the panel's own coordinate space
+        // The panel spans from viewMinY to viewMinY + height
+        // We want to flip around the center: (viewMinY + viewMaxY) / 2
+        const panelMinY = panel.bounds.viewMinY;
+        const panelMaxY = panelMinY + panel.bounds.height;
+        const flipCenter = (panelMinY + panelMaxY) / 2;
+        // y' = -y + 2*center  -> vertical mirror around the center line
+        g.setAttribute('transform', `matrix(1 0 0 -1 0 ${(2 * flipCenter).toFixed(3)})`);
+      }
+
+      const path = document.createElementNS(svg.namespaceURI, 'path');
+      path.setAttribute('d', panel.outlinePath);
+      path.setAttribute('stroke', COLORS.cut);
+      path.setAttribute('stroke-width', `${STROKES.cut}mm`);
+      path.setAttribute('fill', 'none');
+      g.appendChild(path);
+
+      const marks = document.createElementNS(svg.namespaceURI, 'g');
+      marks.setAttribute('fill', COLORS.seam);
+      for (const p of panel.stitches) {
+        const c = document.createElementNS(svg.namespaceURI, 'circle');
+        c.setAttribute('cx', p.x.toFixed(3));
+        c.setAttribute('cy', p.y.toFixed(3));
+        c.setAttribute('r', r.toString());
+        c.setAttribute('fill', COLORS.seam);
+        marks.appendChild(c);
+      }
+      g.appendChild(marks);
+      gCell.appendChild(g);
+      svg.appendChild(gCell);
+    }
+  }
+  return svg;
+}
+
+function renderLayout(panel: Panel | null, dotDiameter: number): void {
+  if (!pageEl.svgHost) return;
+  if (!panel) { pageEl.svgHost.innerHTML = ''; return; }
+  const rows = pageRows ? Math.max(1, Math.min(50, parseInt(pageRows.value || '3', 10))) : 3;
+  const cols = pageCols ? Math.max(1, Math.min(50, parseInt(pageCols.value || '3', 10))) : 3;
+  
+  // Get horizontal spacing from the number input (which shows the actual value)
+  const hSpace = pageHSpaceNumber ? parseFloat(pageHSpaceNumber.value || '0') : 0;
+  
+  const vSpace = pageVSpace ? Math.max(0, parseFloat(pageVSpace.value || '10')) : 10;
+  const showGrid = !!(pageEl.showGrid && pageEl.showGrid.checked);
+  const invertOdd = !!(pageInvert && pageInvert.checked);
+
+  // Compute if we need to auto-fit to the host viewport
+  const MM_TO_PX = 96 / 25.4;
+  const margin = LAYOUT.MARGIN_MM;
+  const cellW = Math.max(0, panel.bounds.width - 2 * margin);
+  const cellH = Math.max(0, panel.bounds.height - 2 * margin);
+  const layoutWmm = cols * cellW + (cols - 1) * hSpace;
+  const layoutHmm = rows * cellH + (rows - 1) * vSpace;
+  const layoutWpx = layoutWmm * MM_TO_PX;
+  const layoutHpx = layoutHmm * MM_TO_PX;
+  lastLayoutWpx = layoutWpx;
+  lastLayoutHpx = layoutHpx;
+  const hostW = pageEl.svgHost.clientWidth || 1;
+  const hostH = pageEl.svgHost.clientHeight || 1;
+  const needsFit = layoutWpx > hostW || layoutHpx > hostH;
+  const rawFitPct = Math.min(hostW / layoutWpx, hostH / layoutHpx) * 100;
+  const fitPct = Math.max(20, Math.min(300, Math.floor(rawFitPct) - 1));
+
+  pageEl.svgHost.innerHTML = '';
+  const svg = createLayoutSvg(panel, { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd });
+  const wrap = document.createElement('div');
+  wrap.className = 'svg-wrap';
+  wrap.appendChild(svg);
+  pageEl.svgHost.appendChild(wrap);
+  const currentPct = window.FB.ui?.zoom?.getPct(pageEl) || 100;
+  if (isFirstLayoutRender) {
+    // Keep user's/default 100% on first load; no auto-shrink
+    window.FB.ui?.zoom?.apply(pageEl);
+    window.FB.ui?.zoom?.updateDisplay(pageEl);
+    isFirstLayoutRender = false;
+  } else if (needsFit && currentPct > fitPct) {
+    // Only shrink if needed to fit
+    window.FB.ui?.zoom?.setPct(pageEl, fitPct);
+  } else {
+    window.FB.ui?.zoom?.apply(pageEl);
+    window.FB.ui?.zoom?.updateDisplay(pageEl);
+  }
+
+  requestAnimationFrame(() => updatePageOverflow());
+}
+
+function updatePageOverflow(): void {
+  if (!pageEl.svgHost) return;
+  const host = pageEl.svgHost as HTMLElement;
+  const hostW = host.clientWidth || 1;
+  const hostH = host.clientHeight || 1;
+  const scale = (window.FB.ui?.zoom?.getPct(pageEl) || 100) / 100;
+  const visW = lastLayoutWpx * scale;
+  const visH = lastLayoutHpx * scale;
+  const tol = Math.max(10, Math.round(6 * (window.devicePixelRatio || 1))); // px
+  host.style.overflowX = (visW <= hostW + tol) ? 'hidden' : 'auto';
+  host.style.overflowY = (visH <= hostH + tol) ? 'hidden' : 'auto';
+}
+
 /**
  * Main render function - orchestrates the entire rendering pipeline
  */
@@ -341,6 +567,9 @@ function render(): void {
     const panel = computePanel(panelConfig);
     
     renderSVGToDOM(panel, config.dotSize);
+    lastPanel = panel;
+    lastDotSize = config.dotSize;
+    renderLayout(lastPanel, lastDotSize);
     
   } catch (error) {
     console.error('Render error:', error);
@@ -465,6 +694,70 @@ function bindUI(): void {
       reader.readAsText(file);
     });
   }
+
+  // Bind layout (page) controls
+  const UIpage = window.FB.ui;
+  if (pageRows && pageRowsNumber) UIpage.syncPair(pageRows, pageRowsNumber, () => renderLayout(lastPanel, lastDotSize));
+  if (pageCols && pageColsNumber) UIpage.syncPair(pageCols, pageColsNumber, () => renderLayout(lastPanel, lastDotSize));
+  
+  // Custom sync for horizontal spacing with negative value mapping
+  if (pageHSpace && pageHSpaceNumber) {
+    const syncHSpaceFromSlider = () => {
+      const sliderVal = parseInt(pageHSpace.value, 10);
+      // Map slider: 0-20 → -20 to 0mm, 21-70 → 1 to 50mm
+      const actualVal = sliderVal <= 20 ? (sliderVal - 20) : (sliderVal - 19);
+      pageHSpaceNumber.value = actualVal.toString();
+      renderLayout(lastPanel, lastDotSize);
+    };
+    
+    const syncHSpaceFromNumber = () => {
+      const numberVal = parseInt(pageHSpaceNumber.value, 10);
+      // Map number: -20 to 0mm → 0-20 slider, 1 to 50mm → 21-70 slider
+      const sliderVal = numberVal <= 0 ? (numberVal + 20) : (numberVal + 19);
+      pageHSpace.value = Math.max(0, Math.min(70, sliderVal)).toString();
+      renderLayout(lastPanel, lastDotSize);
+    };
+    
+    pageHSpace.addEventListener('input', syncHSpaceFromSlider);
+    pageHSpaceNumber.addEventListener('input', syncHSpaceFromNumber);
+    
+    // Initialize the display
+    syncHSpaceFromSlider();
+  }
+  
+  if (pageVSpace && pageVSpaceNumber) UIpage.syncPair(pageVSpace, pageVSpaceNumber, () => renderLayout(lastPanel, lastDotSize));
+  pageInvert?.addEventListener('change', () => renderLayout(lastPanel, lastDotSize));
+
+  pageEl.showGrid?.addEventListener('change', () => renderLayout(lastPanel, lastDotSize));
+
+  const pageZoomCtl = UIpage.zoom;
+  pageEl.zoom?.addEventListener('input', () => { pageZoomCtl.updateDisplay(pageEl); pageZoomCtl.apply(pageEl); requestAnimationFrame(() => updatePageOverflow()); });
+  pageEl.zoomIn?.addEventListener('click', () => pageZoomCtl.adjustBy(pageEl, 10));
+  pageEl.zoomOut?.addEventListener('click', () => pageZoomCtl.adjustBy(pageEl, -10));
+  pageEl.zoomReset?.addEventListener('click', () => { pageZoomCtl.setPct(pageEl, 100); requestAnimationFrame(() => updatePageOverflow()); });
+
+  pageEl.downloadSvg?.addEventListener('click', () => {
+    const svg = pageEl.svgHost?.querySelector('svg');
+    if (!svg) return;
+    const clone = svg.cloneNode(true) as SVGElement;
+    clone.style.background = 'white';
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = `footbag-layout-${(pageRows?.value || '3')}x${(pageCols?.value || '3')}.svg`;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  // Re-check overflow on plus/minus buttons which change zoom via CSS transform
+  pageEl.zoomIn?.addEventListener('click', () => requestAnimationFrame(() => updatePageOverflow()));
+  pageEl.zoomOut?.addEventListener('click', () => requestAnimationFrame(() => updatePageOverflow()));
+
+  // Recompute on window resize
+  window.addEventListener('resize', () => requestAnimationFrame(() => updatePageOverflow()));
 }
 
 const debouncedRender = debounce(render, PERFORMANCE.DEBOUNCE_MS);
@@ -475,6 +768,9 @@ window.FB.ui.updateVisibility(el);
 
 const zoomControls = window.FB.ui.zoom;
 zoomControls.setPct(el, 200);
+
+// Initialize layout preview zoom as well (100%)
+window.FB.ui.zoom.setPct(pageEl, 100);
 
 render();
 

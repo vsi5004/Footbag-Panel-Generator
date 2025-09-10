@@ -170,6 +170,7 @@ declare global {
         updateVisibility: (elements: DOMElements) => void;
         fixUiTextArtifacts: () => void;
         zoom: {
+          getPct: (elements: DOMElements) => number;
           apply: (elements: DOMElements) => void;
           updateDisplay: (elements: DOMElements) => void;
           adjustBy: (elements: DOMElements, delta: number) => void;

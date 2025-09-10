@@ -3,7 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Footbag Panel Generator</title>
+    <title>Footbag Pane          <div class="control">
+          <label for="pageHSpace">Horizontal spacing (mm)</label>
+          <div class="range-row">
+            <input id="pageHSpace" type="range" min="0" max="70" step="1" value="20" />
+            <input id="pageHSpaceNumber" type="number" min="-20" max="50" step="1" value="0" />   <label for="pageHSpace">Horizontal spacing (mm)</label>
+          <div class="range-input">
+            <input id="pageHSpace" type="range" min="-20" max="50" step="1" value="0" />
+            <input id="pageHSpaceNumber" type="number" min="-20" max="50" step="1" value="0" />nerator</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -109,8 +116,8 @@
             <div class="control">
               <label for="holeSpacing">Hole spacing (mm)</label>
               <div class="range-row">
-                <input id="holeSpacing" type="range" min="1" max="20" step="0.5" value="5" />
-                <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.5" value="5" />
+                <input id="holeSpacing" type="range" min="1" max="20" step="0.2" value="5" />
+                <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.2" value="5" />
               </div>
             </div>
 
@@ -150,6 +157,77 @@
           </div>
           <!-- SVG injected here -->
           <div id="svgHost" class="svg-host"></div>
+        </div>
+      </section>
+
+      <!-- Layout configuration + preview -->
+      <section class="controls" aria-label="Layout Settings">
+        <div class="control">
+          <label for="pageRows">Panel rows</label>
+          <div class="range-row">
+            <input id="pageRows" type="range" min="1" max="12" step="1" value="3" />
+            <input id="pageRowsNumber" type="number" min="1" max="12" step="1" value="3" />
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="pageCols">Panel columns</label>
+          <div class="range-row">
+            <input id="pageCols" type="range" min="1" max="12" step="1" value="3" />
+            <input id="pageColsNumber" type="number" min="1" max="12" step="1" value="3" />
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="pageHSpace">Horizontal spacing (mm)</label>
+          <div class="range-row">
+            <input id="pageHSpace" type="range" min="0" max="70" step="0.5" value="20" />
+            <input id="pageHSpaceNumber" type="number" min="-20" max="50" step="0.5" value="0" />
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="pageVSpace">Vertical spacing (mm)</label>
+          <div class="range-row">
+            <input id="pageVSpace" type="range" min="0" max="50" step="0.5" value="1" />
+            <input id="pageVSpaceNumber" type="number" min="0" max="50" step="0.5" value="1" />
+          </div>
+        </div>
+
+        <div class="control">
+          <label>Inverted nesting</label>
+          <div class="switch-row">
+            <span class="switch-label">Off</span>
+            <label class="switch" aria-label="Toggle inverted nesting">
+              <input id="pageInvert" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+            <span class="switch-label">On</span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="downloadPageSvg" type="button">Download Layout SVG</button>
+        </div>
+      </section>
+
+      <section class="preview" aria-label="Layout Preview">
+        <div class="preview-inner preview-inner--layout">
+          <div class="preview-toolbar">
+            <button id="pageZoomOut" type="button" title="Zoom out">-</button>
+            <input id="pageZoom" type="range" min="20" max="300" step="5" value="100" />
+            <button id="pageZoomIn" type="button" title="Zoom in">+</button>
+            <button id="pageZoomReset" type="button" title="Reset zoom to 100%">Reset</button>
+            <span id="pageZoomLabel" class="zoom-label">100%</span>
+            <div class="switch-row" style="margin-left:12px">
+              <span class="switch-label">Grid</span>
+              <label class="switch" aria-label="Toggle background grid for layout">
+                <input id="pageShowGrid" type="checkbox" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div id="pageSvgHost" class="svg-host"></div>
         </div>
       </section>
     </main>
