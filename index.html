@@ -36,6 +36,7 @@
             <option value="4">Square (4)</option>
             <option value="5" selected>Pentagon (5)</option>
             <option value="6">Hexagon (6)</option>
+            <option value="10">Star (5-pointed)</option>
           </select>
         </div>
 
@@ -65,6 +66,20 @@
           </div>
         </div>
 
+        <div class="control hidden" id="starRootAngleRow">
+          <div class="tooltip-container">
+            <label for="starRootAngle">Star root angle (degrees)</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              The angle at the inner points (roots) of the star. Smaller angles make sharper inner points.
+            </div>
+          </div>
+          <div class="range-row">
+            <input id="starRootAngle" type="range" min="100" max="150" step="2" value="128" />
+            <input id="starRootAngleNumber" type="number" min="100" max="150" step="2" value="128" />
+          </div>
+        </div>
+
         
         
         <div class="control hex6-only hidden" id="hexTypeRow">
@@ -90,7 +105,7 @@
         </div>
 
         <div class="control hex6-only hidden" id="hexRatioRow">
-          <label for="hexRatio">Short side ratio (S = r × long)</label>
+          <label for="hexRatio">Short side ratio (S = r x long)</label>
           <div class="range-row">
             <input id="hexRatio" type="range" min="0.1" max="0.9" step="0.05" value="0.5" />
             <input id="hexRatioNumber" type="number" min="0.1" max="0.9" step="0.05" value="0.5" />
@@ -128,8 +143,8 @@
             </div>
           </div>
           <div class="range-row">
-            <input id="stitches" type="range" min="4" max="16" step="1" value="10" />
-            <input id="stitchesNumber" type="number" min="4" max="16" step="1" value="10" />
+            <input id="stitches" type="range" min="4" max="20" step="1" value="10" />
+            <input id="stitchesNumber" type="number" min="4" max="20" step="1" value="10" />
           </div>
         </div>
 
@@ -163,6 +178,21 @@
               <div class="range-row">
                 <input id="cornerMargin" type="range" min="0" max="20" step="0.5" value="0" />
                 <input id="cornerMarginNumber" type="number" min="0" max="20" step="0.5" value="0" />
+              </div>
+            </div>
+
+            <!-- Star root offset (only visible for star shapes) -->
+            <div id="starRootOffsetRow" class="control hidden">
+              <div class="tooltip-container">
+                <label for="starRootOffset">Star root offset</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  Controls how far stitches extend past the star root vertices. Negative values extend stitches beyond the edge boundaries for better coverage at star roots.
+                </div>
+              </div>
+              <div class="range-row">
+                <input id="starRootOffset" type="range" min="-3" max="1" step="0.1" value="-1.5" />
+                <input id="starRootOffsetNumber" type="number" min="-3" max="1" step="0.1" value="-1.5" />
               </div>
             </div>
 
@@ -253,8 +283,8 @@
         <div class="control">
           <label for="pageVSpace">Vertical spacing (mm)</label>
           <div class="range-row">
-            <input id="pageVSpace" type="range" min="0" max="50" step="0.5" value="1" />
-            <input id="pageVSpaceNumber" type="number" min="0" max="50" step="0.5" value="1" />
+            <input id="pageVSpace" type="range" min="-20" max="60" step="0.5" value="1" />
+            <input id="pageVSpaceNumber" type="number" min="-20" max="60" step="0.5" value="1" />
           </div>
         </div>
 

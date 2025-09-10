@@ -16,6 +16,51 @@ function regularPolygonVertices(n: number, radius: number): Point[] {
   return verts;
 }
 
+function starVertices(outerRadius: number, rootAngle: number = 128): Point[] {
+  const verts: Point[] = [];
+  
+  // Creates a 5-pointed star with configurable root angles
+  // 
+  // Mathematical relationship:
+  // - 5 outer points (tips) at radius R, separated by 72° (360°/5)
+  // - 5 inner points (roots) at radius r, with obtuse angle = rootAngle
+  // - Acute angle at tips = 180° - rootAngle
+  //
+  // From the geometry of the isosceles triangle formed by a tip and its two adjacent roots:
+  // tan((180° - rootAngle)/2) = (r * sin(36°)) / (R - r * cos(36°))
+  //
+  // Solving for inner radius: r = R * tan(halfAcute) / (sin(36°) + tan(halfAcute) * cos(36°))
+  
+  const acuteAngle = 180 - rootAngle; // Acute angle at tips in degrees
+  const halfAcute = (acuteAngle / 2) * Math.PI / 180; // Half of acute angle in radians
+  const tan_half_acute = Math.tan(halfAcute);
+  
+  const sin36 = Math.sin(36 * Math.PI / 180);
+  const cos36 = Math.cos(36 * Math.PI / 180);
+  
+  const innerRadius = outerRadius * tan_half_acute / (sin36 + tan_half_acute * cos36);
+  
+  const startAngle = -Math.PI / 2; // Start at top
+  
+  for (let i = 0; i < 5; i++) {
+    // Add outer point (star tip)
+    const outerAngle = startAngle + i * (2 * Math.PI / 5);
+    verts.push({ 
+      x: outerRadius * Math.cos(outerAngle), 
+      y: outerRadius * Math.sin(outerAngle) 
+    });
+    
+    // Add inner point (between star tips)
+    const innerAngle = startAngle + i * (2 * Math.PI / 5) + Math.PI / 5;
+    verts.push({ 
+      x: innerRadius * Math.cos(innerAngle), 
+      y: innerRadius * Math.sin(innerAngle) 
+    });
+  }
+  
+  return verts;
+}
+
 function edgeMidpoint(a: Point, b: Point): Point { 
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; 
 }
@@ -100,6 +145,7 @@ function truncatedHexagonVertices(longSide: number, shortSide: number): Point[] 
 
 export const geometry = {
   regularPolygonVertices,
+  starVertices,
   edgeMidpoint,
   outwardNormal,
   quadPoint,
@@ -110,6 +156,5 @@ export const geometry = {
   truncatedHexagonVertices,
 };
 
-// For backward compatibility with global window.FB
 window.FB = window.FB || {};
 window.FB.geometry = geometry;

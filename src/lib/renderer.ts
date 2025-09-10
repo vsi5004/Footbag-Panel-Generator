@@ -10,7 +10,7 @@ import { utils } from './utils';
  * Computes a panel from the given configuration
  */
 export function computePanel(params: PanelConfig): Panel {
-  const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveFactor, holeSpacing, cornerMargin } = params;
+  const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveFactor, holeSpacing, cornerMargin, starRootOffset, starRootAngle } = params;
   const { geometry, stitches: stitchHelpers } = window.FB;
   const { CURVATURE, SAMPLING, LAYOUT } = window.FB.CONSTANTS;
   
@@ -26,6 +26,13 @@ export function computePanel(params: PanelConfig): Panel {
     for (const v of verts) sumr += Math.hypot(v.x, v.y);
     curveScaleR = (sumr / verts.length) || longSideLength;
     edgeInclude = (i: number) => i % 2 === 0;
+  } else if (nSides === 10) {
+    // Star shape - use sideLen as the outer radius
+    verts = geometry.starVertices(sideLen, starRootAngle);
+    curveScaleR = sideLen;
+    // For stars, we want to avoid stitching at the sharp points
+    // Use edgeInclude to only stitch certain edges, and increase corner margin
+    edgeInclude = null; // Include all edges for now
   } else {
     const circumRadius = sideLen / (2 * Math.sin(Math.PI / nSides));
     verts = geometry.regularPolygonVertices(nSides, circumRadius);
@@ -45,7 +52,11 @@ export function computePanel(params: PanelConfig): Panel {
   const factor = curvedEdges ? (Number.isFinite(curveFactor) ? curveFactor : (CURVATURE[nSides] || 0.3)) : 0;
   const curveDepth = curvedEdges ? curveScaleR * factor : 0;
   const outlinePath = geometry.quadraticCurvePath(verts, curveDepth);
-  const stitches = stitchHelpers.stitchPositions(verts, curveDepth, stitchCount, seamOffset, holeSpacing, cornerMargin, SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude);
+  
+  // For stars, use larger corner margin to avoid stitching too close to sharp points
+  const effectiveCornerMargin = nSides === 10 ? Math.max(cornerMargin, 3.0) : cornerMargin;
+  
+  const stitches = stitchHelpers.stitchPositions(verts, curveDepth, stitchCount, seamOffset, holeSpacing, effectiveCornerMargin, SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset);
   const allX: number[] = [];
   const allY: number[] = [];
   for (let vertexIndex = 0; vertexIndex < verts.length; vertexIndex++) {
@@ -120,7 +131,7 @@ export function renderLayout(
   // Get horizontal spacing from the number input (which shows the actual value)
   const hSpace = pageHSpaceNumber ? parseFloat(pageHSpaceNumber.value || '0') : 0;
   
-  const vSpace = pageVSpace ? Math.max(0, parseFloat(pageVSpace.value || '10')) : 10;
+  const vSpace = pageVSpace ? parseFloat(pageVSpace.value || '10') : 10;
   const showGrid = !!(pageEl.showGrid && pageEl.showGrid.checked);
   const invertOdd = !!(pageInvert && pageInvert.checked);
   const nestingVerticalOffset = nestingOffset ? parseFloat(nestingOffset.value || '0') : 0;
