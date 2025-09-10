@@ -14,6 +14,15 @@ import type {
   DOMElements 
 } from './types';
 
+// Import the JavaScript modules
+import './lib/utils.js';
+import './lib/constants.js';
+import './lib/geometry.js';
+import './lib/stitches.js';
+import './lib/svg.js';
+import './lib/state.js';
+import './lib/ui.js';
+
 // Wait for FB modules to load
 function waitForFB(): Promise<void> {
   return new Promise((resolve) => {
