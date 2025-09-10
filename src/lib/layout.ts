@@ -186,14 +186,14 @@ function calculatePrecisePolygonArea(config: PanelConfig): number {
     }
     
   } else if (nSides === 10) {
-    // Star shape - use actual star vertices for precise area calculation
+    // Star shape: sideLen represents outer radius (distance from center to star points)
     const starRootAngle = config.starRootAngle || 128;
     vertices = geometry.starVertices(sideLen, starRootAngle);
     baseArea = calculatePolygonArea(vertices);
     
     // Add curved area if needed
     if (curvedEdges) {
-      const curveDepth = sideLen * curveFactor; // sideLen is the outer radius for stars
+      const curveDepth = sideLen * curveFactor;
       const curvedArea = calculateCurvedSegmentArea(nSides, calculateAverageEdgeLength(vertices), curveDepth);
       baseArea += curvedArea;
     }
