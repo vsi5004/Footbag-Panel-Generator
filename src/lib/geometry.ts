@@ -16,6 +16,58 @@ function regularPolygonVertices(n: number, radius: number): Point[] {
   return verts;
 }
 
+function starVertices(outerRadius: number, rootAngle: number = 128): Point[] {
+  const verts: Point[] = [];
+  
+  // For a 5-pointed star with user-configurable root angles
+  // 
+  // Given constraints:
+  // - 5 outer points separated by 72° (360°/5)
+  // - Obtuse angle at each root = rootAngle
+  // - Acute angle at each tip = 180° - rootAngle (since tip + adjacent roots must sum to 360°/5 * 2 = 144°, and roots are symmetric)
+  //
+  // Actually, for proper star geometry:
+  // Acute angle at tips = 180° - rootAngle
+  // The relationship comes from the constraint that alternating vertices form the star pattern
+  //
+  // From the tip constraint: if a tip is at angle θ, and the acute angle is (180° - rootAngle),
+  // then the two adjacent inner points subtend (180° - rootAngle) from that tip.
+  // 
+  // For exact geometry: in triangle from tip to two adjacent inner points,
+  // if inner radius = r and outer radius = R, and inner points are at ±36° from tip,
+  // then: tan((180° - rootAngle)/2) = (r * sin(36°)) / (R - r * cos(36°))
+  //
+  // Solving for r/R:
+  const acuteAngle = 180 - rootAngle; // Acute angle at tips in degrees
+  const halfAcute = (acuteAngle / 2) * Math.PI / 180; // Half of acute angle in radians
+  const tan_half_acute = Math.tan(halfAcute);
+  
+  const sin36 = Math.sin(36 * Math.PI / 180);
+  const cos36 = Math.cos(36 * Math.PI / 180);
+  
+  const innerRadius = outerRadius * tan_half_acute / (sin36 + tan_half_acute * cos36);
+  
+  const startAngle = -Math.PI / 2; // Start at top
+  
+  for (let i = 0; i < 5; i++) {
+    // Add outer point (star tip)
+    const outerAngle = startAngle + i * (2 * Math.PI / 5);
+    verts.push({ 
+      x: outerRadius * Math.cos(outerAngle), 
+      y: outerRadius * Math.sin(outerAngle) 
+    });
+    
+    // Add inner point (between star tips)
+    const innerAngle = startAngle + i * (2 * Math.PI / 5) + Math.PI / 5;
+    verts.push({ 
+      x: innerRadius * Math.cos(innerAngle), 
+      y: innerRadius * Math.sin(innerAngle) 
+    });
+  }
+  
+  return verts;
+}
+
 function edgeMidpoint(a: Point, b: Point): Point { 
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; 
 }
@@ -100,6 +152,7 @@ function truncatedHexagonVertices(longSide: number, shortSide: number): Point[] 
 
 export const geometry = {
   regularPolygonVertices,
+  starVertices,
   edgeMidpoint,
   outwardNormal,
   quadPoint,

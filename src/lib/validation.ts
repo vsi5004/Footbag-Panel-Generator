@@ -40,6 +40,8 @@ export function collectInputValues(el: any): UIConfig {
     INPUT_VALIDATORS.curveFactor(el.curveFactor.value) : 
     (CURVATURE[nSides] || 0.3);
   const dotSize = INPUT_VALIDATORS.dotSize(el.dotSize?.value ?? '1');
+  const starRootOffset = el.starRootOffset ? parseFloat(el.starRootOffset.value) : -1.5;
+  const starRootAngle = el.starRootAngle ? parseFloat(el.starRootAngle.value) : 128;
 
   return {
     nSides,
@@ -52,6 +54,8 @@ export function collectInputValues(el: any): UIConfig {
     hexRatio,
     curveFactor,
     dotSize,
+    starRootOffset,
+    starRootAngle,
   };
 }
 
@@ -146,5 +150,7 @@ export function createPanelConfig(config: UIConfig, constraints: { cornerMargin:
     curveFactor: config.curveFactor,
     holeSpacing: constraints.holeSpacing,
     cornerMargin: constraints.cornerMargin,
+    starRootOffset: config.starRootOffset,
+    starRootAngle: config.starRootAngle,
   };
 }

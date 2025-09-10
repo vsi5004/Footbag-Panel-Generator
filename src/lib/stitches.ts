@@ -15,10 +15,14 @@ function stitchPositions(
   prefSpacing: number, 
   cornerMargin: number, 
   samplesPerEdge: number = SAMPLING.EDGE_SAMPLES_DEFAULT, 
-  edgeInclude: ((i: number) => boolean) | null = null
+  edgeInclude: ((i: number) => boolean) | null = null,
+  starRootOffset: number = -1.5
 ): Point[] {
   const n = verts.length; 
   const out: Point[] = [];
+  
+  // Detect if this is a star shape (10 vertices alternating between outer and inner)
+  const isStar = n === 10;
   
   for (let i = 0; i < n; i++) {
     if (edgeInclude && !edgeInclude(i)) continue;
@@ -36,14 +40,49 @@ function stitchPositions(
       cum.push(edgeLen);
     }
     
-    const cm = Math.max(0, Math.min(cornerMargin, Math.max(0, edgeLen / 2 - 0.1)));
-    const usable = Math.max(0, edgeLen - 2 * cm);
+    // For stars, apply different corner margins based on corner type
+    let cmStart = cornerMargin; // margin at vertex i (start of edge)
+    let cmEnd = cornerMargin;   // margin at vertex (i+1) (end of edge)
+    
+    if (isStar) {
+      // Even indices (0,2,4,6,8) are outer points (sharp), odd indices (1,3,5,7,9) are inner points (roots)
+      const startIsOuterPoint = i % 2 === 0;
+      const endIsOuterPoint = ((i + 1) % n) % 2 === 0;
+      
+      // Apply larger margin at sharp points, negative margin at roots to extend past vertex
+      cmStart = startIsOuterPoint ? cornerMargin * 2.0 : -cornerMargin * Math.abs(starRootOffset); // User-controlled negative margin extends past roots
+      cmEnd = endIsOuterPoint ? cornerMargin * 2.0 : -cornerMargin * Math.abs(starRootOffset);     // User-controlled negative margin extends past roots
+    }
+    
+    // Use asymmetric margins - different at each end of the edge
+    // Allow negative margins for star roots, but constrain positive margins
+    if (isStar) {
+      // For stars, allow negative margins at roots but constrain positive margins at tips
+      const startIsOuterPoint = i % 2 === 0;
+      const endIsOuterPoint = ((i + 1) % n) % 2 === 0;
+      
+      if (startIsOuterPoint) {
+        cmStart = Math.max(0, Math.min(cmStart, Math.max(0, edgeLen / 2 - 0.1)));
+      }
+      // else: allow negative margin for roots (no constraint)
+      
+      if (endIsOuterPoint) {
+        cmEnd = Math.max(0, Math.min(cmEnd, Math.max(0, edgeLen / 2 - 0.1)));
+      }
+      // else: allow negative margin for roots (no constraint)
+    } else {
+      // For non-stars, use original logic with non-negative constraints
+      cmStart = Math.max(0, Math.min(cmStart, Math.max(0, edgeLen / 2 - 0.1)));
+      cmEnd = Math.max(0, Math.min(cmEnd, Math.max(0, edgeLen / 2 - 0.1)));
+    }
+    
+    const usable = Math.max(0, edgeLen - cmStart - cmEnd);
     const allowable = usable / (Math.max(1, countPerSide) + 1);
     const spacing = Math.min(Math.max(0.1, prefSpacing), allowable);
     
     if (countPerSide <= 0 || spacing <= 0 || usable <= 0) continue;
     
-    const start = cm + (usable - spacing * (countPerSide + 1)) / 2 + spacing;
+    const start = cmStart + (usable - spacing * (countPerSide + 1)) / 2 + spacing;
     
     for (let k = 0; k < countPerSide; k++) {
       const target = start + k * spacing;
@@ -82,6 +121,9 @@ function computeAllowableSpacing(
   const n = verts.length; 
   let minAllowable = Infinity;
   
+  // Detect if this is a star shape
+  const isStar = n === 10;
+  
   for (let i = 0; i < n; i++) {
     if (edgeInclude && !edgeInclude(i)) continue;
     
@@ -95,8 +137,32 @@ function computeAllowableSpacing(
       edgeLen += Math.hypot(p1.x - p0.x, p1.y - p0.y);
     }
     
-    const cm = Math.max(0, Math.min(cornerMargin, Math.max(0, edgeLen / 2 - 0.1)));
-    const usable = Math.max(0, edgeLen - 2 * cm);
+    // Apply star-specific corner margin logic with asymmetric margins
+    let cmStart = cornerMargin;
+    let cmEnd = cornerMargin;
+    
+    if (isStar) {
+      const startIsOuterPoint = i % 2 === 0;
+      const endIsOuterPoint = ((i + 1) % n) % 2 === 0;
+      
+      cmStart = startIsOuterPoint ? cornerMargin * 2.0 : -cornerMargin * 1.5; // More negative margin extends further past roots
+      cmEnd = endIsOuterPoint ? cornerMargin * 2.0 : -cornerMargin * 1.5;     // More negative margin extends further past roots
+    }
+    
+    cmStart = Math.max(0, Math.min(cmStart, Math.max(0, edgeLen / 2 - 0.1)));
+    cmEnd = Math.max(0, Math.min(cmEnd, Math.max(0, edgeLen / 2 - 0.1)));
+    
+    // For stars, allow negative margins at roots
+    if (isStar) {
+      const startIsOuterPoint = i % 2 === 0;
+      const endIsOuterPoint = ((i + 1) % n) % 2 === 0;
+      
+      // Recalculate with negative margins allowed at roots
+      cmStart = startIsOuterPoint ? Math.max(0, Math.min(cornerMargin * 2.0, Math.max(0, edgeLen / 2 - 0.1))) : -cornerMargin * 1.5;
+      cmEnd = endIsOuterPoint ? Math.max(0, Math.min(cornerMargin * 2.0, Math.max(0, edgeLen / 2 - 0.1))) : -cornerMargin * 1.5;
+    }
+    
+    const usable = Math.max(0, edgeLen - cmStart - cmEnd);
     const allowable = usable / (Math.max(1, countPerSide) + 1);
     if (allowable < minAllowable) minAllowable = allowable;
   }

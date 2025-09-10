@@ -29,13 +29,17 @@ function syncPair(range: HTMLInputElement | null, number: HTMLElement | null, on
 }
 
 function updateVisibility(el: DOMElements): void {
-  const isHex = parseInt(el.shape?.value || '5', 10) === 6;
+  const shapeValue = parseInt(el.shape?.value || '5', 10);
+  const isHex = shapeValue === 6;
+  const isStar = shapeValue === 10;
   const isTrunc = isHex && el.hexType && el.hexType.value === 'truncated';
   
   if (el.hexTypeRow) el.hexTypeRow.classList.toggle('hidden', !isHex);
   if (el.hexLongRow) el.hexLongRow.classList.toggle('hidden', !isTrunc);
   if (el.hexRatioRow) el.hexRatioRow.classList.toggle('hidden', !isTrunc);
   if (el.sideRow) el.sideRow.classList.toggle('hidden', isTrunc || false);
+  if (el.starRootOffsetRow) el.starRootOffsetRow.classList.toggle('hidden', !isStar);
+  if (el.starRootAngleRow) el.starRootAngleRow.classList.toggle('hidden', !isStar);
   
   const curvedOn = !!(el.curved && el.curved.checked);
   if (el.curveFactorRow) el.curveFactorRow.classList.toggle('hidden', !curvedOn);

@@ -16,6 +16,8 @@ export interface SettingsData {
   cornerMargin?: number;
   holeSpacing?: number;
   dotSize: number;
+  starRootOffset?: number;
+  starRootAngle?: number;
   hex: {
     type: string;
     long?: number;
@@ -46,6 +48,8 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
     cornerMargin: el.cornerMargin ? clamp(parseFloat(el.cornerMargin.value), 0, 999) : undefined,
     holeSpacing: el.holeSpacing ? clamp(parseFloat(el.holeSpacing.value), 1, 999) : undefined,
     dotSize: clamp(parseFloat(el.dotSize?.value || '1'), 0.2, 1.5),
+    starRootOffset: el.starRootOffset ? parseFloat(el.starRootOffset.value) : undefined,
+    starRootAngle: el.starRootAngle ? parseFloat(el.starRootAngle.value) : undefined,
     hex: {
       type: el.hexType?.value || 'regular',
       long: el.hexLong ? clamp(parseFloat(el.hexLong.value), 10, 80) : undefined,
@@ -115,6 +119,16 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
   if (s.dotSize != null) { 
     set(el.dotSize, clamp(parseFloat(String(s.dotSize)), 0.2, 1.5)); 
     if (el.dotSizeNumber && el.dotSize) el.dotSizeNumber.textContent = el.dotSize.value;
+  }
+
+  if (s.starRootOffset != null && el.starRootOffset) {
+    set(el.starRootOffset, clamp(parseFloat(String(s.starRootOffset)), -3, 1));
+    if (el.starRootOffsetNumber) el.starRootOffsetNumber.textContent = el.starRootOffset.value;
+  }
+
+  if (s.starRootAngle != null && el.starRootAngle) {
+    set(el.starRootAngle, clamp(parseFloat(String(s.starRootAngle)), 100, 150));
+    if (el.starRootAngleNumber) el.starRootAngleNumber.textContent = el.starRootAngle.value;
   }
 
   // Layout settings
