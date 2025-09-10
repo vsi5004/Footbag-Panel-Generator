@@ -167,7 +167,7 @@ declare global {
         ) => number;
       };
       svg: {
-        createSvg: (panel: Panel, options: { dotDiameter: number }) => SVGElement;
+        createSvg: (panel: Panel, options: { dotDiameter: number; showGrid?: boolean }) => SVGElement;
       };
       ui: {
         syncPair: (input: HTMLInputElement | null, display: HTMLElement | null, callback?: () => void) => void;

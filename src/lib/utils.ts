@@ -37,6 +37,45 @@ export const utils = {
    */
   rotateHexagonVertices: (vertices: Point[]): Point[] => {
     return utils.rotateVertices(vertices, Math.PI / 2); // 90 degrees
+  },
+
+  /**
+   * Creates a grid element for SVG backgrounds
+   * @param svg - The SVG element to create the grid for
+   * @param bounds - The bounds for the grid area
+   * @param gridSpacing - Spacing between grid lines
+   * @returns Grid element (not yet appended to SVG)
+   */
+  createGrid: (svg: SVGElement, bounds: { viewMinX: number; viewMinY: number; width: number; height: number }, gridSpacing: number): SVGGElement => {
+    const grid = document.createElementNS(svg.namespaceURI, 'g') as SVGGElement;
+    grid.setAttribute('id', 'grid');
+    grid.setAttribute('stroke', '#bfbfbf');
+    grid.setAttribute('stroke-width', '0.1mm');
+    grid.setAttribute('opacity', '0.22');
+    
+    // Vertical lines
+    for (let x = Math.floor(bounds.viewMinX / gridSpacing) * gridSpacing; x <= bounds.viewMinX + bounds.width; x += gridSpacing) {
+      const l = document.createElementNS(svg.namespaceURI, 'line');
+      l.setAttribute('x1', x.toFixed(3));
+      l.setAttribute('y1', bounds.viewMinY.toFixed(3));
+      l.setAttribute('x2', x.toFixed(3));
+      l.setAttribute('y2', (bounds.viewMinY + bounds.height).toFixed(3));
+      grid.appendChild(l);
+    }
+    
+    // Horizontal lines
+    const gridStartY = Math.floor(bounds.viewMinY / gridSpacing) * gridSpacing;
+    const gridEndY = bounds.viewMinY + bounds.height;
+    for (let y = gridStartY; y <= gridEndY; y += gridSpacing) {
+      const l = document.createElementNS(svg.namespaceURI, 'line');
+      l.setAttribute('x1', bounds.viewMinX.toFixed(3));
+      l.setAttribute('y1', y.toFixed(3));
+      l.setAttribute('x2', (bounds.viewMinX + bounds.width).toFixed(3));
+      l.setAttribute('y2', y.toFixed(3));
+      grid.appendChild(l);
+    }
+    
+    return grid;
   }
 };
 

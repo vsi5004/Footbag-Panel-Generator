@@ -78,7 +78,8 @@ export function renderSVGToDOM(panel: Panel, dotDiameter: number, el: any): void
   
   el.svgHost.innerHTML = '';
   
-  const svg = window.FB.svg.createSvg(panel, { dotDiameter });
+  const showGrid = !!(el.showGrid && el.showGrid.checked);
+  const svg = window.FB.svg.createSvg(panel, { dotDiameter, showGrid });
   
   svg.style.maxWidth = '100%';
   svg.style.height = 'auto';

@@ -1,11 +1,12 @@
 import type { Panel } from '../types';
 import { CONSTANTS } from './constants';
+import { utils } from './utils';
 
 const { COLORS, STROKES, LAYOUT } = CONSTANTS;
 
-function createSvg(panel: Panel, options: { dotDiameter: number }): SVGElement {
+function createSvg(panel: Panel, options: { dotDiameter: number; showGrid?: boolean }): SVGElement {
   const { outlinePath, stitches, bounds } = panel;
-  const { dotDiameter } = options;
+  const { dotDiameter, showGrid = true } = options;
   
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -34,33 +35,10 @@ function createSvg(panel: Panel, options: { dotDiameter: number }): SVGElement {
     marks.appendChild(c);
   }
 
-  const grid = document.createElementNS(svg.namespaceURI, 'g');
-  grid.setAttribute('id', 'grid');
-  grid.setAttribute('stroke', '#bfbfbf');
-  grid.setAttribute('stroke-width', '0.1mm');
-  grid.setAttribute('opacity', '0.22');
-  
-  const gridSpacing = LAYOUT.GRID_SPACING_MM;
-  
-  for (let x = Math.floor(bounds.viewMinX / gridSpacing) * gridSpacing; x < bounds.viewMinX + bounds.width; x += gridSpacing) {
-    const l = document.createElementNS(svg.namespaceURI, 'line');
-    l.setAttribute('x1', x.toFixed(3));
-    l.setAttribute('y1', bounds.viewMinY.toFixed(3));
-    l.setAttribute('x2', x.toFixed(3));
-    l.setAttribute('y2', (bounds.viewMinY + bounds.height).toFixed(3));
-    grid.appendChild(l);
+  if (showGrid) {
+    const grid = utils.createGrid(svg, bounds, LAYOUT.GRID_SPACING_MM);
+    svg.appendChild(grid);
   }
-  
-  for (let y = Math.floor(bounds.viewMinY / gridSpacing) * gridSpacing; y < bounds.viewMinY + bounds.height; y += gridSpacing) {
-    const l = document.createElementNS(svg.namespaceURI, 'line');
-    l.setAttribute('x1', bounds.viewMinX.toFixed(3));
-    l.setAttribute('y1', y.toFixed(3));
-    l.setAttribute('x2', (bounds.viewMinX + bounds.width).toFixed(3));
-    l.setAttribute('y2', y.toFixed(3));
-    grid.appendChild(l);
-  }
-
-  svg.appendChild(grid);
   svg.appendChild(path);
   svg.appendChild(marks);
   return svg;

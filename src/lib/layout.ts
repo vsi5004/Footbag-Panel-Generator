@@ -2,6 +2,7 @@
 // Handles layout SVG creation, material utilization, and rendering
 
 import type { Panel, Point, PanelConfig } from '../types';
+import { utils } from './utils';
 
 /**
  * Creates a layout SVG with multiple copies of the panel
@@ -41,32 +42,11 @@ export function createLayoutSvg(
   svg.style.background = 'white';
 
   // Optional sheet grid
-  const grid = document.createElementNS(svg.namespaceURI, 'g');
-  grid.setAttribute('id', 'grid');
-  grid.setAttribute('stroke', '#bfbfbf');
-  grid.setAttribute('stroke-width', '0.1mm');
-  grid.setAttribute('opacity', '0.22');
-  const gridSpacing = LAYOUT.GRID_SPACING_MM;
-  for (let x = 0; x <= width; x += gridSpacing) {
-    const l = document.createElementNS(svg.namespaceURI, 'line');
-    l.setAttribute('x1', x.toFixed(3));
-    l.setAttribute('y1', viewBoxY.toFixed(3));
-    l.setAttribute('x2', x.toFixed(3));
-    l.setAttribute('y2', (viewBoxY + height).toFixed(3));
-    grid.appendChild(l);
+  if (showGrid) {
+    const layoutBounds = { viewMinX: 0, viewMinY: viewBoxY, width, height };
+    const grid = utils.createGrid(svg, layoutBounds, LAYOUT.GRID_SPACING_MM);
+    svg.appendChild(grid);
   }
-  const gridStartY = Math.floor(viewBoxY / gridSpacing) * gridSpacing;
-  const gridEndY = viewBoxY + height;
-  for (let y = gridStartY; y <= gridEndY; y += gridSpacing) {
-    const l = document.createElementNS(svg.namespaceURI, 'line');
-    l.setAttribute('x1', '0');
-    l.setAttribute('y1', y.toFixed(3));
-    l.setAttribute('x2', width.toFixed(3));
-    l.setAttribute('y2', y.toFixed(3));
-    grid.appendChild(l);
-  }
-  svg.appendChild(grid);
-  if (!showGrid) grid.setAttribute('style', 'display:none');
 
   // Translation to align panel's local coords (which include viewMin offsets)
   // Translate so that the panel's content minX/minY (excluding margin) sits at (0,0)

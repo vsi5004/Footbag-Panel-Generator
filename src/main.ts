@@ -1,10 +1,10 @@
 import type { Panel, DOMElements, PanelConfig } from './types';
 import { createMainElements, createPageElements, getLayoutElements, validateCriticalElements } from './lib/dom';
-import { renderLayout, updatePageOverflow, createMainRenderFunction, applyGridVisibility } from './lib/renderer';
+import { renderLayout, updatePageOverflow, createMainRenderFunction } from './lib/renderer';
 import { 
   resetPanelSettings, 
   resetLayoutSettings, 
-  downloadSvg, 
+  downloadSvg,
   createPanelFilename, 
   createLayoutFilename, 
   exportSettings, 
@@ -129,7 +129,7 @@ function bindUI(): void {
   el.zoomReset?.addEventListener('click', () => zoomControls.setPct(el, 200));
 
   el.showGrid?.addEventListener('change', () => {
-    applyGridVisibility(el);
+    render();
   });
     
   el.downloadSvg?.addEventListener('click', () => {
@@ -202,18 +202,7 @@ function bindUI(): void {
   pageEl.downloadSvg?.addEventListener('click', () => {
     const svg = pageEl.svgHost?.querySelector('svg');
     if (!svg) return;
-    
-    // Remove grid from export if it's disabled in the viewer
-    const showGrid = !!(pageEl.showGrid && pageEl.showGrid.checked);
-    const clone = svg.cloneNode(true) as SVGElement;
-    clone.style.background = 'white';
-    if (!showGrid) {
-      const grid = clone.querySelector('#grid');
-      if (grid) {
-        grid.remove();
-      }
-    }
-    downloadSvg(clone, createLayoutFilename(layoutElements));
+    downloadSvg(svg, createLayoutFilename(layoutElements));
   });
 
   // Reset layout settings button
