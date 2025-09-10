@@ -159,6 +159,9 @@ const pageHSpaceNumber = document.getElementById('pageHSpaceNumber') as HTMLInpu
 const pageVSpace = document.getElementById('pageVSpace') as HTMLInputElement | null;
 const pageVSpaceNumber = document.getElementById('pageVSpaceNumber') as HTMLInputElement | null;
 const pageInvert = document.getElementById('pageInvert') as HTMLInputElement | null;
+const nestingOffset = document.getElementById('nestingOffset') as HTMLInputElement | null;
+const nestingOffsetNumber = document.getElementById('nestingOffsetNumber') as HTMLInputElement | null;
+const nestingOffsetRow = document.getElementById('nestingOffsetRow') as HTMLElement | null;
 
 const { clamp } = window.FB.utils;
 
@@ -396,9 +399,9 @@ function renderSVGToDOM(panel: Panel, dotDiameter: number): void {
 // Build a sheet layout composed of multiple copies of the current panel
 function createLayoutSvg(
   panel: Panel,
-  opts: { rows: number; cols: number; hSpace: number; vSpace: number; dotDiameter: number; showGrid: boolean; invertOdd: boolean }
+  opts: { rows: number; cols: number; hSpace: number; vSpace: number; dotDiameter: number; showGrid: boolean; invertOdd: boolean; nestingVerticalOffset: number }
 ): SVGElement {
-  const { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd } = opts;
+  const { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset } = opts;
   const { COLORS, STROKES, LAYOUT } = window.FB.CONSTANTS;
 
   // Use the panel's tight bounds (without the per-panel margin) so spacing=0
@@ -407,13 +410,24 @@ function createLayoutSvg(
   const cellW = Math.max(0, panel.bounds.width - 2 * margin);
   const cellH = Math.max(0, panel.bounds.height - 2 * margin);
   const width = cols * cellW + (cols - 1) * hSpace;
-  const height = rows * cellH + (rows - 1) * vSpace;
+  let height = rows * cellH + (rows - 1) * vSpace;
+  
+  // Adjust height to account for nesting vertical offset when inverted
+  if (invertOdd && nestingVerticalOffset !== 0) {
+    height += Math.abs(nestingVerticalOffset);
+  }
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   svg.setAttribute('width', `${width}mm`);
   svg.setAttribute('height', `${height}mm`);
-  svg.setAttribute('viewBox', `0 0 ${width.toFixed(3)} ${height.toFixed(3)}`);
+  
+  // Adjust viewBox to account for negative vertical offset
+  let viewBoxY = 0;
+  if (invertOdd && nestingVerticalOffset < 0) {
+    viewBoxY = nestingVerticalOffset;
+  }
+  svg.setAttribute('viewBox', `0 ${viewBoxY.toFixed(3)} ${width.toFixed(3)} ${height.toFixed(3)}`);
   svg.setAttribute('fill', 'none');
   svg.style.background = 'white';
 
@@ -427,12 +441,14 @@ function createLayoutSvg(
   for (let x = 0; x <= width; x += gridSpacing) {
     const l = document.createElementNS(svg.namespaceURI, 'line');
     l.setAttribute('x1', x.toFixed(3));
-    l.setAttribute('y1', '0');
+    l.setAttribute('y1', viewBoxY.toFixed(3));
     l.setAttribute('x2', x.toFixed(3));
-    l.setAttribute('y2', height.toFixed(3));
+    l.setAttribute('y2', (viewBoxY + height).toFixed(3));
     grid.appendChild(l);
   }
-  for (let y = 0; y <= height; y += gridSpacing) {
+  const gridStartY = Math.floor(viewBoxY / gridSpacing) * gridSpacing;
+  const gridEndY = viewBoxY + height;
+  for (let y = gridStartY; y <= gridEndY; y += gridSpacing) {
     const l = document.createElementNS(svg.namespaceURI, 'line');
     l.setAttribute('x1', '0');
     l.setAttribute('y1', y.toFixed(3));
@@ -465,8 +481,9 @@ function createLayoutSvg(
         const panelMinY = panel.bounds.viewMinY;
         const panelMaxY = panelMinY + panel.bounds.height;
         const flipCenter = (panelMinY + panelMaxY) / 2;
-        // y' = -y + 2*center  -> vertical mirror around the center line
-        g.setAttribute('transform', `matrix(1 0 0 -1 0 ${(2 * flipCenter).toFixed(3)})`);
+        // y' = -y + 2*center + offset  -> vertical mirror around the center line plus offset
+        const flipAndOffset = 2 * flipCenter + nestingVerticalOffset;
+        g.setAttribute('transform', `matrix(1 0 0 -1 0 ${flipAndOffset.toFixed(3)})`);
       }
 
       const path = document.createElementNS(svg.namespaceURI, 'path');
@@ -506,6 +523,7 @@ function renderLayout(panel: Panel | null, dotDiameter: number): void {
   const vSpace = pageVSpace ? Math.max(0, parseFloat(pageVSpace.value || '10')) : 10;
   const showGrid = !!(pageEl.showGrid && pageEl.showGrid.checked);
   const invertOdd = !!(pageInvert && pageInvert.checked);
+  const nestingVerticalOffset = nestingOffset ? parseFloat(nestingOffset.value || '0') : 0;
 
   // Compute if we need to auto-fit to the host viewport
   const MM_TO_PX = 96 / 25.4;
@@ -525,7 +543,7 @@ function renderLayout(panel: Panel | null, dotDiameter: number): void {
   const fitPct = Math.max(20, Math.min(300, Math.floor(rawFitPct) - 1));
 
   pageEl.svgHost.innerHTML = '';
-  const svg = createLayoutSvg(panel, { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd });
+  const svg = createLayoutSvg(panel, { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset });
   const wrap = document.createElement('div');
   wrap.className = 'svg-wrap';
   wrap.appendChild(svg);
@@ -747,7 +765,31 @@ function bindUI(): void {
   }
   
   if (pageVSpace && pageVSpaceNumber) UIpage.syncPair(pageVSpace, pageVSpaceNumber, () => renderLayout(lastPanel, lastDotSize));
-  pageInvert?.addEventListener('change', () => renderLayout(lastPanel, lastDotSize));
+  pageInvert?.addEventListener('change', () => {
+    const isInverted = pageInvert.checked;
+    if (nestingOffsetRow) {
+      if (isInverted) {
+        nestingOffsetRow.classList.remove('hidden');
+      } else {
+        nestingOffsetRow.classList.add('hidden');
+      }
+    }
+    renderLayout(lastPanel, lastDotSize);
+  });
+  
+  // Initialize nesting control visibility
+  if (pageInvert) {
+    const isInverted = pageInvert.checked;
+    if (nestingOffsetRow) {
+      if (isInverted) {
+        nestingOffsetRow.classList.remove('hidden');
+      } else {
+        nestingOffsetRow.classList.add('hidden');
+      }
+    }
+  }
+  
+  if (nestingOffset && nestingOffsetNumber) UIpage.syncPair(nestingOffset, nestingOffsetNumber, () => renderLayout(lastPanel, lastDotSize));
 
   pageEl.showGrid?.addEventListener('change', () => renderLayout(lastPanel, lastDotSize));
 
