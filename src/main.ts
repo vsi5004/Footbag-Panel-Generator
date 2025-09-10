@@ -101,6 +101,9 @@ const el: DOMElements = {
   zoomReset: document.getElementById('zoomReset') as HTMLButtonElement,
   zoomLabel: document.getElementById('zoomLabel') as HTMLSpanElement,
   showGrid: document.getElementById('showGrid') as HTMLInputElement,
+  materialUtilization: document.getElementById('materialUtilization') as HTMLElement,
+  utilizationValue: document.getElementById('utilizationValue') as HTMLSpanElement,
+  resetLayoutSettings: document.getElementById('resetLayoutSettings') as HTMLButtonElement,
 };
 
 // Check for critical missing elements
@@ -147,6 +150,9 @@ const pageEl: DOMElements = {
   zoomReset: document.getElementById('pageZoomReset') as HTMLButtonElement,
   zoomLabel: document.getElementById('pageZoomLabel') as HTMLSpanElement,
   showGrid: document.getElementById('pageShowGrid') as HTMLInputElement,
+  materialUtilization: document.getElementById('materialUtilization') as HTMLElement,
+  utilizationValue: document.getElementById('utilizationValue') as HTMLSpanElement,
+  resetLayoutSettings: document.getElementById('resetLayoutSettings') as HTMLButtonElement,
 };
 
 // Page layout controls
@@ -511,9 +517,58 @@ function createLayoutSvg(
   return svg;
 }
 
+function calculateMaterialUtilization(
+  panel: Panel,
+  opts: { rows: number; cols: number; hSpace: number; vSpace: number; invertOdd: boolean; nestingVerticalOffset: number }
+): number {
+  const { rows, cols, hSpace, vSpace, invertOdd, nestingVerticalOffset } = opts;
+  const { LAYOUT } = window.FB.CONSTANTS;
+
+  // Calculate actual panel area - this should be the area of just the panel shape itself
+  // We need to calculate the actual area of the footbag panel geometry, not the bounding box
+  const actualPanelArea = calculateActualPanelArea(panel);
+  const totalPanelArea = actualPanelArea * rows * cols;
+
+  // Calculate total SVG canvas area using the same logic as the SVG creation
+  const margin = LAYOUT.MARGIN_MM;
+  const cellW = Math.max(0, panel.bounds.width - 2 * margin);
+  const cellH = Math.max(0, panel.bounds.height - 2 * margin);
+  const canvasWidth = cols * cellW + (cols - 1) * hSpace;
+  let canvasHeight = rows * cellH + (rows - 1) * vSpace;
+  
+  // Adjust canvas height for nesting vertical offset
+  if (invertOdd && nestingVerticalOffset !== 0) {
+    canvasHeight += Math.abs(nestingVerticalOffset);
+  }
+  
+  const totalCanvasArea = canvasWidth * canvasHeight;
+
+  // Calculate utilization percentage
+  if (totalCanvasArea === 0) return 0;
+  return (totalPanelArea / totalCanvasArea) * 100;
+}
+
+function calculateActualPanelArea(panel: Panel): number {
+  // For a more accurate calculation, we'd need to parse the SVG path and calculate its area
+  // For now, we'll use a reasonable approximation based on the panel bounds
+  // Most footbag panels (pentagons, hexagons) fill roughly 65-75% of their bounding rectangle
+  
+  const margin = window.FB.CONSTANTS.LAYOUT.MARGIN_MM;
+  const effectiveWidth = Math.max(0, panel.bounds.width - 2 * margin);
+  const effectiveHeight = Math.max(0, panel.bounds.height - 2 * margin);
+  
+  // Use 70% as a reasonable approximation for polygon shapes
+  // This accounts for the fact that the panels are not rectangular
+  return effectiveWidth * effectiveHeight * 0.70;
+}
+
 function renderLayout(panel: Panel | null, dotDiameter: number): void {
   if (!pageEl.svgHost) return;
-  if (!panel) { pageEl.svgHost.innerHTML = ''; return; }
+  if (!panel) { 
+    pageEl.svgHost.innerHTML = ''; 
+    if (pageEl.materialUtilization) pageEl.materialUtilization.style.display = 'none';
+    return; 
+  }
   const rows = pageRows ? Math.max(1, Math.min(50, parseInt(pageRows.value || '3', 10))) : 3;
   const cols = pageCols ? Math.max(1, Math.min(50, parseInt(pageCols.value || '3', 10))) : 3;
   
@@ -544,6 +599,14 @@ function renderLayout(panel: Panel | null, dotDiameter: number): void {
 
   pageEl.svgHost.innerHTML = '';
   const svg = createLayoutSvg(panel, { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset });
+  
+  // Calculate and display material utilization
+  const utilization = calculateMaterialUtilization(panel, { rows, cols, hSpace, vSpace, invertOdd, nestingVerticalOffset });
+  if (pageEl.materialUtilization && pageEl.utilizationValue) {
+    pageEl.utilizationValue.textContent = `${utilization.toFixed(1)}%`;
+    pageEl.materialUtilization.style.display = 'flex';
+  }
+  
   const wrap = document.createElement('div');
   wrap.className = 'svg-wrap';
   wrap.appendChild(svg);
@@ -823,6 +886,29 @@ function bindUI(): void {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  });
+
+  // Reset layout settings button
+  pageEl.resetLayoutSettings?.addEventListener('click', () => {
+    // Reset all layout controls to their default values
+    if (pageRows) pageRows.value = '3';
+    if (pageRowsNumber) pageRowsNumber.value = '3';
+    if (pageCols) pageCols.value = '3';
+    if (pageColsNumber) pageColsNumber.value = '3';
+    if (pageHSpace) pageHSpace.value = '20';
+    if (pageHSpaceNumber) pageHSpaceNumber.value = '0';
+    if (pageVSpace) pageVSpace.value = '1';
+    if (pageVSpaceNumber) pageVSpaceNumber.value = '1';
+    if (pageInvert) pageInvert.checked = false;
+    if (nestingOffset) nestingOffset.value = '0';
+    if (nestingOffsetNumber) nestingOffsetNumber.value = '0';
+    if (pageEl.showGrid) pageEl.showGrid.checked = true;
+    
+    // Hide nesting controls since inverted nesting is now off
+    if (nestingOffsetRow) nestingOffsetRow.classList.add('hidden');
+    
+    // Re-render the layout with default values
+    renderLayout(lastPanel, lastDotSize);
   });
 
   // Re-check overflow on plus/minus buttons which change zoom via CSS transform

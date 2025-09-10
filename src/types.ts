@@ -126,6 +126,9 @@ export interface DOMElements {
   zoomReset: HTMLButtonElement | null;
   zoomLabel: HTMLSpanElement | null;
   showGrid: HTMLInputElement | null;
+  materialUtilization: HTMLElement | null;
+  utilizationValue: HTMLSpanElement | null;
+  resetLayoutSettings: HTMLButtonElement | null;
 }
 
 declare global {

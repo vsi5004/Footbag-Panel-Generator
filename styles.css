@@ -38,6 +38,42 @@ body {
 }
 
 .control { margin-bottom: 14px; }
+.section-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 20px; 
+  padding-bottom: 12px; 
+  border-bottom: 1px solid #364064; 
+}
+.section-header h3 { 
+  margin: 0; 
+  color: var(--text); 
+  font-size: 16px; 
+  font-weight: 600; 
+}
+.reset-button { 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  background: #2a2f43; 
+  color: #e6e6e6; 
+  border: 1px solid #364064; 
+  padding: 6px 12px; 
+  border-radius: 6px; 
+  font-size: 13px; 
+  font-weight: 500; 
+  cursor: pointer; 
+  transition: all 0.2s ease; 
+}
+.reset-button:hover { 
+  background: #364064; 
+  transform: translateY(-1px); 
+}
+.reset-icon { 
+  font-size: 14px; 
+  font-weight: bold; 
+}
 .control label { display: block; margin-bottom: 6px; color: var(--muted); }
 .control input[type="number"], .control select { width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #2a2f43; background: #0f1117; color: var(--text); }
 .range-row { display: grid; grid-template-columns: 1fr 96px; gap: 8px; align-items: center; }
@@ -56,6 +92,21 @@ button:hover { filter: brightness(1.05); }
 .preview-toolbar button:hover { filter: brightness(1.1); }
 .preview-toolbar input[type="range"] { width: 200px; }
 .zoom-label { color: var(--muted); min-width: 48px; text-align: right; }
+.material-utilization { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  padding: 8px 0; 
+  border-top: 1px solid #364064; 
+  margin-top: 8px; 
+}
+.utilization-label { color: var(--muted); font-size: 14px; }
+.utilization-value { 
+  color: #4ade80; 
+  font-weight: 600; 
+  font-size: 16px; 
+  margin-left: 4px; 
+}
 .svg-host { width: 100%; overflow: auto; background: #0a0b0f; height: 100%; }
 .svg-wrap { display: inline-block; transform-origin: top left; }
 
@@ -149,7 +200,8 @@ details.advanced .advanced-content { margin-top: 8px; }
   border-top-color: var(--card);
 }
 
-.tooltip-container:hover .tooltip-content,
+.tooltip-icon:hover + .tooltip-content,
+.tooltip-content:hover,
 .tooltip-container.tooltip-active .tooltip-content {
   opacity: 1;
   visibility: visible;

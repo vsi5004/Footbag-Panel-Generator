@@ -204,6 +204,14 @@
 
       <!-- Layout configuration + preview -->
       <section class="controls" aria-label="Layout Settings">
+        <div class="section-header">
+          <h3>Panel Layout</h3>
+          <button id="resetLayoutSettings" type="button" class="reset-button" title="Reset layout settings to default values">
+            <span class="reset-icon">↻</span>
+            Reset
+          </button>
+        </div>
+        
         <div class="control">
           <label for="pageRows">Panel rows</label>
           <div class="range-row">
@@ -294,6 +302,10 @@
                 <span class="slider"></span>
               </label>
             </div>
+          </div>
+          <div id="materialUtilization" class="material-utilization" style="display:none;">
+            <span class="utilization-label">Material utilization: </span>
+            <span id="utilizationValue" class="utilization-value">0%</span>
           </div>
           <div id="pageSvgHost" class="svg-host"></div>
         </div>
