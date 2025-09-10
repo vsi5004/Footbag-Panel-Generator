@@ -131,7 +131,12 @@ export function renderLayout(
   const cellW = Math.max(0, panel.bounds.width - 2 * margin);
   const cellH = Math.max(0, panel.bounds.height - 2 * margin);
   const layoutWmm = cols * cellW + (cols - 1) * hSpace;
-  const layoutHmm = rows * cellH + (rows - 1) * vSpace;
+  let layoutHmm = rows * cellH + (rows - 1) * vSpace;
+  
+  // Add nesting vertical offset to height when applicable (same logic as in layout.ts)
+  if (invertOdd && nestingVerticalOffset !== 0) {
+    layoutHmm += Math.abs(nestingVerticalOffset);
+  }
   const layoutWpx = layoutWmm * MM_TO_PX;
   const layoutHpx = layoutHmm * MM_TO_PX;
   state.lastLayoutWpx = layoutWpx;
