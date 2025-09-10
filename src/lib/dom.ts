@@ -49,9 +49,12 @@ export function createMainElements(): DOMElements {
     zoomReset: document.getElementById('zoomReset') as HTMLButtonElement,
     zoomLabel: document.getElementById('zoomLabel') as HTMLSpanElement,
     showGrid: document.getElementById('showGrid') as HTMLInputElement,
-    materialUtilization: document.getElementById('materialUtilization') as HTMLElement,
-    utilizationValue: document.getElementById('utilizationValue') as HTMLSpanElement,
-    resetLayoutSettings: document.getElementById('resetLayoutSettings') as HTMLButtonElement,
+    materialInfoContainer: null, // Only exists in page layout
+    materialDimensions: null, // Only exists in page layout
+    dimensionsValue: null, // Only exists in page layout
+    materialUtilization: null, // Only exists in page layout
+    utilizationValue: null, // Only exists in page layout
+    resetLayoutSettings: null, // Only exists in page layout
     resetPanelSettings: document.getElementById('resetPanelSettings') as HTMLButtonElement,
   };
 }
@@ -98,6 +101,9 @@ export function createPageElements(): DOMElements {
     zoomReset: document.getElementById('pageZoomReset') as HTMLButtonElement,
     zoomLabel: document.getElementById('pageZoomLabel') as HTMLSpanElement,
     showGrid: document.getElementById('pageShowGrid') as HTMLInputElement,
+    materialInfoContainer: document.getElementById('materialInfoContainer') as HTMLElement,
+    materialDimensions: document.getElementById('materialDimensions') as HTMLElement,
+    dimensionsValue: document.getElementById('dimensionsValue') as HTMLSpanElement,
     materialUtilization: document.getElementById('materialUtilization') as HTMLElement,
     utilizationValue: document.getElementById('utilizationValue') as HTMLSpanElement,
     resetLayoutSettings: document.getElementById('resetLayoutSettings') as HTMLButtonElement,

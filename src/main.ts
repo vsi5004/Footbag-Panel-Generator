@@ -140,10 +140,10 @@ function bindUI(): void {
 
 
   if (el.exportSettings) {
-    el.exportSettings.addEventListener('click', () => exportSettings(el));
+    el.exportSettings.addEventListener('click', () => exportSettings(el, { ...layoutElements, pageEl }));
   }
   
-  setupImportSettings(el, UI, debouncedRender);
+  setupImportSettings(el, UI, debouncedRender, { ...layoutElements, pageEl }, renderLayoutFn);
 
   el.resetPanelSettings?.addEventListener('click', () => {
     resetPanelSettings(el, UI, debouncedRender);

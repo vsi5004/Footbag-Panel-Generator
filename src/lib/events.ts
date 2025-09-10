@@ -121,11 +121,11 @@ export function createLayoutFilename(layoutEl: any): string {
 /**
  * Handles settings export functionality
  */
-export function exportSettings(el: DOMElements): void {
+export function exportSettings(el: DOMElements, layoutEl?: any): void {
   const STATE = window.FB.state;
   if (!STATE) return;
   
-  const settings = STATE.collect(el);
+  const settings = STATE.collect(el, layoutEl);
   const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const downloadLink = document.createElement('a');
@@ -142,7 +142,7 @@ export function exportSettings(el: DOMElements): void {
 /**
  * Handles settings import functionality
  */
-export function setupImportSettings(el: DOMElements, ui: any, render: () => void): void {
+export function setupImportSettings(el: DOMElements, ui: any, render: () => void, layoutEl?: any, renderLayout?: (panel: any, dotSize: number) => void): void {
   const STATE = window.FB.state;
   if (!el.importSettings || !el.importFile || !STATE) return;
   
@@ -154,9 +154,12 @@ export function setupImportSettings(el: DOMElements, ui: any, render: () => void
     reader.onload = () => {
       try {
         const data = JSON.parse(String(reader.result || '{}'));
-        STATE.apply(el, data);
+        STATE.apply(el, data, layoutEl);
         ui.updateVisibility(el);
         render();
+        if (renderLayout) {
+          renderLayout(null, parseFloat(el.dotSize?.value || '1'));
+        }
       } catch (e) {
         alert('Invalid settings file.');
       }

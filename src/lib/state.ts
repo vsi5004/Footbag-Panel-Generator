@@ -3,7 +3,7 @@ import { utils } from './utils';
 
 const { clamp } = utils;
 
-interface SettingsData {
+export interface SettingsData {
   $schema: string;
   version: number;
   shape: number;
@@ -21,9 +21,18 @@ interface SettingsData {
     long?: number;
     ratio?: number;
   };
+  layout: {
+    rows: number;
+    cols: number;
+    hSpace: number;
+    vSpace: number;
+    invert: boolean;
+    nestingOffset: number;
+    showGrid?: boolean;
+  };
 }
 
-function collect(el: DOMElements): SettingsData {
+function collect(el: DOMElements, layoutEl?: any): SettingsData {
   return {
     $schema: './schema/settings.schema.json',
     version: 1,
@@ -41,11 +50,20 @@ function collect(el: DOMElements): SettingsData {
       type: el.hexType?.value || 'regular',
       long: el.hexLong ? clamp(parseFloat(el.hexLong.value), 10, 80) : undefined,
       ratio: el.hexRatio ? clamp(parseFloat(el.hexRatio.value), 0.1, 0.9) : undefined,
+    },
+    layout: {
+      rows: parseInt(layoutEl?.pageRows?.value || '3', 10),
+      cols: parseInt(layoutEl?.pageCols?.value || '3', 10),
+      hSpace: parseFloat(layoutEl?.pageHSpaceNumber?.value || '0'),
+      vSpace: parseFloat(layoutEl?.pageVSpace?.value || '1'),
+      invert: !!(layoutEl?.pageInvert?.checked),
+      nestingOffset: parseFloat(layoutEl?.nestingOffset?.value || '0'),
+      showGrid: layoutEl?.pageEl?.showGrid ? !!layoutEl.pageEl.showGrid.checked : undefined,
     }
   };
 }
 
-function apply(el: DOMElements, s: Partial<SettingsData>): void {
+function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void {
   if (!s || typeof s !== 'object') return;
   
   const set = (input: HTMLInputElement | null, value: any) => { 
@@ -56,6 +74,7 @@ function apply(el: DOMElements, s: Partial<SettingsData>): void {
     if (input != null && typeof value === 'boolean') input.checked = value; 
   };
 
+  // Panel settings
   if (typeof s.shape === 'number' && el.shape) el.shape.value = String(s.shape);
   setChecked(el.curved, !!s.curved);
 
@@ -96,6 +115,39 @@ function apply(el: DOMElements, s: Partial<SettingsData>): void {
   if (s.dotSize != null) { 
     set(el.dotSize, clamp(parseFloat(String(s.dotSize)), 0.2, 1.5)); 
     if (el.dotSizeNumber && el.dotSize) el.dotSizeNumber.textContent = el.dotSize.value;
+  }
+
+  // Layout settings
+  if (s.layout && typeof s.layout === 'object' && layoutEl) {
+    if (s.layout.rows != null) {
+      set(layoutEl.pageRows, clamp(parseInt(String(s.layout.rows), 10), 1, 10));
+      set(layoutEl.pageRowsNumber, layoutEl.pageRows?.value);
+    }
+    if (s.layout.cols != null) {
+      set(layoutEl.pageCols, clamp(parseInt(String(s.layout.cols), 10), 1, 10));
+      set(layoutEl.pageColsNumber, layoutEl.pageCols?.value);
+    }
+    if (s.layout.hSpace != null) {
+      // Convert back to slider value using the horizontal spacing mapping
+      const hSpaceVal = parseFloat(String(s.layout.hSpace));
+      const sliderVal = hSpaceVal <= 0 ? (hSpaceVal + 20) : (hSpaceVal + 19);
+      set(layoutEl.pageHSpace, Math.max(0, Math.min(70, sliderVal)));
+      set(layoutEl.pageHSpaceNumber, hSpaceVal);
+    }
+    if (s.layout.vSpace != null) {
+      set(layoutEl.pageVSpace, clamp(parseFloat(String(s.layout.vSpace)), 0, 50));
+      set(layoutEl.pageVSpaceNumber, layoutEl.pageVSpace?.value);
+    }
+    if (s.layout.invert != null) {
+      setChecked(layoutEl.pageInvert, s.layout.invert);
+    }
+    if (s.layout.nestingOffset != null) {
+      set(layoutEl.nestingOffset, clamp(parseFloat(String(s.layout.nestingOffset)), -40, 40));
+      set(layoutEl.nestingOffsetNumber, layoutEl.nestingOffset?.value);
+    }
+    if (s.layout.showGrid != null && layoutEl.pageEl?.showGrid) {
+      layoutEl.pageEl.showGrid.checked = !!s.layout.showGrid;
+    }
   }
 }
 

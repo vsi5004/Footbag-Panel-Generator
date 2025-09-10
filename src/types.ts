@@ -1,5 +1,7 @@
 // TypeScript definitions for the Footbag Panel Generator
 
+import type { SettingsData } from './lib/state';
+
 export interface Point {
   x: number;
   y: number;
@@ -126,6 +128,9 @@ export interface DOMElements {
   zoomReset: HTMLButtonElement | null;
   zoomLabel: HTMLSpanElement | null;
   showGrid: HTMLInputElement | null;
+  materialInfoContainer: HTMLElement | null;
+  materialDimensions: HTMLElement | null;
+  dimensionsValue: HTMLSpanElement | null;
   materialUtilization: HTMLElement | null;
   utilizationValue: HTMLSpanElement | null;
   resetLayoutSettings: HTMLButtonElement | null;
@@ -182,8 +187,8 @@ declare global {
         };
       };
       state: {
-        collect: (elements: DOMElements) => Record<string, any>;
-        apply: (elements: DOMElements, data: Record<string, any>) => void;
+        collect: (elements: DOMElements, layoutEl?: any) => SettingsData;
+        apply: (elements: DOMElements, data: Partial<SettingsData>, layoutEl?: any) => void;
       };
     };
   }

@@ -18,6 +18,25 @@ body {
 
 .app-header { padding: 20px; text-align: center; }
 .subtitle { color: var(--muted); margin-top: 6px; }
+.header-actions { 
+  margin-top: 16px; 
+  display: flex; 
+  gap: 12px; 
+  justify-content: center; 
+}
+.header-button {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+.header-button:hover {
+  background: var(--hover);
+}
 
 .app {
   display: grid;
@@ -92,13 +111,30 @@ button:hover { filter: brightness(1.05); }
 .preview-toolbar button:hover { filter: brightness(1.1); }
 .preview-toolbar input[type="range"] { width: 200px; }
 .zoom-label { color: var(--muted); min-width: 48px; text-align: right; }
+.material-info-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-top: 1px solid #364064;
+  margin-top: 8px;
+  gap: 20px;
+}
+.material-dimensions { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px;
+}
+.dimensions-label { color: var(--muted); font-size: 14px; }
+.dimensions-value { 
+  color: #60a5fa; 
+  font-weight: 600; 
+  font-size: 14px; 
+}
 .material-utilization { 
   display: flex; 
   align-items: center; 
-  justify-content: center; 
-  padding: 8px 0; 
-  border-top: 1px solid #364064; 
-  margin-top: 8px; 
+  gap: 8px;
 }
 .utilization-label { color: var(--muted); font-size: 14px; }
 .utilization-value { 

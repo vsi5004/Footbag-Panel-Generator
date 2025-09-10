@@ -108,7 +108,7 @@ export function renderLayout(
   if (!pageEl.svgHost) return;
   if (!panel) { 
     pageEl.svgHost.innerHTML = ''; 
-    if (pageEl.materialUtilization) pageEl.materialUtilization.style.display = 'none';
+    if (pageEl.materialInfoContainer) pageEl.materialInfoContainer.style.display = 'none';
     return; 
   }
   
@@ -145,11 +145,20 @@ export function renderLayout(
   pageEl.svgHost.innerHTML = '';
   const svg = createLayoutSvg(panel, { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset });
   
+  // Calculate and display material dimensions
+  if (pageEl.dimensionsValue) {
+    pageEl.dimensionsValue.textContent = `${layoutWmm.toFixed(1)} × ${layoutHmm.toFixed(1)}`;
+  }
+  
   // Calculate and display material utilization
   const utilization = calculateMaterialUtilization(panel, { rows, cols, hSpace, vSpace, invertOdd, nestingVerticalOffset }, config || undefined);
-  if (pageEl.materialUtilization && pageEl.utilizationValue) {
+  if (pageEl.utilizationValue) {
     pageEl.utilizationValue.textContent = `${utilization.toFixed(1)}%`;
-    pageEl.materialUtilization.style.display = 'flex';
+  }
+  
+  // Show the container that holds both dimensions and utilization
+  if (pageEl.materialInfoContainer) {
+    pageEl.materialInfoContainer.style.display = 'flex';
   }
   
   const wrap = document.createElement('div');

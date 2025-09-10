@@ -11,6 +11,11 @@
     <header class="app-header">
       <h1>Footbag Panel SVG Generator</h1>
       <p class="subtitle">Generate printable SVG templates for footbag panels</p>
+      <div class="header-actions">
+        <button id="exportSettings" type="button" class="header-button">Export Settings</button>
+        <button id="importSettings" type="button" class="header-button">Import Settings</button>
+        <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
+      </div>
     </header>
 
     <div class="app-wrapper">
@@ -179,9 +184,6 @@
 
         <div class="actions">
           <button id="downloadSvg">Download SVG</button>
-          <button id="exportSettings" type="button">Export Settings</button>
-          <button id="importSettings" type="button">Import Settings</button>
-          <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
         </div>
       </section>
 
@@ -309,9 +311,15 @@
               </label>
             </div>
           </div>
-          <div id="materialUtilization" class="material-utilization" style="display:none;">
-            <span class="utilization-label">Material utilization: </span>
-            <span id="utilizationValue" class="utilization-value">0%</span>
+          <div id="materialInfoContainer" class="material-info-container" style="display:none;">
+            <div id="materialDimensions" class="material-dimensions">
+              <span class="dimensions-label">Material dimensions (WxH): </span>
+              <span id="dimensionsValue" class="dimensions-value">0 × 0</span>
+            </div>
+            <div id="materialUtilization" class="material-utilization">
+              <span class="utilization-label">Material utilization: </span>
+              <span id="utilizationValue" class="utilization-value">0%</span>
+            </div>
           </div>
           <div id="pageSvgHost" class="svg-host"></div>
         </div>
