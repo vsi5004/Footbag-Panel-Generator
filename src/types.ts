@@ -129,6 +129,7 @@ export interface DOMElements {
   materialUtilization: HTMLElement | null;
   utilizationValue: HTMLSpanElement | null;
   resetLayoutSettings: HTMLButtonElement | null;
+  resetPanelSettings: HTMLButtonElement | null;
 }
 
 declare global {

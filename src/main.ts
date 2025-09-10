@@ -104,6 +104,7 @@ const el: DOMElements = {
   materialUtilization: document.getElementById('materialUtilization') as HTMLElement,
   utilizationValue: document.getElementById('utilizationValue') as HTMLSpanElement,
   resetLayoutSettings: document.getElementById('resetLayoutSettings') as HTMLButtonElement,
+  resetPanelSettings: document.getElementById('resetPanelSettings') as HTMLButtonElement,
 };
 
 // Check for critical missing elements
@@ -153,6 +154,7 @@ const pageEl: DOMElements = {
   materialUtilization: document.getElementById('materialUtilization') as HTMLElement,
   utilizationValue: document.getElementById('utilizationValue') as HTMLSpanElement,
   resetLayoutSettings: document.getElementById('resetLayoutSettings') as HTMLButtonElement,
+  resetPanelSettings: null, // This doesn't exist in the page layout section
 };
 
 // Page layout controls
@@ -796,6 +798,44 @@ function bindUI(): void {
       reader.readAsText(file);
     });
   }
+
+  // Reset panel settings button
+  el.resetPanelSettings?.addEventListener('click', () => {
+    // Reset all panel controls to their default values
+    if (el.shape) el.shape.value = '5'; // Pentagon
+    if (el.curved) el.curved.checked = false; // Straight edges
+    if (el.side) el.side.value = '30'; // 30mm side length
+    if (el.seam) el.seam.value = '5'; // 5mm seam allowance
+    if (el.stitches) el.stitches.value = '10'; // 10 stitch holes per side
+    if (el.cornerMargin) el.cornerMargin.value = '6'; // 6mm corner margin
+    if (el.holeSpacing) el.holeSpacing.value = '3'; // 3mm hole spacing
+    if (el.dotSize) el.dotSize.value = '1'; // 1mm dot size
+    if (el.curveFactor) el.curveFactor.value = '0.30'; // Default curve factor
+    if (el.hexType) el.hexType.value = 'truncated'; // Truncated triangle
+    if (el.hexLong) el.hexLong.value = '30'; // 30mm long side
+    if (el.hexRatio) el.hexRatio.value = '0.5'; // 0.5 ratio
+    
+    // Update UI visibility and sync number displays
+    UI.updateVisibility(el);
+    UIpage.syncPair(el.side!, el.sideNumber!, () => {});
+    UIpage.syncPair(el.seam!, el.seamNumber!, () => {});
+    UIpage.syncPair(el.stitches!, el.stitchesNumber!, () => {});
+    UIpage.syncPair(el.cornerMargin!, el.cornerMarginNumber!, () => {});
+    UIpage.syncPair(el.holeSpacing!, el.holeSpacingNumber!, () => {});
+    UIpage.syncPair(el.dotSize!, el.dotSizeNumber!, () => {});
+    if (el.curveFactor && el.curveFactorNumber) {
+      UIpage.syncPair(el.curveFactor, el.curveFactorNumber, () => {});
+    }
+    if (el.hexLong && el.hexLongNumber) {
+      UIpage.syncPair(el.hexLong, el.hexLongNumber, () => {});
+    }
+    if (el.hexRatio && el.hexRatioNumber) {
+      UIpage.syncPair(el.hexRatio, el.hexRatioNumber, () => {});
+    }
+    
+    // Re-render the panel with default values
+    debouncedRender();
+  });
 
   // Bind layout (page) controls
   const UIpage = window.FB.ui;

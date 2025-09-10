@@ -121,6 +121,24 @@ button:hover { filter: brightness(1.05); }
   .preview-inner--layout .svg-host { max-height: 55vh; }
 }
 
+/* Wide screen layout - side by side sections */
+@media (min-width: 1800px) {
+  .app-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 16px;
+  }
+  
+  .app {
+    padding: 0; /* Remove padding since wrapper handles it */
+  }
+  
+  .controls {
+    max-width: 400px; /* Limit control panel width */
+  }
+}
+
 .hidden { display: none !important; }
 
 /* Toggle switch */

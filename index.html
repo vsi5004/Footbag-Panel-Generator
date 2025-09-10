@@ -3,14 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Footbag Pane          <div class="control">
-          <label for="pageHSpace">Horizontal spacing (mm)</label>
-          <div class="range-row">
-            <input id="pageHSpace" type="range" min="0" max="70" step="1" value="20" />
-            <input id="pageHSpaceNumber" type="number" min="-20" max="50" step="1" value="0" />   <label for="pageHSpace">Horizontal spacing (mm)</label>
-          <div class="range-input">
-            <input id="pageHSpace" type="range" min="-20" max="50" step="1" value="0" />
-            <input id="pageHSpaceNumber" type="number" min="-20" max="50" step="1" value="0" />nerator</title>
+    <title>Footbag Panel SVG Generator</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -19,8 +13,17 @@
       <p class="subtitle">Generate printable SVG templates for footbag panels</p>
     </header>
 
-    <main class="app">
+    <div class="app-wrapper">
+      <main class="app">
       <section class="controls" aria-label="Panel Settings">
+        <div class="section-header">
+          <h3>Panel Generation</h3>
+          <button id="resetPanelSettings" type="button" class="reset-button" title="Reset panel settings to default values">
+            <span class="reset-icon">↻</span>
+            Reset
+          </button>
+        </div>
+        
         <div class="control">
           <label for="shape">Shape</label>
           <select id="shape">
@@ -128,6 +131,21 @@
         <details class="advanced" id="advanced">
           <summary>Advanced parameters</summary>
           <div class="advanced-content">
+            
+            <div class="control">
+              <div class="tooltip-container">
+                <label for="holeSpacing">Hole spacing (mm)</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  The distance between stitch holes. If you find that you can't change this, consider reducing stitch holes per side or seam allowance to give more room for bigger stitches. Generally speaking, stitches shorter than 2.5mm weaken the fabric.
+                </div>
+              </div>
+              <div class="range-row">
+                <input id="holeSpacing" type="range" min="1" max="20" step="0.2" value="5" />
+                <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.2" value="5" />
+              </div>
+            </div>
+
             <!-- Corner margin -->
             <div class="control">
               <div class="tooltip-container">
@@ -140,20 +158,6 @@
               <div class="range-row">
                 <input id="cornerMargin" type="range" min="0" max="20" step="0.5" value="0" />
                 <input id="cornerMarginNumber" type="number" min="0" max="20" step="0.5" value="0" />
-              </div>
-            </div>
-
-            <div class="control">
-              <div class="tooltip-container">
-                <label for="holeSpacing">Hole spacing (mm)</label>
-                <span class="tooltip-icon">?</span>
-                <div class="tooltip-content">
-                  The distance between stitch holes. If you find that you can't change this, consider reducing stitch holes per side or seam allowance to give more room for bigger stitches. Generally speaking, stitches shorter than 2.5mm weaken the fabric.
-                </div>
-              </div>
-              <div class="range-row">
-                <input id="holeSpacing" type="range" min="1" max="20" step="0.2" value="5" />
-                <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.2" value="5" />
               </div>
             </div>
 
@@ -201,11 +205,13 @@
           <div id="svgHost" class="svg-host"></div>
         </div>
       </section>
+    </main>
 
+    <main class="app">
       <!-- Layout configuration + preview -->
       <section class="controls" aria-label="Layout Settings">
         <div class="section-header">
-          <h3>Panel Layout</h3>
+          <h3>Panel Lasercutter Layout</h3>
           <button id="resetLayoutSettings" type="button" class="reset-button" title="Reset layout settings to default values">
             <span class="reset-icon">↻</span>
             Reset
@@ -311,6 +317,7 @@
         </div>
       </section>
     </main>
+    </div>
 
     <footer class="app-footer">
       <small>Units in millimeters. Black: cut lines. Gray: seam + marks.</small>
