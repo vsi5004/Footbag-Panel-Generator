@@ -98,6 +98,8 @@ function bindUI(): void {
   if (el.curveFactor && el.curveFactorNumber) UI.syncPair(el.curveFactor, el.curveFactorNumber, debouncedRender);
   if (el.stitches && el.stitchesNumber) UI.syncPair(el.stitches, el.stitchesNumber, debouncedRender);
   if (el.holeSpacing && el.holeSpacingNumber) UI.syncPair(el.holeSpacing, el.holeSpacingNumber, debouncedRender);
+  if (el.starRootOffset && el.starRootOffsetNumber) UI.syncPair(el.starRootOffset, el.starRootOffsetNumber, debouncedRender);
+  if (el.starRootAngle && el.starRootAngleNumber) UI.syncPair(el.starRootAngle, el.starRootAngleNumber, debouncedRender);
   if (el.hexLong && el.hexLongNumber) UI.syncPair(el.hexLong, el.hexLongNumber, debouncedRender);
   if (el.hexRatio && el.hexRatioNumber) UI.syncPair(el.hexRatio, el.hexRatioNumber, debouncedRender);
 

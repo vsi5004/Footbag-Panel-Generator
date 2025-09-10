@@ -30,6 +30,8 @@ export interface PanelConfig {
   curveFactor: number;
   holeSpacing: number;
   cornerMargin: number;
+  starRootOffset: number;
+  starRootAngle: number;
 }
 
 export interface GeometryConfig {
@@ -57,6 +59,8 @@ export interface UIConfig {
   hexRatio: number;
   curveFactor: number;
   dotSize: number;
+  starRootOffset: number;
+  starRootAngle: number;
 }
 
 export interface EdgeSample {
@@ -108,6 +112,12 @@ export interface DOMElements {
   stitchesNumber: HTMLSpanElement | null;
   cornerMargin: HTMLInputElement | null;
   cornerMarginNumber: HTMLSpanElement | null;
+  starRootOffsetRow: HTMLElement | null;
+  starRootOffset: HTMLInputElement | null;
+  starRootOffsetNumber: HTMLSpanElement | null;
+  starRootAngleRow: HTMLElement | null;
+  starRootAngle: HTMLInputElement | null;
+  starRootAngleNumber: HTMLSpanElement | null;
   holeSpacing: HTMLInputElement | null;
   holeSpacingNumber: HTMLSpanElement | null;
   dotSizeNumber: HTMLSpanElement | null;
@@ -148,6 +158,7 @@ declare global {
       geometry: {
         regularPolygonVertices: (nSides: number, radius: number) => Point[];
         truncatedHexagonVertices: (longSide: number, shortSide: number) => Point[];
+        starVertices: (outerRadius: number, rootAngle?: number) => Point[];
         quadraticCurvePath: (verts: Point[], depth: number) => string;
         approxEdgeSamples: (a: Point, b: Point, depth: number, samples: number) => EdgeSample[];
       };
@@ -160,7 +171,8 @@ declare global {
           holeSpacing: number,
           cornerMargin: number,
           precision: number,
-          edgeInclude?: ((i: number) => boolean) | null
+          edgeInclude?: ((i: number) => boolean) | null,
+          starRootOffset?: number
         ) => Point[];
         computeAllowableSpacing: (
           verts: Point[],
@@ -168,7 +180,8 @@ declare global {
           count: number,
           cornerMargin: number,
           precision: number,
-          edgeInclude?: ((i: number) => boolean) | null
+          edgeInclude?: ((i: number) => boolean) | null,
+          starRootOffset?: number
         ) => number;
       };
       svg: {
