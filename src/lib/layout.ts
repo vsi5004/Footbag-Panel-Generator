@@ -185,6 +185,19 @@ function calculatePrecisePolygonArea(config: PanelConfig): number {
       baseArea += curvedArea;
     }
     
+  } else if (nSides === 10) {
+    // Star shape - use actual star vertices for precise area calculation
+    const starRootAngle = config.starRootAngle || 128;
+    vertices = geometry.starVertices(sideLen, starRootAngle);
+    baseArea = calculatePolygonArea(vertices);
+    
+    // Add curved area if needed
+    if (curvedEdges) {
+      const curveDepth = sideLen * curveFactor; // sideLen is the outer radius for stars
+      const curvedArea = calculateCurvedSegmentArea(nSides, calculateAverageEdgeLength(vertices), curveDepth);
+      baseArea += curvedArea;
+    }
+    
   } else if (nSides >= 3) {
     // Regular polygon area: A = (n * s²) / (4 * tan(π/n))
     // where n = number of sides, s = side length
@@ -203,6 +216,25 @@ function calculatePrecisePolygonArea(config: PanelConfig): number {
   }
   
   return baseArea;
+}
+
+/**
+ * Calculates the average edge length of a polygon
+ */
+function calculateAverageEdgeLength(vertices: Point[]): number {
+  if (vertices.length < 2) return 0;
+  
+  let totalLength = 0;
+  const n = vertices.length;
+  
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const dx = vertices[j].x - vertices[i].x;
+    const dy = vertices[j].y - vertices[i].y;
+    totalLength += Math.hypot(dx, dy);
+  }
+  
+  return totalLength / n;
 }
 
 /**
