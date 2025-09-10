@@ -1,6 +1,6 @@
 import type { Panel, DOMElements } from './types';
 import { createMainElements, createPageElements, getLayoutElements, validateCriticalElements } from './lib/dom';
-import { renderLayout, updatePageOverflow, createMainRenderFunction } from './lib/renderer';
+import { renderLayout, updatePageOverflow, createMainRenderFunction, applyGridVisibility } from './lib/renderer';
 import { 
   resetPanelSettings, 
   resetLayoutSettings, 
@@ -127,7 +127,7 @@ function bindUI(): void {
   el.zoomReset?.addEventListener('click', () => zoomControls.setPct(el, 200));
 
   el.showGrid?.addEventListener('change', () => {
-    applyGridVisibility();
+    applyGridVisibility(el);
   });
     
   el.downloadSvg?.addEventListener('click', () => {
@@ -225,18 +225,6 @@ function bindUI(): void {
 
   // Recompute on window resize
   window.addEventListener('resize', () => requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState)));
-}
-
-function applyGridVisibility(): void {
-  const svg = el.svgHost!.querySelector('svg');
-  if (!svg) return;
-  const grid = svg.querySelector('#grid');
-  if (!grid) return;
-  if (el.showGrid && !el.showGrid.checked) {
-    grid.setAttribute('style', 'display:none');
-  } else {
-    grid.removeAttribute('style');
-  }
 }
 
 window.FB.ui.fixUiTextArtifacts();

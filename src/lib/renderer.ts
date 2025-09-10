@@ -4,6 +4,7 @@
 import type { Panel, PanelConfig } from '../types';
 import { collectInputValues, computeGeometry, updateDynamicConstraints, createPanelConfig } from './validation';
 import { createLayoutSvg, calculateMaterialUtilization } from './layout';
+import { utils } from './utils';
 
 /**
  * Computes a panel from the given configuration
@@ -31,11 +32,7 @@ export function computePanel(params: PanelConfig): Panel {
     
     // Rotate squares by 45 degrees to display as proper squares instead of diamonds
     if (nSides === 4) {
-      const rotationAngle = Math.PI / 4; // 45 degrees in radians
-      verts = verts.map((v: any) => ({
-        x: v.x * Math.cos(rotationAngle) - v.y * Math.sin(rotationAngle),
-        y: v.x * Math.sin(rotationAngle) + v.y * Math.cos(rotationAngle)
-      }));
+      verts = utils.rotateSquareVertices(verts);
     }
     
     curveScaleR = circumRadius;

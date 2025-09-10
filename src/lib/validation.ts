@@ -2,6 +2,7 @@
 // Centralizes all input validation logic and configuration collection
 
 import type { UIConfig, GeometryConfig, PanelConfig, GeometryResult, Point } from '../types';
+import { utils } from './utils';
 
 // Window.FB is already declared in types.ts, so we don't need to redeclare it
 
@@ -79,11 +80,7 @@ export function computeGeometry(config: GeometryConfig): GeometryResult {
     
     // Rotate squares by 45 degrees to display as proper squares instead of diamonds
     if (nSides === 4) {
-      const rotationAngle = Math.PI / 4; // 45 degrees in radians
-      verts = verts.map((v: Point) => ({
-        x: v.x * Math.cos(rotationAngle) - v.y * Math.sin(rotationAngle),
-        y: v.x * Math.sin(rotationAngle) + v.y * Math.cos(rotationAngle)
-      }));
+      verts = utils.rotateSquareVertices(verts);
     }
     
     curveScaleR = circumRadius;
