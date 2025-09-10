@@ -52,11 +52,11 @@ function fixUiTextArtifacts(): void {
 // Zoom helpers that operate on the shared `el` map
 function getZoomPct(el: DOMElements): number {
   const v = el.zoom ? parseInt(el.zoom.value, 10) : 100;
-  return Math.max(20, Math.min(200, isNaN(v) ? 100 : v));
+  return Math.max(20, Math.min(300, isNaN(v) ? 100 : v));
 }
 
 function setZoomPct(el: DOMElements, pct: number): void {
-  const v = Math.max(20, Math.min(200, Math.round(pct)));
+  const v = Math.max(20, Math.min(300, Math.round(pct)));
   if (el.zoom) el.zoom.value = String(v);
   updateZoomDisplay(el);
   applyZoom(el);

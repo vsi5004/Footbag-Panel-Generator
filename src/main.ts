@@ -394,9 +394,9 @@ function bindUI(): void {
     zoomControls.updateDisplay(el);
     zoomControls.apply(el);
   });
-  el.zoomIn?.addEventListener('click', () => zoomControls.adjustBy(el, 5));
-  el.zoomOut?.addEventListener('click', () => zoomControls.adjustBy(el, -5));
-  el.zoomReset?.addEventListener('click', () => zoomControls.setPct(el, 100));
+  el.zoomIn?.addEventListener('click', () => zoomControls.adjustBy(el, 10));
+  el.zoomOut?.addEventListener('click', () => zoomControls.adjustBy(el, -10));
+  el.zoomReset?.addEventListener('click', () => zoomControls.setPct(el, 200));
 
   el.showGrid?.addEventListener('change', () => {
     if (typeof applyGridVisibility === 'function') {
@@ -467,23 +467,15 @@ function bindUI(): void {
   }
 }
 
-// Legacy visibility function - now handled by window.FB.ui.updateVisibility
-// function updateVisibility(): void {
-//   const isHex = parseInt(el.shape!.value, 10) === 6;
-//   const isTrunc = isHex && el.hexType && el.hexType.value === 'truncated';
-//   if (el.hexTypeRow) el.hexTypeRow.classList.toggle('hidden', !isHex);
-//   if (el.hexLongRow) el.hexLongRow.classList.toggle('hidden', !isTrunc);
-//   if (el.hexRatioRow) el.hexRatioRow.classList.toggle('hidden', !isTrunc);
-//   if (el.sideRow) el.sideRow.classList.toggle('hidden', !!isTrunc);
-//   const curvedOn = !!(el.curved && el.curved.checked);
-//   if (el.curveFactorRow) el.curveFactorRow.classList.toggle('hidden', !curvedOn);
-// }
-
 const debouncedRender = debounce(render, PERFORMANCE.DEBOUNCE_MS);
 
 window.FB.ui.fixUiTextArtifacts();
 bindUI();
 window.FB.ui.updateVisibility(el);
+
+const zoomControls = window.FB.ui.zoom;
+zoomControls.setPct(el, 200);
+
 render();
 
 function applyGridVisibility(): void {
