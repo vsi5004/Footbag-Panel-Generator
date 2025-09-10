@@ -126,6 +126,10 @@ export interface DOMElements {
   zoomReset: HTMLButtonElement | null;
   zoomLabel: HTMLSpanElement | null;
   showGrid: HTMLInputElement | null;
+  materialUtilization: HTMLElement | null;
+  utilizationValue: HTMLSpanElement | null;
+  resetLayoutSettings: HTMLButtonElement | null;
+  resetPanelSettings: HTMLButtonElement | null;
 }
 
 declare global {
@@ -170,6 +174,7 @@ declare global {
         updateVisibility: (elements: DOMElements) => void;
         fixUiTextArtifacts: () => void;
         zoom: {
+          getPct: (elements: DOMElements) => number;
           apply: (elements: DOMElements) => void;
           updateDisplay: (elements: DOMElements) => void;
           adjustBy: (elements: DOMElements, delta: number) => void;

@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Footbag Panel Generator</title>
+    <title>Footbag Panel SVG Generator</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -12,8 +13,17 @@
       <p class="subtitle">Generate printable SVG templates for footbag panels</p>
     </header>
 
-    <main class="app">
+    <div class="app-wrapper">
+      <main class="app">
       <section class="controls" aria-label="Panel Settings">
+        <div class="section-header">
+          <h3>Panel Generation</h3>
+          <button id="resetPanelSettings" type="button" class="reset-button" title="Reset panel settings to default values">
+            <span class="reset-icon">↻</span>
+            Reset
+          </button>
+        </div>
+        
         <div class="control">
           <label for="shape">Shape</label>
           <select id="shape">
@@ -25,7 +35,13 @@
         </div>
 
         <div class="control">
-          <label>Edge style</label>
+          <div class="tooltip-container">
+            <label>Edge style</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Curved panels might make for a more geometrically perfect sphere, but straight edges are easier to cut and potentially waste less fabric.
+            </div>
+          </div>
           <div class="switch-row">
             <span class="switch-label">Straight</span>
             <label class="switch" aria-label="Toggle curved edges">
@@ -47,7 +63,13 @@
         
         
         <div class="control hex6-only hidden" id="hexTypeRow">
-          <label for="hexType">Hexagon type</label>
+          <div class="tooltip-container">
+            <label for="hexType">Hexagon type</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Most 32 panel designs favor a "Truncated triangle" design, while regular hexagons are used for 92 panel designs.
+            </div>
+          </div>
           <select id="hexType">
             <option value="regular" selected>Regular (equal sides)</option>
             <option value="truncated">Truncated triangle</option>
@@ -79,7 +101,13 @@
         </div>
 
         <div class="control">
-          <label for="seam">Seam allowance (mm)</label>
+          <div class="tooltip-container">
+            <label for="seam">Seam allowance (mm)</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              The distance from the edge of the panel to your stitching line. Too thin and your seams will be weak, too thick and your bag may be too stiff.
+            </div>
+          </div>
           <div class="range-row">
             <input id="seam" type="range" min="2" max="9" step="0.5" value="5" />
             <input id="seamNumber" type="number" min="2" max="9" step="0.5" value="5" />
@@ -87,7 +115,13 @@
         </div>
 
         <div class="control">
-          <label for="stitches">Stitch holes per side</label>
+          <div class="tooltip-container">
+            <label for="stitches">Stitch holes per side</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Traditionally a "3-stitch" 32 panel design will have 8 holes for a hexagon panel side and 6 holes for a pentagon panel side. Rule of thumb is holes per side = (# of stitches * 2) + bleed hole stitches.
+            </div>
+          </div>
           <div class="range-row">
             <input id="stitches" type="range" min="4" max="16" step="1" value="10" />
             <input id="stitchesNumber" type="number" min="4" max="16" step="1" value="10" />
@@ -97,25 +131,44 @@
         <details class="advanced" id="advanced">
           <summary>Advanced parameters</summary>
           <div class="advanced-content">
+            
+            <div class="control">
+              <div class="tooltip-container">
+                <label for="holeSpacing">Hole spacing (mm)</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  The distance between stitch holes. If you find that you can't change this, consider reducing stitch holes per side or seam allowance to give more room for bigger stitches. Generally speaking, stitches shorter than 2.5mm weaken the fabric.
+                </div>
+              </div>
+              <div class="range-row">
+                <input id="holeSpacing" type="range" min="1" max="20" step="0.2" value="5" />
+                <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.2" value="5" />
+              </div>
+            </div>
+
             <!-- Corner margin -->
             <div class="control">
-              <label for="cornerMargin">Corner margin (mm)</label>
+              <div class="tooltip-container">
+                <label for="cornerMargin">Corner margin (mm)</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  Leave at 0 unless you want to define a no-go area at the beginning and end of your stitch line. This will directly limit the maximum hole spacing you can select.
+                </div>
+              </div>
               <div class="range-row">
-                <input id="cornerMargin" type="range" min="0" max="20" step="0.5" value="2" />
-                <input id="cornerMarginNumber" type="number" min="0" max="20" step="0.5" value="2" />
+                <input id="cornerMargin" type="range" min="0" max="20" step="0.5" value="0" />
+                <input id="cornerMarginNumber" type="number" min="0" max="20" step="0.5" value="0" />
               </div>
             </div>
 
             <div class="control">
-              <label for="holeSpacing">Hole spacing (mm)</label>
-              <div class="range-row">
-                <input id="holeSpacing" type="range" min="1" max="20" step="0.5" value="5" />
-                <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.5" value="5" />
+              <div class="tooltip-container">
+                <label for="dotSize">Dot size (mm diameter)</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  The diameter of the stitch hole.
+                </div>
               </div>
-            </div>
-
-            <div class="control">
-              <label for="dotSize">Dot size (mm diameter)</label>
               <div class="range-row">
                 <input id="dotSize" type="range" min="0.2" max="1.5" step="0.1" value="1" />
                 <input id="dotSizeNumber" type="number" min="0.2" max="1.5" step="0.1" value="1" />
@@ -136,7 +189,7 @@
         <div class="preview-inner">
           <div class="preview-toolbar">
             <button id="zoomOut" type="button" title="Zoom out">-</button>
-            <input id="zoom" type="range" min="20" max="200" step="5" value="100" />
+            <input id="zoom" type="range" min="20" max="300" step="5" value="100" />
             <button id="zoomIn" type="button" title="Zoom in">+</button>
             <button id="zoomReset" type="button" title="Reset zoom to 100%">Reset</button>
             <span id="zoomLabel" class="zoom-label">100%</span>
@@ -153,6 +206,118 @@
         </div>
       </section>
     </main>
+
+    <main class="app">
+      <!-- Layout configuration + preview -->
+      <section class="controls" aria-label="Layout Settings">
+        <div class="section-header">
+          <h3>Panel Lasercutter Layout</h3>
+          <button id="resetLayoutSettings" type="button" class="reset-button" title="Reset layout settings to default values">
+            <span class="reset-icon">↻</span>
+            Reset
+          </button>
+        </div>
+        
+        <div class="control">
+          <label for="pageRows">Panel rows</label>
+          <div class="range-row">
+            <input id="pageRows" type="range" min="1" max="12" step="1" value="3" />
+            <input id="pageRowsNumber" type="number" min="1" max="12" step="1" value="3" />
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="pageCols">Panel columns</label>
+          <div class="range-row">
+            <input id="pageCols" type="range" min="1" max="12" step="1" value="3" />
+            <input id="pageColsNumber" type="number" min="1" max="12" step="1" value="3" />
+          </div>
+        </div>
+
+        <div class="control">
+          <div class="tooltip-container">
+            <label for="pageHSpace">Horizontal spacing (mm)</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              This can be negative to take advantage of the more efficient "Inverted nesting" mode.
+            </div>
+          </div>
+          <div class="range-row">
+            <input id="pageHSpace" type="range" min="-40" max="70" step="0.5" value="20" />
+            <input id="pageHSpaceNumber" type="number" min="-40" max="70" step="0.5" value="0" />
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="pageVSpace">Vertical spacing (mm)</label>
+          <div class="range-row">
+            <input id="pageVSpace" type="range" min="0" max="50" step="0.5" value="1" />
+            <input id="pageVSpaceNumber" type="number" min="0" max="50" step="0.5" value="1" />
+          </div>
+        </div>
+
+        <div class="control">
+          <div class="tooltip-container">
+            <label>Inverted nesting</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Flips each odd panel in each row to improve nesting and reduce material waste
+            </div>
+          </div>
+          <div class="switch-row">
+            <span class="switch-label">Off</span>
+            <label class="switch" aria-label="Toggle inverted nesting">
+              <input id="pageInvert" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+            <span class="switch-label">On</span>
+          </div>
+        </div>
+
+        <div class="control hidden" id="nestingOffsetRow">
+          <div class="tooltip-container">
+            <label for="nestingOffset">Nesting vertical offset (mm)</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Moves the flipped panels vertically to optimize material usage. Positive values move down, negative values move up.
+            </div>
+          </div>
+          <div class="range-row">
+            <input id="nestingOffset" type="range" min="-40" max="40" step="0.5" value="0" />
+            <input id="nestingOffsetNumber" type="number" min="-40" max="40" step="0.5" value="0" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="downloadPageSvg" type="button">Download Layout SVG</button>
+        </div>
+      </section>
+
+      <section class="preview" aria-label="Layout Preview">
+        <div class="preview-inner preview-inner--layout">
+          <div class="preview-toolbar">
+            <button id="pageZoomOut" type="button" title="Zoom out">-</button>
+            <input id="pageZoom" type="range" min="20" max="300" step="5" value="100" />
+            <button id="pageZoomIn" type="button" title="Zoom in">+</button>
+            <button id="pageZoomReset" type="button" title="Reset zoom to 100%">Reset</button>
+            <span id="pageZoomLabel" class="zoom-label">100%</span>
+            <div class="switch-row" style="margin-left:12px">
+              <span class="switch-label">Grid</span>
+              <label class="switch" aria-label="Toggle background grid for layout">
+                <input id="pageShowGrid" type="checkbox" checked />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div id="materialUtilization" class="material-utilization" style="display:none;">
+            <span class="utilization-label">Material utilization: </span>
+            <span id="utilizationValue" class="utilization-value">0%</span>
+          </div>
+          <div id="pageSvgHost" class="svg-host"></div>
+        </div>
+      </section>
+    </main>
+    </div>
 
     <footer class="app-footer">
       <small>Units in millimeters. Black: cut lines. Gray: seam + marks.</small>
