@@ -32,7 +32,13 @@
         </div>
 
         <div class="control">
-          <label>Edge style</label>
+          <div class="tooltip-container">
+            <label>Edge style</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Curved panels might make for a more geometrically perfect sphere, but straight edges are easier to cut and potentially waste less fabric.
+            </div>
+          </div>
           <div class="switch-row">
             <span class="switch-label">Straight</span>
             <label class="switch" aria-label="Toggle curved edges">
@@ -54,7 +60,13 @@
         
         
         <div class="control hex6-only hidden" id="hexTypeRow">
-          <label for="hexType">Hexagon type</label>
+          <div class="tooltip-container">
+            <label for="hexType">Hexagon type</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Most 32 panel designs favor a "Truncated triangle" design, while regular hexagons are used for 92 panel designs.
+            </div>
+          </div>
           <select id="hexType">
             <option value="regular" selected>Regular (equal sides)</option>
             <option value="truncated">Truncated triangle</option>
@@ -86,7 +98,13 @@
         </div>
 
         <div class="control">
-          <label for="seam">Seam allowance (mm)</label>
+          <div class="tooltip-container">
+            <label for="seam">Seam allowance (mm)</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              The distance from the edge of the panel to your stitching line. Too thin and your seams will be weak, too thick and your bag may be too stiff.
+            </div>
+          </div>
           <div class="range-row">
             <input id="seam" type="range" min="2" max="9" step="0.5" value="5" />
             <input id="seamNumber" type="number" min="2" max="9" step="0.5" value="5" />
@@ -94,7 +112,13 @@
         </div>
 
         <div class="control">
-          <label for="stitches">Stitch holes per side</label>
+          <div class="tooltip-container">
+            <label for="stitches">Stitch holes per side</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Traditionally a "3-stitch" 32 panel design will have 8 holes for a hexagon panel side and 6 holes for a pentagon panel side. Rule of thumb is holes per side = (# of stitches * 2) + bleed hole stitches.
+            </div>
+          </div>
           <div class="range-row">
             <input id="stitches" type="range" min="4" max="16" step="1" value="10" />
             <input id="stitchesNumber" type="number" min="4" max="16" step="1" value="10" />
@@ -106,15 +130,27 @@
           <div class="advanced-content">
             <!-- Corner margin -->
             <div class="control">
-              <label for="cornerMargin">Corner margin (mm)</label>
+              <div class="tooltip-container">
+                <label for="cornerMargin">Corner margin (mm)</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  Leave at 0 unless you want to define a no-go area at the beginning and end of your stitch line. This will directly limit the maximum hole spacing you can select.
+                </div>
+              </div>
               <div class="range-row">
-                <input id="cornerMargin" type="range" min="0" max="20" step="0.5" value="2" />
-                <input id="cornerMarginNumber" type="number" min="0" max="20" step="0.5" value="2" />
+                <input id="cornerMargin" type="range" min="0" max="20" step="0.5" value="0" />
+                <input id="cornerMarginNumber" type="number" min="0" max="20" step="0.5" value="0" />
               </div>
             </div>
 
             <div class="control">
-              <label for="holeSpacing">Hole spacing (mm)</label>
+              <div class="tooltip-container">
+                <label for="holeSpacing">Hole spacing (mm)</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  The distance between stitch holes. If you find that you can't change this, consider reducing stitch holes per side or seam allowance to give more room for bigger stitches. Generally speaking, stitches shorter than 2.5mm weaken the fabric.
+                </div>
+              </div>
               <div class="range-row">
                 <input id="holeSpacing" type="range" min="1" max="20" step="0.2" value="5" />
                 <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.2" value="5" />
@@ -122,7 +158,13 @@
             </div>
 
             <div class="control">
-              <label for="dotSize">Dot size (mm diameter)</label>
+              <div class="tooltip-container">
+                <label for="dotSize">Dot size (mm diameter)</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  The diameter of the stitch hole.
+                </div>
+              </div>
               <div class="range-row">
                 <input id="dotSize" type="range" min="0.2" max="1.5" step="0.1" value="1" />
                 <input id="dotSizeNumber" type="number" min="0.2" max="1.5" step="0.1" value="1" />
@@ -179,7 +221,13 @@
         </div>
 
         <div class="control">
-          <label for="pageHSpace">Horizontal spacing (mm)</label>
+          <div class="tooltip-container">
+            <label for="pageHSpace">Horizontal spacing (mm)</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              This can be negative to take advantage of the more efficient "Inverted nesting" mode.
+            </div>
+          </div>
           <div class="range-row">
             <input id="pageHSpace" type="range" min="0" max="70" step="0.5" value="20" />
             <input id="pageHSpaceNumber" type="number" min="-20" max="50" step="0.5" value="0" />
@@ -195,7 +243,13 @@
         </div>
 
         <div class="control">
-          <label>Inverted nesting</label>
+          <div class="tooltip-container">
+            <label>Inverted nesting</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Flips each odd panel in each row to improve nesting and reduce material waste
+            </div>
+          </div>
           <div class="switch-row">
             <span class="switch-label">Off</span>
             <label class="switch" aria-label="Toggle inverted nesting">

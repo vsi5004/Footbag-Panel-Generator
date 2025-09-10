@@ -22,6 +22,7 @@ import './lib/stitches.js';
 import './lib/svg.js';
 import './lib/state.js';
 import './lib/ui.js';
+import './lib/tooltips.js';
 
 // Wait for FB modules to load
 function waitForFB(): Promise<void> {
@@ -210,6 +211,16 @@ function computePanel(params: PanelConfig): Panel {
   } else {
     const circumRadius = sideLen / (2 * Math.sin(Math.PI / nSides));
     verts = geometry.regularPolygonVertices(nSides, circumRadius);
+    
+    // Rotate squares by 45 degrees to display as proper squares instead of diamonds
+    if (nSides === 4) {
+      const rotationAngle = Math.PI / 4; // 45 degrees in radians
+      verts = verts.map(v => ({
+        x: v.x * Math.cos(rotationAngle) - v.y * Math.sin(rotationAngle),
+        y: v.x * Math.sin(rotationAngle) + v.y * Math.cos(rotationAngle)
+      }));
+    }
+    
     curveScaleR = circumRadius;
   }
 
@@ -304,6 +315,16 @@ function computeGeometry(config: GeometryConfig): GeometryResult {
   } else {
     const circumRadius = side / (2 * Math.sin(Math.PI / nSides));
     verts = geometry.regularPolygonVertices(nSides, circumRadius);
+    
+    // Rotate squares by 45 degrees to display as proper squares instead of diamonds
+    if (nSides === 4) {
+      const rotationAngle = Math.PI / 4; // 45 degrees in radians
+      verts = verts.map(v => ({
+        x: v.x * Math.cos(rotationAngle) - v.y * Math.sin(rotationAngle),
+        y: v.x * Math.sin(rotationAngle) + v.y * Math.cos(rotationAngle)
+      }));
+    }
+    
     curveScaleR = circumRadius;
   }
   
@@ -461,7 +482,7 @@ function createLayoutSvg(
         const c = document.createElementNS(svg.namespaceURI, 'circle');
         c.setAttribute('cx', p.x.toFixed(3));
         c.setAttribute('cy', p.y.toFixed(3));
-        c.setAttribute('r', r.toString());
+        c.setAttribute('r', r.toFixed(3));
         c.setAttribute('fill', COLORS.seam);
         marks.appendChild(c);
       }
@@ -741,6 +762,16 @@ function bindUI(): void {
     if (!svg) return;
     const clone = svg.cloneNode(true) as SVGElement;
     clone.style.background = 'white';
+    
+    // Remove grid from export if it's disabled in the viewer
+    const showGrid = !!(pageEl.showGrid && pageEl.showGrid.checked);
+    if (!showGrid) {
+      const grid = clone.querySelector('#grid');
+      if (grid) {
+        grid.remove();
+      }
+    }
+    
     const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -773,6 +804,8 @@ zoomControls.setPct(el, 200);
 window.FB.ui.zoom.setPct(pageEl, 100);
 
 render();
+
+(window.FB as any).tooltips.initializeTooltips();
 
 function applyGridVisibility(): void {
   const svg = el.svgHost!.querySelector('svg');
