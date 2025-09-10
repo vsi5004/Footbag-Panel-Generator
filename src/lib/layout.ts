@@ -2,7 +2,6 @@
 // Handles layout SVG creation, material utilization, and rendering
 
 import type { Panel, Point, PanelConfig } from '../types';
-import { utils } from './utils';
 
 /**
  * Creates a layout SVG with multiple copies of the panel
@@ -132,12 +131,11 @@ export function calculateMaterialUtilization(
   const { rows, cols, hSpace, vSpace, invertOdd, nestingVerticalOffset } = opts;
   const { LAYOUT } = window.FB.CONSTANTS;
 
-  // Calculate actual panel area - this should be the area of just the panel shape itself
-  // We need to calculate the actual area of the footbag panel geometry, not the bounding box
+  // Calculate actual panel area - the geometric area of the panel shape
   const actualPanelArea = calculateActualPanelArea(panel, config);
   const totalPanelArea = actualPanelArea * rows * cols;
 
-  // Calculate total SVG canvas area using the same logic as the SVG creation
+  // Calculate total canvas area using the same logic as the SVG creation
   const margin = LAYOUT.MARGIN_MM;
   const cellW = Math.max(0, panel.bounds.width - 2 * margin);
   const cellH = Math.max(0, panel.bounds.height - 2 * margin);
@@ -178,57 +176,67 @@ function calculateActualPanelArea(panel: Panel, config?: PanelConfig): number {
  * Calculates precise polygon area using geometric formulas based on shape configuration
  */
 function calculatePrecisePolygonArea(config: PanelConfig): number {
-  const { nSides, sideLen, hexType = 'regular' } = config;
+  const { nSides, sideLen, hexType = 'regular', curvedEdges, curveFactor, hexLong = 30, hexRatio = 0.5 } = config;
+  const { geometry } = window.FB;
+  
+  let vertices: Point[];
+  let baseArea: number;
   
   if (nSides === 6 && hexType === 'truncated') {
-    // Truncated hexagon - use vertex-based calculation since the geometric formula is complex
-    return calculateAreaFromVertices(config);
+    // Truncated hexagon - get vertices and calculate area directly
+    const longSideLength = hexLong;
+    const shortSideLength = hexRatio * longSideLength;
+    vertices = geometry.truncatedHexagonVertices(longSideLength, shortSideLength);
+    baseArea = calculatePolygonArea(vertices);
+    
+    // Add curved area if needed
+    if (curvedEdges) {
+      // For truncated hexagon, we need to account for different edge lengths
+      // Approximate using average edge length
+      const avgEdgeLength = (4 * longSideLength + 2 * shortSideLength) / 6;
+      let sumr = 0;
+      for (const v of vertices) sumr += Math.hypot(v.x, v.y);
+      const curveScaleR = (sumr / vertices.length) || longSideLength;
+      const curveDepth = curveScaleR * curveFactor;
+      
+      // Only curved edges (every other edge in truncated hex)
+      const curvedEdgeCount = 3; // alternating pattern means 3 of 6 edges are curved
+      const curvedArea = curvedEdgeCount * (2 / 3) * avgEdgeLength * curveDepth;
+      baseArea += curvedArea;
+    }
     
   } else if (nSides >= 3) {
-    // Regular polygon area: A = (1/2) * perimeter * apothem
-    // For regular polygon: A = (n * s²) / (4 * tan(π/n))
+    // Regular polygon area: A = (n * s²) / (4 * tan(π/n))
     // where n = number of sides, s = side length
     
-    const area = (nSides * Math.pow(sideLen, 2)) / (4 * Math.tan(Math.PI / nSides));
-    return area;
+    baseArea = (nSides * Math.pow(sideLen, 2)) / (4 * Math.tan(Math.PI / nSides));
+    
+    // Add curved area if needed
+    if (curvedEdges) {
+      const circumRadius = sideLen / (2 * Math.sin(Math.PI / nSides));
+      const curveDepth = circumRadius * curveFactor;
+      const curvedArea = calculateCurvedSegmentArea(nSides, sideLen, curveDepth);
+      baseArea += curvedArea;
+    }
+  } else {
+    return 0;
   }
   
-  return 0;
+  return baseArea;
 }
 
 /**
- * Calculate area from vertices using the window.FB.geometry system
+ * Calculates the additional area contributed by curved segments
+ * Each curved edge adds area compared to the straight edge it replaces
  */
-function calculateAreaFromVertices(config: PanelConfig): number {
-  const { nSides, sideLen, hexType = 'regular', hexLong = 30, hexRatio = 0.5 } = config;
-  const { geometry } = window.FB;
+function calculateCurvedSegmentArea(nSides: number, sideLen: number, curveDepth: number): number {
+  // For each edge, the curve is a quadratic curve that bulges outward
+  // We can approximate this as a parabolic segment
+  // Area of parabolic segment ≈ (2/3) * base * height
+  // where base = sideLen and height = curveDepth
   
-  try {
-    let vertices: Point[];
-    
-    if (nSides === 6 && hexType === 'truncated') {
-      const longSideLength = hexLong;
-      const shortSideLength = hexRatio * longSideLength;
-      vertices = geometry.truncatedHexagonVertices(longSideLength, shortSideLength);
-    } else {
-      const circumRadius = sideLen / (2 * Math.sin(Math.PI / nSides));
-      vertices = geometry.regularPolygonVertices(nSides, circumRadius);
-      
-      // Apply shape-specific rotations for better orientation (same as in renderer/validation)
-      if (nSides === 4) {
-        // Rotate squares by 45 degrees to display as proper squares instead of diamonds
-        vertices = utils.rotateSquareVertices(vertices);
-      } else if (nSides === 6) {
-        // Rotate regular hexagons by 90 degrees to have flat sides horizontal
-        vertices = utils.rotateHexagonVertices(vertices);
-      }
-    }
-    
-    return calculatePolygonArea(vertices);
-  } catch (error) {
-    console.warn('Failed to calculate area from vertices:', error);
-    return 0;
-  }
+  const areaPerSegment = (2 / 3) * sideLen * curveDepth;
+  return nSides * areaPerSegment;
 }
 
 /**
