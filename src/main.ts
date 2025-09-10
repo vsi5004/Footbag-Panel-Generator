@@ -1,4 +1,4 @@
-import type { Panel, DOMElements } from './types';
+import type { Panel, DOMElements, PanelConfig } from './types';
 import { createMainElements, createPageElements, getLayoutElements, validateCriticalElements } from './lib/dom';
 import { renderLayout, updatePageOverflow, createMainRenderFunction, applyGridVisibility } from './lib/renderer';
 import { 
@@ -56,6 +56,7 @@ if (!validateCriticalElements(el)) {
 // Keep the most recent single-panel result for the layout preview
 let lastPanel: Panel | null = null;
 let lastDotSize: number = 1;
+let lastPanelConfig: PanelConfig | null = null;
 let layoutState = {
   lastLayoutWpx: 0,
   lastLayoutHpx: 0,
@@ -63,10 +64,11 @@ let layoutState = {
 };
 
 function createLayoutRenderFunction() {
-  return (panel: Panel | null, dotSize: number) => {
+  return (panel: Panel | null, dotSize: number, config?: PanelConfig) => {
     lastPanel = panel;
     lastDotSize = dotSize;
-    renderLayout(panel, dotSize, pageEl, layoutElements, layoutState);
+    if (config) lastPanelConfig = config;
+    renderLayout(panel, dotSize, pageEl, layoutElements, layoutState, lastPanelConfig);
     requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState));
   };
 }
@@ -151,12 +153,12 @@ function bindUI(): void {
           pageVSpace, pageVSpaceNumber, pageInvert, nestingOffset, nestingOffsetNumber, 
           nestingOffsetRow } = layoutElements;
 
-  if (pageRows && pageRowsNumber) UI.syncPair(pageRows, pageRowsNumber, () => renderLayoutFn(lastPanel, lastDotSize));
-  if (pageCols && pageColsNumber) UI.syncPair(pageCols, pageColsNumber, () => renderLayoutFn(lastPanel, lastDotSize));
+  if (pageRows && pageRowsNumber) UI.syncPair(pageRows, pageRowsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
+  if (pageCols && pageColsNumber) UI.syncPair(pageCols, pageColsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   
-  setupHorizontalSpacingSync({ pageHSpace, pageHSpaceNumber }, renderLayoutFn, lastPanel, lastDotSize);
+  setupHorizontalSpacingSync({ pageHSpace, pageHSpaceNumber }, renderLayoutFn, () => lastPanel, () => lastDotSize);
   
-  if (pageVSpace && pageVSpaceNumber) UI.syncPair(pageVSpace, pageVSpaceNumber, () => renderLayoutFn(lastPanel, lastDotSize));
+  if (pageVSpace && pageVSpaceNumber) UI.syncPair(pageVSpace, pageVSpaceNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   pageInvert?.addEventListener('change', () => {
     const isInverted = pageInvert.checked;
     if (nestingOffsetRow) {
@@ -166,7 +168,7 @@ function bindUI(): void {
         nestingOffsetRow.classList.add('hidden');
       }
     }
-    renderLayoutFn(lastPanel, lastDotSize);
+    renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined);
   });
   
   if (pageInvert) {
@@ -180,9 +182,9 @@ function bindUI(): void {
     }
   }
   
-  if (nestingOffset && nestingOffsetNumber) UI.syncPair(nestingOffset, nestingOffsetNumber, () => renderLayoutFn(lastPanel, lastDotSize));
+  if (nestingOffset && nestingOffsetNumber) UI.syncPair(nestingOffset, nestingOffsetNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
 
-  pageEl.showGrid?.addEventListener('change', () => renderLayoutFn(lastPanel, lastDotSize));
+  pageEl.showGrid?.addEventListener('change', () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
 
   const pageZoomCtl = UI.zoom;
   pageEl.zoom?.addEventListener('input', () => { 
@@ -216,7 +218,7 @@ function bindUI(): void {
 
   // Reset layout settings button
   pageEl.resetLayoutSettings?.addEventListener('click', () => {
-    resetLayoutSettings({ ...layoutElements, pageEl }, renderLayoutFn, lastPanel, lastDotSize);
+    resetLayoutSettings({ ...layoutElements, pageEl }, renderLayoutFn, lastPanel, lastDotSize, lastPanelConfig || undefined);
   });
 
   // Re-check overflow on plus/minus buttons which change zoom via CSS transform

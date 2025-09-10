@@ -30,9 +30,13 @@ export function computePanel(params: PanelConfig): Panel {
     const circumRadius = sideLen / (2 * Math.sin(Math.PI / nSides));
     verts = geometry.regularPolygonVertices(nSides, circumRadius);
     
-    // Rotate squares by 45 degrees to display as proper squares instead of diamonds
+    // Apply shape-specific rotations for better orientation
     if (nSides === 4) {
+      // Rotate squares by 45 degrees to display as proper squares instead of diamonds
       verts = utils.rotateSquareVertices(verts);
+    } else if (nSides === 6) {
+      // Rotate regular hexagons by 90 degrees to have flat sides horizontal
+      verts = utils.rotateHexagonVertices(verts);
     }
     
     curveScaleR = circumRadius;
@@ -95,7 +99,8 @@ export function renderLayout(
   dotDiameter: number, 
   pageEl: any, 
   layoutElements: any,
-  state: { lastLayoutWpx: number; lastLayoutHpx: number; isFirstLayoutRender: boolean }
+  state: { lastLayoutWpx: number; lastLayoutHpx: number; isFirstLayoutRender: boolean },
+  config?: PanelConfig | null
 ): void {
   const { LAYOUT } = window.FB.CONSTANTS;
   
@@ -140,7 +145,7 @@ export function renderLayout(
   const svg = createLayoutSvg(panel, { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset });
   
   // Calculate and display material utilization
-  const utilization = calculateMaterialUtilization(panel, { rows, cols, hSpace, vSpace, invertOdd, nestingVerticalOffset });
+  const utilization = calculateMaterialUtilization(panel, { rows, cols, hSpace, vSpace, invertOdd, nestingVerticalOffset }, config || undefined);
   if (pageEl.materialUtilization && pageEl.utilizationValue) {
     pageEl.utilizationValue.textContent = `${utilization.toFixed(1)}%`;
     pageEl.materialUtilization.style.display = 'flex';
@@ -201,7 +206,7 @@ export function showErrorMessage(message: string, el: any): void {
  */
 export function createMainRenderFunction(
   el: any, 
-  renderLayoutFn: (panel: Panel | null, dotSize: number) => void
+  renderLayoutFn: (panel: Panel | null, dotSize: number, config?: PanelConfig) => void
 ) {
   return function render(): void {
     try {
@@ -218,7 +223,7 @@ export function createMainRenderFunction(
       renderSVGToDOM(panel, config.dotSize, el);
       
       // Update shared state for layout rendering
-      renderLayoutFn(panel, config.dotSize);
+      renderLayoutFn(panel, config.dotSize, panelConfig);
       
     } catch (error) {
       console.error('Render error:', error);

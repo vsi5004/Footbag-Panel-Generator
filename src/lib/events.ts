@@ -1,7 +1,7 @@
 // Event handling for the footbag panel generator
 // Centralizes all UI event binding and event handler logic
 
-import type { DOMElements, Panel } from '../types';
+import type { DOMElements, Panel, PanelConfig } from '../types';
 
 export interface EventHandlers {
   render: () => void;
@@ -53,7 +53,7 @@ export function resetPanelSettings(el: DOMElements, ui: any, render: () => void)
 /**
  * Resets layout settings to default values
  */
-export function resetLayoutSettings(layoutEl: any, renderLayout: (panel: Panel | null, dotSize: number) => void, lastPanel: Panel | null, lastDotSize: number): void {
+export function resetLayoutSettings(layoutEl: any, renderLayout: (panel: Panel | null, dotSize: number, config?: PanelConfig) => void, lastPanel: Panel | null, lastDotSize: number, config?: PanelConfig): void {
   const { pageRows, pageRowsNumber, pageCols, pageColsNumber, pageHSpace, pageHSpaceNumber, 
           pageVSpace, pageVSpaceNumber, pageInvert, nestingOffset, nestingOffsetNumber, 
           nestingOffsetRow } = layoutEl;
@@ -77,7 +77,7 @@ export function resetLayoutSettings(layoutEl: any, renderLayout: (panel: Panel |
   if (nestingOffsetRow) nestingOffsetRow.classList.add('hidden');
   
   // Re-render the layout with default values
-  renderLayout(lastPanel, lastDotSize);
+  renderLayout(lastPanel, lastDotSize, config);
 }
 
 /**
@@ -169,7 +169,7 @@ export function setupImportSettings(el: DOMElements, ui: any, render: () => void
 /**
  * Sets up horizontal spacing sync with negative value mapping
  */
-export function setupHorizontalSpacingSync(layoutEl: any, renderLayout: (panel: Panel | null, dotSize: number) => void, lastPanel: Panel | null, lastDotSize: number): void {
+export function setupHorizontalSpacingSync(layoutEl: any, renderLayout: (panel: Panel | null, dotSize: number) => void, getLastPanel: () => Panel | null, getLastDotSize: () => number): void {
   const { pageHSpace, pageHSpaceNumber } = layoutEl;
   if (!pageHSpace || !pageHSpaceNumber) return;
   
@@ -178,7 +178,7 @@ export function setupHorizontalSpacingSync(layoutEl: any, renderLayout: (panel: 
     // Map slider: 0-20 → -20 to 0mm, 21-70 → 1 to 50mm
     const actualVal = sliderVal <= 20 ? (sliderVal - 20) : (sliderVal - 19);
     pageHSpaceNumber.value = actualVal.toString();
-    renderLayout(lastPanel, lastDotSize);
+    renderLayout(getLastPanel(), getLastDotSize());
   };
   
   const syncHSpaceFromNumber = () => {
@@ -186,7 +186,7 @@ export function setupHorizontalSpacingSync(layoutEl: any, renderLayout: (panel: 
     // Map number: -20 to 0mm → 0-20 slider, 1 to 50mm → 21-70 slider
     const sliderVal = numberVal <= 0 ? (numberVal + 20) : (numberVal + 19);
     pageHSpace.value = Math.max(0, Math.min(70, sliderVal)).toString();
-    renderLayout(lastPanel, lastDotSize);
+    renderLayout(getLastPanel(), getLastDotSize());
   };
   
   pageHSpace.addEventListener('input', syncHSpaceFromSlider);

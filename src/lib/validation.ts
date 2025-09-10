@@ -78,9 +78,13 @@ export function computeGeometry(config: GeometryConfig): GeometryResult {
     const circumRadius = side / (2 * Math.sin(Math.PI / nSides));
     verts = geometry.regularPolygonVertices(nSides, circumRadius);
     
-    // Rotate squares by 45 degrees to display as proper squares instead of diamonds
+    // Apply shape-specific rotations for better orientation
     if (nSides === 4) {
+      // Rotate squares by 45 degrees to display as proper squares instead of diamonds
       verts = utils.rotateSquareVertices(verts);
+    } else if (nSides === 6) {
+      // Rotate regular hexagons by 90 degrees to have flat sides horizontal
+      verts = utils.rotateHexagonVertices(verts);
     }
     
     curveScaleR = circumRadius;
