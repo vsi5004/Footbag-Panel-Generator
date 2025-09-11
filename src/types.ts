@@ -153,6 +153,12 @@ export interface DOMElements {
   utilizationValue: HTMLSpanElement | null;
   resetLayoutSettings: HTMLButtonElement | null;
   resetPanelSettings: HTMLButtonElement | null;
+  // Panel info elements (for single panel preview)
+  panelInfoContainer: HTMLElement | null;
+  panelSideLength: HTMLElement | null;
+  panelSideLengthValue: HTMLSpanElement | null;
+  panelStitchedLength: HTMLElement | null;
+  panelStitchedLengthValue: HTMLSpanElement | null;
 }
 
 declare global {

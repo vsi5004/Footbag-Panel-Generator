@@ -105,6 +105,7 @@ button:hover { filter: brightness(1.05); }
 .preview { background: var(--panel); border: 1px solid #222638; border-radius: 10px; padding: 12px; }
 .preview-inner { background: #0a0b0f; border-radius: 8px; padding: 10px; min-height: 600px; display: grid; grid-template-rows: auto 1fr; gap: 8px; }
 .preview-inner--layout { min-height: 0; grid-template-rows: auto auto; }
+.preview-inner:has(.panel-info-container) { grid-template-rows: auto auto 1fr; }
 .preview-inner--layout .svg-host { height: auto; max-height: 50vh; }
 .preview-toolbar { display: flex; align-items: center; gap: 8px; justify-content: center; }
 .preview-toolbar button { background: #2a2f43; color: #e6e6e6; border: 1px solid #364064; padding: 4px 10px; border-radius: 6px; font-weight: 600; }
@@ -142,6 +143,39 @@ button:hover { filter: brightness(1.05); }
   font-weight: 600; 
   font-size: 16px; 
   margin-left: 4px; 
+}
+
+/* Panel info container (similar to material info but for single panel) */
+.panel-info-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-top: 1px solid #364064;
+  margin-top: 8px;
+  gap: 20px;
+}
+.panel-side-length { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px;
+}
+.panel-side-label { color: var(--muted); font-size: 14px; }
+.panel-side-value { 
+  color: #60a5fa; 
+  font-weight: 600; 
+  font-size: 14px; 
+}
+.panel-stitched-length { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px;
+}
+.panel-stitched-label { color: var(--muted); font-size: 14px; }
+.panel-stitched-value { 
+  color: #fbbf24; 
+  font-weight: 600; 
+  font-size: 14px; 
 }
 .svg-host { width: 100%; overflow: auto; background: #0a0b0f; height: 100%; }
 .svg-wrap { display: inline-block; transform-origin: top left; }

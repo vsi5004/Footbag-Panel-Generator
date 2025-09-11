@@ -66,6 +66,12 @@ export function createMainElements(): DOMElements {
     utilizationValue: null, // Only exists in page layout
     resetLayoutSettings: null, // Only exists in page layout
     resetPanelSettings: document.getElementById('resetPanelSettings') as HTMLButtonElement,
+    // Panel info elements
+    panelInfoContainer: document.getElementById('panelInfoContainer') as HTMLElement,
+    panelSideLength: document.getElementById('panelSideLength') as HTMLElement,
+    panelSideLengthValue: document.getElementById('panelSideLengthValue') as HTMLSpanElement,
+    panelStitchedLength: document.getElementById('panelStitchedLength') as HTMLElement,
+    panelStitchedLengthValue: document.getElementById('panelStitchedLengthValue') as HTMLSpanElement,
   };
 }
 
@@ -128,6 +134,12 @@ export function createPageElements(): DOMElements {
     utilizationValue: document.getElementById('utilizationValue') as HTMLSpanElement,
     resetLayoutSettings: document.getElementById('resetLayoutSettings') as HTMLButtonElement,
     resetPanelSettings: null, // This doesn't exist in the page layout section
+    // Panel info elements (only exist in main panel preview)
+    panelInfoContainer: null,
+    panelSideLength: null,
+    panelSideLengthValue: null,
+    panelStitchedLength: null,
+    panelStitchedLengthValue: null,
   };
 }
 
