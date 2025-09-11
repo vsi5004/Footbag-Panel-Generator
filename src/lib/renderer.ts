@@ -11,25 +11,26 @@ import { utils } from './utils';
  * This accounts for corner stitch spacing and other advanced features
  */
 function calculatePanelStitchedSideLength(panel: Panel, config: PanelConfig): number {
-  const { nSides } = config;
+  const { stitchCount } = config;
   const stitches = panel.stitches;
   
-  if (stitches.length === 0) return 0;
+  if (stitches.length === 0 || stitchCount < 2) return 0;
   
-  // Group stitches by side/edge
-  const stitchesPerSide = stitches.length / nSides;
+  // Use the configured stitches per side rather than assuming even distribution
+  // since some sides might be excluded (edgeInclude) or have insufficient space
+  const expectedStitchesPerSide = stitchCount;
   
-  if (stitchesPerSide < 2) {
+  if (expectedStitchesPerSide < 2) {
     // If less than 2 stitches per side, there are no gaps to measure
     return 0;
   }
   
-  // Calculate the distance between stitches on the first side
-  // (all sides should have the same pattern due to the algorithm)
+  // Calculate the distance between the first expectedStitchesPerSide stitches
+  // (representing the first side's stitch pattern)
   let totalStitchedLength = 0;
-  const stitchesOnFirstSide = Math.floor(stitchesPerSide);
+  const numGaps = Math.min(expectedStitchesPerSide - 1, stitches.length - 1);
   
-  for (let i = 0; i < stitchesOnFirstSide - 1; i++) {
+  for (let i = 0; i < numGaps; i++) {
     const currentStitch = stitches[i];
     const nextStitch = stitches[i + 1];
     
