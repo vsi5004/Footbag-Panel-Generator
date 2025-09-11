@@ -115,8 +115,8 @@
         <div class="control" id="sideRow">
           <label for="side">Side length (mm)</label>
           <div class="range-row">
-            <input id="side" type="range" min="10" max="80" step="1" value="30" />
-            <input id="sideNumber" type="number" min="10" max="80" step="1" value="30" />
+            <input id="side" type="range" min="10" max="80" step="0.5" value="30" />
+            <input id="sideNumber" type="number" min="10" max="80" step="0.5" value="30" />
           </div>
         </div>
 
@@ -129,8 +129,8 @@
             </div>
           </div>
           <div class="range-row">
-            <input id="seam" type="range" min="2" max="9" step="0.5" value="5" />
-            <input id="seamNumber" type="number" min="2" max="9" step="0.5" value="5" />
+            <input id="seam" type="range" min="2" max="9" step="0.2" value="5" />
+            <input id="seamNumber" type="number" min="2" max="9" step="0.2" value="5" />
           </div>
         </div>
 
@@ -143,8 +143,8 @@
             </div>
           </div>
           <div class="range-row">
-            <input id="stitches" type="range" min="4" max="20" step="1" value="10" />
-            <input id="stitchesNumber" type="number" min="4" max="20" step="1" value="10" />
+            <input id="stitches" type="range" min="4" max="20" step="1" value="8" />
+            <input id="stitchesNumber" type="number" min="4" max="20" step="1" value="8" />
           </div>
         </div>
 
@@ -161,8 +161,41 @@
                 </div>
               </div>
               <div class="range-row">
-                <input id="holeSpacing" type="range" min="1" max="20" step="0.2" value="5" />
-                <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.2" value="5" />
+                <input id="holeSpacing" type="range" min="1" max="20" step="0.2" value="3" />
+                <input id="holeSpacingNumber" type="number" min="1" max="20" step="0.2" value="3" />
+              </div>
+            </div>
+
+            <!-- Corner stitch spacing -->
+            <div class="control">
+              <div class="tooltip-container">
+                <label>Custom corner stitch</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  Enable to use different spacing for the first and last stitches on each edge. This creates smoother transitions between panel edges by allowing tighter corner stitches.
+                </div>
+              </div>
+              <div class="switch-row">
+                <span class="switch-label">Off</span>
+                <label class="switch" aria-label="Toggle corner stitch spacing">
+                  <input id="cornerStitchSpacing" type="checkbox" />
+                  <span class="slider"></span>
+                </label>
+                <span class="switch-label">On</span>
+              </div>
+            </div>
+
+            <div class="control hidden" id="cornerStitchSpacingRow">
+              <div class="tooltip-container">
+                <label for="cornerStitchDistance">Corner hole spacing (mm)</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  The spacing used for the first and last stitches on each edge when corner stitch spacing is enabled. Typically smaller than regular hole spacing for smoother edge transitions.
+                </div>
+              </div>
+              <div class="range-row">
+                <input id="cornerStitchDistance" type="range" min="0.5" max="10" step="0.1" value="3" />
+                <input id="cornerStitchDistanceNumber" type="number" min="0.5" max="10" step="0.1" value="3" />
               </div>
             </div>
 

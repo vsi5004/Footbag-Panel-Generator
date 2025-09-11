@@ -19,6 +19,8 @@ export interface SettingsData {
   dotSize: number;
   starRootOffset?: number;
   starRootAngle?: number;
+  cornerStitchSpacing?: boolean;
+  cornerStitchDistance?: number;
   hex: {
     type: string;
     long?: number;
@@ -44,13 +46,15 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
     curveFactor: el.curved?.checked && el.curveFactor ? INPUT_VALIDATORS.curveFactor(el.curveFactor.value) : undefined,
     side: INPUT_VALIDATORS.side(el.side?.value || '30'),
     seam: INPUT_VALIDATORS.seam(el.seam?.value || '5'),
-    stitches: INPUT_VALIDATORS.stitches(el.stitches?.value || '10'),
+    stitches: INPUT_VALIDATORS.stitches(el.stitches?.value || '8'),
     showGrid: el.showGrid ? !!el.showGrid.checked : undefined,
     cornerMargin: el.cornerMargin ? clamp(parseFloat(el.cornerMargin.value), 0, 999) : undefined,
     holeSpacing: el.holeSpacing ? clamp(parseFloat(el.holeSpacing.value), 1, 999) : undefined,
     dotSize: INPUT_VALIDATORS.dotSize(el.dotSize?.value || '1'),
     starRootOffset: el.starRootOffset ? INPUT_VALIDATORS.starRootOffset(el.starRootOffset.value) : undefined,
     starRootAngle: el.starRootAngle ? INPUT_VALIDATORS.starRootAngle(el.starRootAngle.value) : undefined,
+    cornerStitchSpacing: el.cornerStitchSpacing ? !!el.cornerStitchSpacing.checked : undefined,
+    cornerStitchDistance: el.cornerStitchDistance ? INPUT_VALIDATORS.cornerStitchDistance(el.cornerStitchDistance.value) : undefined,
     hex: {
       type: el.hexType?.value || 'regular',
       long: el.hexLong ? clamp(parseFloat(el.hexLong.value), 10, 80) : undefined,
@@ -115,6 +119,15 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
   if (s.holeSpacing != null && el.holeSpacing) { 
     set(el.holeSpacing, Math.max(1, parseFloat(String(s.holeSpacing)))); 
     if (el.holeSpacingNumber) el.holeSpacingNumber.textContent = el.holeSpacing.value;
+  }
+  
+  if (s.cornerStitchSpacing != null && el.cornerStitchSpacing) {
+    el.cornerStitchSpacing.checked = !!s.cornerStitchSpacing;
+  }
+  
+  if (s.cornerStitchDistance != null && el.cornerStitchDistance) {
+    set(el.cornerStitchDistance, INPUT_VALIDATORS.cornerStitchDistance(s.cornerStitchDistance));
+    if (el.cornerStitchDistanceNumber) el.cornerStitchDistanceNumber.textContent = el.cornerStitchDistance.value;
   }
   
   if (s.dotSize != null) { 
