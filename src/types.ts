@@ -32,6 +32,8 @@ export interface PanelConfig {
   cornerMargin: number;
   starRootOffset: number;
   starRootAngle: number;
+  cornerStitchSpacing: boolean;
+  cornerStitchDistance: number;
 }
 
 export interface GeometryConfig {
@@ -61,6 +63,8 @@ export interface UIConfig {
   dotSize: number;
   starRootOffset: number;
   starRootAngle: number;
+  cornerStitchSpacing: boolean;
+  cornerStitchDistance: number;
 }
 
 export interface EdgeSample {
@@ -120,6 +124,10 @@ export interface DOMElements {
   starRootAngleNumber: HTMLSpanElement | null;
   holeSpacing: HTMLInputElement | null;
   holeSpacingNumber: HTMLSpanElement | null;
+  cornerStitchSpacing: HTMLInputElement | null;
+  cornerStitchSpacingRow: HTMLElement | null;
+  cornerStitchDistance: HTMLInputElement | null;
+  cornerStitchDistanceNumber: HTMLSpanElement | null;
   dotSizeNumber: HTMLSpanElement | null;
   hexTypeRow: HTMLElement | null;
   hexLongRow: HTMLElement | null;
@@ -172,7 +180,9 @@ declare global {
           cornerMargin: number,
           precision: number,
           edgeInclude?: ((i: number) => boolean) | null,
-          starRootOffset?: number
+          starRootOffset?: number,
+          cornerStitchSpacing?: boolean,
+          cornerStitchDistance?: number
         ) => Point[];
         computeAllowableSpacing: (
           verts: Point[],

@@ -20,6 +20,7 @@ export const INPUT_VALIDATORS: Record<string, ValidatorFunction> = {
   dotSize: (value: string | number) => clamp(parseFloat(value.toString()), 0.2, 1.5),
   starRootOffset: (value: string | number) => clamp(parseFloat(value.toString()), -3, 1),
   starRootAngle: (value: string | number) => clamp(parseFloat(value.toString()), 100, 150),
+  cornerStitchDistance: (value: string | number) => clamp(parseFloat(value.toString()), 0.5, 10),
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -45,6 +46,8 @@ export function collectInputValues(el: any): UIConfig {
   const dotSize = INPUT_VALIDATORS.dotSize(el.dotSize?.value ?? '1');
   const starRootOffset = el.starRootOffset ? INPUT_VALIDATORS.starRootOffset(el.starRootOffset.value) : -1.5;
   const starRootAngle = el.starRootAngle ? INPUT_VALIDATORS.starRootAngle(el.starRootAngle.value) : 128;
+  const cornerStitchSpacing = el.cornerStitchSpacing?.checked ?? false;
+  const cornerStitchDistance = el.cornerStitchDistance ? INPUT_VALIDATORS.cornerStitchDistance(el.cornerStitchDistance.value) : 3;
 
   return {
     nSides,
@@ -59,6 +62,8 @@ export function collectInputValues(el: any): UIConfig {
     dotSize,
     starRootOffset,
     starRootAngle,
+    cornerStitchSpacing,
+    cornerStitchDistance,
   };
 }
 
@@ -132,7 +137,7 @@ export function updateDynamicConstraints(config: UIConfig, geometry: GeometryRes
   }
   
   const holeSpacing = el.holeSpacing ? 
-    INPUT_VALIDATORS.holeSpacing(el.holeSpacing.value, allowableSpacing) : 5;
+    INPUT_VALIDATORS.holeSpacing(el.holeSpacing.value, allowableSpacing) : 3;
   
   return { cornerMargin, holeSpacing };
 }
@@ -155,5 +160,7 @@ export function createPanelConfig(config: UIConfig, constraints: { cornerMargin:
     cornerMargin: constraints.cornerMargin,
     starRootOffset: config.starRootOffset,
     starRootAngle: config.starRootAngle,
+    cornerStitchSpacing: config.cornerStitchSpacing,
+    cornerStitchDistance: config.cornerStitchDistance,
   };
 }

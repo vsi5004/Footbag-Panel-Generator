@@ -43,6 +43,9 @@ function updateVisibility(el: DOMElements): void {
   
   const curvedOn = !!(el.curved && el.curved.checked);
   if (el.curveFactorRow) el.curveFactorRow.classList.toggle('hidden', !curvedOn);
+  
+  const cornerStitchSpacingOn = !!(el.cornerStitchSpacing && el.cornerStitchSpacing.checked);
+  if (el.cornerStitchSpacingRow) el.cornerStitchSpacingRow.classList.toggle('hidden', !cornerStitchSpacingOn);
 }
 
 function fixUiTextArtifacts(): void {

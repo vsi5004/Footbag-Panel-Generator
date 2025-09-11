@@ -10,7 +10,7 @@ import { utils } from './utils';
  * Computes a panel from the given configuration
  */
 export function computePanel(params: PanelConfig): Panel {
-  const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveFactor, holeSpacing, cornerMargin, starRootOffset, starRootAngle } = params;
+  const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveFactor, holeSpacing, cornerMargin, starRootOffset, starRootAngle, cornerStitchSpacing = false, cornerStitchDistance = 2.0 } = params;
   const { geometry, stitches: stitchHelpers } = window.FB;
   const { CURVATURE, SAMPLING, LAYOUT } = window.FB.CONSTANTS;
   
@@ -56,7 +56,7 @@ export function computePanel(params: PanelConfig): Panel {
   // For stars, use larger corner margin to avoid stitching too close to sharp points
   const effectiveCornerMargin = nSides === 10 ? Math.max(cornerMargin, 3.0) : cornerMargin;
   
-  const stitches = stitchHelpers.stitchPositions(verts, curveDepth, stitchCount, seamOffset, holeSpacing, effectiveCornerMargin, SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset);
+  const stitches = stitchHelpers.stitchPositions(verts, curveDepth, stitchCount, seamOffset, holeSpacing, effectiveCornerMargin, SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset, cornerStitchSpacing, cornerStitchDistance);
   const allX: number[] = [];
   const allY: number[] = [];
   for (let vertexIndex = 0; vertexIndex < verts.length; vertexIndex++) {

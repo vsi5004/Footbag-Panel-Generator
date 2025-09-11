@@ -30,13 +30,17 @@ Single‑page web app that generates printable SVG templates for footbag (hacky 
 ## Features
 
 ### Panel Generation
-- **Shape Options**: Curved or straight polygon panels for 3/4/5/6 sides (triangle, square, pentagon, hexagon)
+- **Shape Options**: Curved or straight polygon panels for 3/4/5/6/10 sides (triangle, square, pentagon, hexagon, star)
 - **Configurable Parameters**: Side length (mm), seam allowance (mm), stitch holes per side
 - **Advanced Controls**: 
   - Hole spacing control (min 1mm; dynamic max based on geometry)
   - Adjustable stitch dot size (0.2–1.5mm diameter)
   - Curvature factor control (0.10–0.40) when edges are curved
   - Corner margin settings with dynamic constraints
+  - **Custom corner stitch spacing**: Independent control of first/last hole spacing for smoother edge transitions
+- **Star Shape Enhancements**:
+  - Configurable root angle control (100°–150°) for precise star geometry
+  - Smart corner spacing (applies only to tips, preserves natural root spacing)
 - **Hexagon Variants**: Regular hexagons or truncated triangles for specialized designs
 - **Zoom Controls**: 20%–300% zoom with 200% default for optimal viewing
 
