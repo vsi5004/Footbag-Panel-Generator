@@ -7,6 +7,45 @@ import { createLayoutSvg, calculateMaterialUtilization } from './layout';
 import { utils } from './utils';
 
 /**
+ * Calculates the actual stitched side length for a panel by measuring distances between stitch points
+ * This accounts for corner stitch spacing and other advanced features
+ */
+function calculatePanelStitchedSideLength(panel: Panel, config: PanelConfig): number {
+  const { stitchCount } = config;
+  const stitches = panel.stitches;
+  
+  if (stitches.length === 0 || stitchCount < 2) return 0;
+  
+  // Use the configured stitches per side rather than assuming even distribution
+  // since some sides might be excluded (edgeInclude) or have insufficient space
+  const expectedStitchesPerSide = stitchCount;
+  
+  if (expectedStitchesPerSide < 2) {
+    // If less than 2 stitches per side, there are no gaps to measure
+    return 0;
+  }
+  
+  // Calculate the distance between the first expectedStitchesPerSide stitches
+  // (representing the first side's stitch pattern)
+  let totalStitchedLength = 0;
+  const numGaps = Math.min(expectedStitchesPerSide - 1, stitches.length - 1);
+  
+  for (let i = 0; i < numGaps; i++) {
+    const currentStitch = stitches[i];
+    const nextStitch = stitches[i + 1];
+    
+    const distance = Math.hypot(
+      nextStitch.x - currentStitch.x,
+      nextStitch.y - currentStitch.y
+    );
+    
+    totalStitchedLength += distance;
+  }
+  
+  return totalStitchedLength;
+}
+
+/**
  * Computes a panel from the given configuration
  */
 export function computePanel(params: PanelConfig): Panel {
@@ -81,7 +120,7 @@ export function computePanel(params: PanelConfig): Panel {
 /**
  * Renders the SVG to the DOM
  */
-export function renderSVGToDOM(panel: Panel, dotDiameter: number, el: any): void {
+export function renderSVGToDOM(panel: Panel, dotDiameter: number, el: any, config?: PanelConfig): void {
   if (!el.svgHost) {
     console.error('SVG host element not available');
     return;
@@ -99,6 +138,19 @@ export function renderSVGToDOM(panel: Panel, dotDiameter: number, el: any): void
   wrap.className = 'svg-wrap';
   wrap.appendChild(svg);
   el.svgHost.appendChild(wrap);
+  
+  // Update panel info if elements exist and config is provided
+  if (config && el.panelInfoContainer && el.panelSideLengthValue && el.panelStitchedLengthValue) {
+    // Display the panel side length (from user input)
+    el.panelSideLengthValue.textContent = `${config.sideLen.toFixed(1)} mm`;
+    
+    // Calculate and display the stitched side length
+    const stitchedLength = calculatePanelStitchedSideLength(panel, config);
+    el.panelStitchedLengthValue.textContent = `${stitchedLength.toFixed(1)} mm`;
+    
+    // Show the panel info container
+    el.panelInfoContainer.style.display = 'flex';
+  }
   
   window.FB.ui?.zoom?.apply(el);
 }
@@ -225,6 +277,11 @@ export function showErrorMessage(message: string, el: any): void {
       </div>
     `;
   }
+  
+  // Hide panel info container on error
+  if (el.panelInfoContainer) {
+    el.panelInfoContainer.style.display = 'none';
+  }
 }
 
 /**
@@ -246,7 +303,7 @@ export function createMainRenderFunction(
       
       const panel = computePanel(panelConfig);
       
-      renderSVGToDOM(panel, config.dotSize, el);
+      renderSVGToDOM(panel, config.dotSize, el, panelConfig);
       
       // Update shared state for layout rendering
       renderLayoutFn(panel, config.dotSize, panelConfig);
