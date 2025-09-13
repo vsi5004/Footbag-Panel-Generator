@@ -150,7 +150,7 @@ function bindUI(): void {
     el.exportSettings.addEventListener('click', () => exportSettings(el, { ...layoutElements, pageEl }));
   }
   
-  setupImportSettings(el, UI, debouncedRender, { ...layoutElements, pageEl }, renderLayoutFn);
+  setupImportSettings(el, UI, debouncedRender, { ...layoutElements, pageEl, layoutState }, renderLayoutFn);
 
   el.resetPanelSettings?.addEventListener('click', () => {
     resetPanelSettings(el, UI, debouncedRender);
@@ -163,7 +163,7 @@ function bindUI(): void {
   if (pageRows && pageRowsNumber) UI.syncPair(pageRows, pageRowsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   if (pageCols && pageColsNumber) UI.syncPair(pageCols, pageColsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   
-  setupHorizontalSpacingSync({ pageHSpace, pageHSpaceNumber }, renderLayoutFn, () => lastPanel, () => lastDotSize);
+  setupHorizontalSpacingSync({ pageHSpace, pageHSpaceNumber }, renderLayoutFn, () => lastPanel, () => lastDotSize, UI);
   
   if (pageVSpace && pageVSpaceNumber) UI.syncPair(pageVSpace, pageVSpaceNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   pageInvert?.addEventListener('change', () => {

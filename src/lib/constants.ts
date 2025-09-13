@@ -6,7 +6,7 @@ export const CONSTANTS: Constants = {
     seam: '#808080',
   },
   STROKES: {
-    cut: 0.25,
+    cut: 0.17,
     seam: 0.2,
   },
   CURVATURE: {

@@ -64,7 +64,7 @@ export function resetLayoutSettings(layoutEl: any, renderLayout: (panel: Panel |
   if (pageRowsNumber) pageRowsNumber.value = '3';
   if (pageCols) pageCols.value = '3';
   if (pageColsNumber) pageColsNumber.value = '3';
-  if (pageHSpace) pageHSpace.value = '20';
+  if (pageHSpace) pageHSpace.value = '0';
   if (pageHSpaceNumber) pageHSpaceNumber.value = '0';
   if (pageVSpace) pageVSpace.value = '1';
   if (pageVSpaceNumber) pageVSpaceNumber.value = '1';
@@ -155,6 +155,52 @@ export function setupImportSettings(el: DOMElements, ui: any, render: () => void
       try {
         const data = JSON.parse(String(reader.result || '{}'));
         STATE.apply(el, data, layoutEl);
+        
+        // Manually trigger sync for all range/number pairs
+        // This ensures number displays match the imported range values
+        const syncPairDisplay = (range: HTMLInputElement | null, display: HTMLElement | null) => {
+          if (range && display) {
+            if ('value' in display) {
+              (display as HTMLInputElement).value = range.value;
+            } else {
+              display.textContent = range.value;
+            }
+          }
+        };
+        
+        // Sync all main panel pairs
+        syncPairDisplay(el.side, el.sideNumber);
+        syncPairDisplay(el.seam, el.seamNumber);
+        syncPairDisplay(el.dotSize, el.dotSizeNumber);
+        syncPairDisplay(el.cornerMargin, el.cornerMarginNumber);
+        syncPairDisplay(el.curveFactor, el.curveFactorNumber);
+        syncPairDisplay(el.stitches, el.stitchesNumber);
+        syncPairDisplay(el.holeSpacing, el.holeSpacingNumber);
+        syncPairDisplay(el.cornerStitchDistance, el.cornerStitchDistanceNumber);
+        syncPairDisplay(el.starRootOffset, el.starRootOffsetNumber);
+        syncPairDisplay(el.starRootAngle, el.starRootAngleNumber);
+        syncPairDisplay(el.hexLong, el.hexLongNumber);
+        syncPairDisplay(el.hexRatio, el.hexRatioNumber);
+        
+        // Sync layout pairs 
+        if (layoutEl) {
+          syncPairDisplay(layoutEl.pageRows, layoutEl.pageRowsNumber);
+          syncPairDisplay(layoutEl.pageCols, layoutEl.pageColsNumber);
+          syncPairDisplay(layoutEl.pageHSpace, layoutEl.pageHSpaceNumber);
+          syncPairDisplay(layoutEl.pageVSpace, layoutEl.pageVSpaceNumber);
+          syncPairDisplay(layoutEl.nestingOffset, layoutEl.nestingOffsetNumber);
+        }
+        
+        // Reset layout zoom to a reasonable level after import
+        if (layoutEl?.pageEl && window.FB.ui?.zoom) {
+          // Reset the layout state to treat this as a fresh render
+          if (layoutEl.layoutState) {
+            layoutEl.layoutState.isFirstLayoutRender = true;
+          }
+          // Set zoom to 100% initially, the auto-fit logic will adjust if needed
+          window.FB.ui.zoom.setPct(layoutEl.pageEl, 100);
+        }
+        
         ui.updateVisibility(el);
         render();
         if (renderLayout) {
@@ -170,31 +216,12 @@ export function setupImportSettings(el: DOMElements, ui: any, render: () => void
 }
 
 /**
- * Sets up horizontal spacing sync with negative value mapping
+ * Set up horizontal spacing sync using standard syncPair behavior
  */
-export function setupHorizontalSpacingSync(layoutEl: any, renderLayout: (panel: Panel | null, dotSize: number) => void, getLastPanel: () => Panel | null, getLastDotSize: () => number): void {
+export function setupHorizontalSpacingSync(layoutEl: any, renderLayout: (panel: Panel | null, dotSize: number) => void, getLastPanel: () => Panel | null, getLastDotSize: () => number, ui: any): void {
   const { pageHSpace, pageHSpaceNumber } = layoutEl;
   if (!pageHSpace || !pageHSpaceNumber) return;
   
-  const syncHSpaceFromSlider = () => {
-    const sliderVal = parseInt(pageHSpace.value, 10);
-    // Map slider: 0-20 → -20 to 0mm, 21-70 → 1 to 50mm
-    const actualVal = sliderVal <= 20 ? (sliderVal - 20) : (sliderVal - 19);
-    pageHSpaceNumber.value = actualVal.toString();
-    renderLayout(getLastPanel(), getLastDotSize());
-  };
-  
-  const syncHSpaceFromNumber = () => {
-    const numberVal = parseInt(pageHSpaceNumber.value, 10);
-    // Map number: -20 to 0mm → 0-20 slider, 1 to 50mm → 21-70 slider
-    const sliderVal = numberVal <= 0 ? (numberVal + 20) : (numberVal + 19);
-    pageHSpace.value = Math.max(0, Math.min(70, sliderVal)).toString();
-    renderLayout(getLastPanel(), getLastDotSize());
-  };
-  
-  pageHSpace.addEventListener('input', syncHSpaceFromSlider);
-  pageHSpaceNumber.addEventListener('input', syncHSpaceFromNumber);
-  
-  // Initialize the display
-  syncHSpaceFromSlider();
+  // Use standard syncPair behavior like vertical spacing
+  ui.syncPair(pageHSpace, pageHSpaceNumber, () => renderLayout(getLastPanel(), getLastDotSize()));
 }

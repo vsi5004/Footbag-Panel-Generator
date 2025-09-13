@@ -156,11 +156,8 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
       set(layoutEl.pageColsNumber, layoutEl.pageCols?.value);
     }
     if (s.layout.hSpace != null) {
-      // Convert back to slider value using the horizontal spacing mapping
-      const hSpaceVal = parseFloat(String(s.layout.hSpace));
-      const sliderVal = hSpaceVal <= 0 ? (hSpaceVal + 20) : (hSpaceVal + 19);
-      set(layoutEl.pageHSpace, Math.max(0, Math.min(70, sliderVal)));
-      set(layoutEl.pageHSpaceNumber, hSpaceVal);
+      set(layoutEl.pageHSpace, clamp(parseFloat(String(s.layout.hSpace)), -20, 50));
+      set(layoutEl.pageHSpaceNumber, layoutEl.pageHSpace?.value);
     }
     if (s.layout.vSpace != null) {
       set(layoutEl.pageVSpace, clamp(parseFloat(String(s.layout.vSpace)), 0, 50));
