@@ -17,8 +17,12 @@ export function createLayoutSvg(
   // Use the panel's tight bounds (without the per-panel margin) so spacing=0
   // produces a snug, waste-minimizing layout.
   const margin = LAYOUT.MARGIN_MM;
-  const cellW = Math.max(0, panel.bounds.width - 2 * margin);
-  const cellH = Math.max(0, panel.bounds.height - 2 * margin);
+  // Account for visual padding from stroke (extends half outward) and hole radius
+  const strokePad = (STROKES.cut || 0) / 2;
+  const dotPad = Math.max(0, dotDiameter / 2);
+  const renderPad = Math.max(strokePad, dotPad);
+  const cellW = Math.max(0, panel.bounds.width - 2 * margin + 2 * renderPad);
+  const cellH = Math.max(0, panel.bounds.height - 2 * margin + 2 * renderPad);
   const width = cols * cellW + (cols - 1) * hSpace;
   let height = rows * cellH + (rows - 1) * vSpace;
   
@@ -56,8 +60,9 @@ export function createLayoutSvg(
 
   for (let ri = 0; ri < rows; ri++) {
     for (let ci = 0; ci < cols; ci++) {
-      const offX = ci * (cellW + hSpace) + dx0;
-      const offY = ri * (cellH + vSpace) + dy0;
+  // Nudge content inward by renderPad so visual extents stay within the cell
+  const offX = ci * (cellW + hSpace) + dx0 + renderPad;
+  const offY = ri * (cellH + vSpace) + dy0 + renderPad;
       // Cell container at cell origin
       const gCell = document.createElementNS(svg.namespaceURI, 'g');
       gCell.setAttribute('transform', `translate(${offX.toFixed(3)} ${offY.toFixed(3)})`);
