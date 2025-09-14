@@ -9,7 +9,7 @@ export interface SettingsData {
   version: number;
   shape: number;
   curved: boolean;
-  curveFactor?: number;
+  curveRadius?: number;
   side: number;
   seam: number;
   stitches: number;
@@ -43,7 +43,7 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
     version: 1,
     shape: INPUT_VALIDATORS.nSides(el.shape?.value || '5'),
     curved: !!el.curved?.checked,
-    curveFactor: el.curved?.checked && el.curveFactor ? INPUT_VALIDATORS.curveFactor(el.curveFactor.value) : undefined,
+    curveRadius: el.curved?.checked && el.curveRadius ? INPUT_VALIDATORS.curveRadius(el.curveRadius.value) : undefined,
     side: INPUT_VALIDATORS.side(el.side?.value || '30'),
     seam: INPUT_VALIDATORS.seam(el.seam?.value || '5'),
     stitches: INPUT_VALIDATORS.stitches(el.stitches?.value || '8'),
@@ -101,9 +101,9 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
   set(el.seam, s.seam ? clamp(parseFloat(String(s.seam)), 2, 9) : undefined);
   if (el.seamNumber && el.seam) el.seamNumber.textContent = el.seam.value;
 
-  if (el.curved?.checked && s.curveFactor != null) {
-    set(el.curveFactor, clamp(parseFloat(String(s.curveFactor)), 0.10, 0.40));
-    if (el.curveFactorNumber && el.curveFactor) el.curveFactorNumber.textContent = el.curveFactor.value;
+  if (el.curved?.checked && s.curveRadius != null) {
+    set(el.curveRadius, clamp(parseFloat(String(s.curveRadius)), 1, 1000));
+    if (el.curveRadiusNumber && el.curveRadius) el.curveRadiusNumber.textContent = el.curveRadius.value;
   }
 
   if (s.stitches != null) set(el.stitches, clamp(parseInt(String(s.stitches), 10), 1, 50));

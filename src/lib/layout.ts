@@ -156,7 +156,7 @@ function calculateActualPanelArea(panel: Panel, config?: PanelConfig): number {
  * Calculates precise polygon area using geometric formulas based on shape configuration
  */
 function calculatePrecisePolygonArea(config: PanelConfig): number {
-  const { nSides, sideLen, hexType = 'regular', curvedEdges, curveFactor, hexLong = 30, hexRatio = 0.5 } = config;
+  const { nSides, sideLen, hexType = 'regular', curvedEdges, curveRadius, hexLong = 30, hexRatio = 0.5 } = config;
   const { geometry } = window.FB;
   
   let vertices: Point[];
@@ -169,20 +169,9 @@ function calculatePrecisePolygonArea(config: PanelConfig): number {
     vertices = geometry.truncatedHexagonVertices(longSideLength, shortSideLength);
     baseArea = calculatePolygonArea(vertices);
     
-    // Add curved area if needed
-    if (curvedEdges) {
-      // For truncated hexagon, we need to account for different edge lengths
-      // Approximate using average edge length
-      const avgEdgeLength = (4 * longSideLength + 2 * shortSideLength) / 6;
-      let sumr = 0;
-      for (const v of vertices) sumr += Math.hypot(v.x, v.y);
-      const curveScaleR = (sumr / vertices.length) || longSideLength;
-      const curveDepth = curveScaleR * curveFactor;
-      
-      // Only curved edges (every other edge in truncated hex)
-      const curvedEdgeCount = 3; // alternating pattern means 3 of 6 edges are curved
-      const curvedArea = curvedEdgeCount * (2 / 3) * avgEdgeLength * curveDepth;
-      baseArea += curvedArea;
+    // Add curved area if needed (use circular segment area per edge)
+    if (curvedEdges && curveRadius && isFinite(curveRadius) && curveRadius > 0) {
+      baseArea += sumCircularSegmentsArea(vertices, curveRadius);
     }
     
   } else if (nSides === 10) {
@@ -192,10 +181,8 @@ function calculatePrecisePolygonArea(config: PanelConfig): number {
     baseArea = calculatePolygonArea(vertices);
     
     // Add curved area if needed
-    if (curvedEdges) {
-      const curveDepth = sideLen * curveFactor;
-      const curvedArea = calculateCurvedSegmentArea(nSides, calculateAverageEdgeLength(vertices), curveDepth);
-      baseArea += curvedArea;
+    if (curvedEdges && curveRadius && isFinite(curveRadius) && curveRadius > 0) {
+      baseArea += sumCircularSegmentsArea(vertices, curveRadius);
     }
     
   } else if (nSides >= 3) {
@@ -205,11 +192,10 @@ function calculatePrecisePolygonArea(config: PanelConfig): number {
     baseArea = (nSides * Math.pow(sideLen, 2)) / (4 * Math.tan(Math.PI / nSides));
     
     // Add curved area if needed
-    if (curvedEdges) {
+    if (curvedEdges && curveRadius && isFinite(curveRadius) && curveRadius > 0) {
       const circumRadius = sideLen / (2 * Math.sin(Math.PI / nSides));
-      const curveDepth = circumRadius * curveFactor;
-      const curvedArea = calculateCurvedSegmentArea(nSides, sideLen, curveDepth);
-      baseArea += curvedArea;
+      const regVerts = geometry.regularPolygonVertices(nSides, circumRadius);
+      baseArea += sumCircularSegmentsArea(regVerts, curveRadius);
     }
   } else {
     return 0;
@@ -219,36 +205,23 @@ function calculatePrecisePolygonArea(config: PanelConfig): number {
 }
 
 /**
- * Calculates the average edge length of a polygon
- */
-function calculateAverageEdgeLength(vertices: Point[]): number {
-  if (vertices.length < 2) return 0;
-  
-  let totalLength = 0;
-  const n = vertices.length;
-  
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
-    const dx = vertices[j].x - vertices[i].x;
-    const dy = vertices[j].y - vertices[i].y;
-    totalLength += Math.hypot(dx, dy);
-  }
-  
-  return totalLength / n;
-}
-
-/**
  * Calculates the additional area contributed by curved segments
  * Each curved edge adds area compared to the straight edge it replaces
  */
-function calculateCurvedSegmentArea(nSides: number, sideLen: number, curveDepth: number): number {
-  // For each edge, the curve is a quadratic curve that bulges outward
-  // We can approximate this as a parabolic segment
-  // Area of parabolic segment ≈ (2/3) * base * height
-  // where base = sideLen and height = curveDepth
-  
-  const areaPerSegment = (2 / 3) * sideLen * curveDepth;
-  return nSides * areaPerSegment;
+function sumCircularSegmentsArea(vertices: Point[], radius: number): number {
+  if (vertices.length < 2 || !isFinite(radius) || radius <= 0) return 0;
+  let total = 0;
+  for (let i = 0; i < vertices.length; i++) {
+    const a = vertices[i];
+    const b = vertices[(i + 1) % vertices.length];
+    const chord = Math.hypot(b.x - a.x, b.y - a.y);
+    if (chord <= 0) continue;
+    const R = Math.max(radius, chord / 2);
+    const theta = 2 * Math.asin(Math.min(1, Math.max(-1, chord / (2 * R))));
+    const segmentArea = 0.5 * R * R * (theta - Math.sin(theta));
+    total += segmentArea;
+  }
+  return total;
 }
 
 /**

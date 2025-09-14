@@ -14,7 +14,7 @@ export const INPUT_VALIDATORS: Record<string, ValidatorFunction> = {
   stitches: (value: string | number) => clamp(parseInt(value.toString(), 10), 0, 20),
   hexLong: (value: string | number) => clamp(parseFloat(value.toString()), 10, 80),
   hexRatio: (value: string | number) => clamp(parseFloat(value.toString()), 0.1, 0.9),
-  curveFactor: (value: string | number) => clamp(parseFloat(value.toString()), 0.10, 0.40),
+  curveRadius: (value: string | number) => clamp(parseFloat(value.toString()), 1, 130),
   cornerMargin: (value: string | number, max: number = 100) => clamp(parseFloat(value.toString()), 0, Math.max(0, max)),
   holeSpacing: (value: string | number, max: number = 100) => clamp(parseFloat(value.toString()), 1, max),
   dotSize: (value: string | number) => clamp(parseFloat(value.toString()), 0.2, 1.5),
@@ -31,7 +31,6 @@ function clamp(value: number, min: number, max: number): number {
  * Collects and validates all input values from the UI
  */
 export function collectInputValues(el: any): UIConfig {
-  const { CURVATURE } = window.FB.CONSTANTS;
   const nSides = INPUT_VALIDATORS.nSides(el.shape?.value ?? '5');
   const side = INPUT_VALIDATORS.side(el.side?.value ?? '30');
   const seam = INPUT_VALIDATORS.seam(el.seam?.value ?? '5');
@@ -40,9 +39,7 @@ export function collectInputValues(el: any): UIConfig {
   const hexType = el.hexType?.value ?? 'regular';
   const hexLong = el.hexLong ? INPUT_VALIDATORS.hexLong(el.hexLong.value) : 30;
   const hexRatio = el.hexRatio ? INPUT_VALIDATORS.hexRatio(el.hexRatio.value) : 0.5;
-  const curveFactor = el.curveFactor ? 
-    INPUT_VALIDATORS.curveFactor(el.curveFactor.value) : 
-    (CURVATURE[nSides] || 0.3);
+  const curveRadius = el.curveRadius ? INPUT_VALIDATORS.curveRadius(el.curveRadius.value) : 60;
   const dotSize = INPUT_VALIDATORS.dotSize(el.dotSize?.value ?? '1');
   const starRootOffset = el.starRootOffset ? INPUT_VALIDATORS.starRootOffset(el.starRootOffset.value) : -1.5;
   const starRootAngle = el.starRootAngle ? INPUT_VALIDATORS.starRootAngle(el.starRootAngle.value) : 128;
@@ -58,7 +55,7 @@ export function collectInputValues(el: any): UIConfig {
     hexType,
     hexLong,
     hexRatio,
-    curveFactor,
+    curveRadius,
     dotSize,
     starRootOffset,
     starRootAngle,
@@ -109,24 +106,44 @@ export function computeGeometry(config: GeometryConfig): GeometryResult {
  * Updates dynamic UI constraints based on current geometry
  */
 export function updateDynamicConstraints(config: UIConfig, geometry: GeometryResult, el: any): { cornerMargin: number; holeSpacing: number } {
-  const { nSides, hexType, hexLong, side, stitches, curvedEdges, curveFactor, starRootOffset } = config;
-  const { verts, curveScaleR, edgeInclude } = geometry;
+  const { nSides, hexType, hexLong, side, stitches, curvedEdges, curveRadius, starRootOffset } = config;
+  const { verts, edgeInclude } = geometry;
   const { SAMPLING } = window.FB.CONSTANTS;
   const { stitches: stitchHelpers } = window.FB;
-  
+
   const cornerMax = (nSides === 6 && hexType === 'truncated') ? (hexLong / 4) : (side / 4);
   if (el.cornerMargin) {
     const cmMaxStr = String(Math.max(0, Math.round(cornerMax * 10) / 10));
     el.cornerMargin.max = cmMaxStr;
     el.cornerMarginNumber?.setAttribute('max', cmMaxStr);
   }
-  
+
   const cornerMargin = el.cornerMargin ? 
     INPUT_VALIDATORS.cornerMargin(el.cornerMargin.value, cornerMax) : 2;
-  
-  const depth = curvedEdges ? curveScaleR * curveFactor : 0;
+
+  // Ensure curveRadius is feasible for all chords: R >= max(chord)/2
+  if (el.curveRadius) {
+    let maxChord = 0;
+    for (let i = 0; i < verts.length; i++) {
+      const a = verts[i];
+      const b = verts[(i + 1) % verts.length];
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      if (d > maxChord) maxChord = d;
+    }
+    const minR = Math.max(10, maxChord / 2);
+    el.curveRadius.min = String(Math.round(minR * 10) / 10);
+    el.curveRadiusNumber?.setAttribute('min', String(Math.round(minR * 10) / 10));
+    // If current radius is too small, clamp display inputs (value will be re-read next render)
+    const current = parseFloat(el.curveRadius.value || '60');
+    if (current < minR) {
+      el.curveRadius.value = String(minR);
+      if (el.curveRadiusNumber) el.curveRadiusNumber.value = String(minR);
+    }
+  }
+
+  const radius = curvedEdges ? curveRadius : 0;
   const allowableSpacing = stitchHelpers.computeAllowableSpacing(
-    verts, depth, stitches, cornerMargin, 
+    verts, radius, stitches, cornerMargin,
     SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset
   );
   
@@ -155,7 +172,7 @@ export function createPanelConfig(config: UIConfig, constraints: { cornerMargin:
     hexType: config.hexType as 'regular' | 'truncated',
     hexLong: config.hexLong,
     hexRatio: config.hexRatio,
-    curveFactor: config.curveFactor,
+    curveRadius: config.curveRadius,
     holeSpacing: constraints.holeSpacing,
     cornerMargin: constraints.cornerMargin,
     starRootOffset: config.starRootOffset,

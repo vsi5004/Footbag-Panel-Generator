@@ -42,7 +42,7 @@ function updateVisibility(el: DOMElements): void {
   if (el.starRootAngleRow) el.starRootAngleRow.classList.toggle('hidden', !isStar);
   
   const curvedOn = !!(el.curved && el.curved.checked);
-  if (el.curveFactorRow) el.curveFactorRow.classList.toggle('hidden', !curvedOn);
+  if (el.curveRadiusRow) el.curveRadiusRow.classList.toggle('hidden', !curvedOn);
   
   const cornerStitchSpacingOn = !!(el.cornerStitchSpacing && el.cornerStitchSpacing.checked);
   if (el.cornerStitchSpacingRow) el.cornerStitchSpacingRow.classList.toggle('hidden', !cornerStitchSpacingOn);

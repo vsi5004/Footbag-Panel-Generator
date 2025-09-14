@@ -95,7 +95,7 @@ function bindUI(): void {
   UI.syncPair(el.dotSize, el.dotSizeNumber, debouncedRender);
   
   if (el.cornerMargin && el.cornerMarginNumber) UI.syncPair(el.cornerMargin, el.cornerMarginNumber, debouncedRender);
-  if (el.curveFactor && el.curveFactorNumber) UI.syncPair(el.curveFactor, el.curveFactorNumber, debouncedRender);
+  if (el.curveRadius && el.curveRadiusNumber) UI.syncPair(el.curveRadius, el.curveRadiusNumber, debouncedRender);
   if (el.stitches && el.stitchesNumber) UI.syncPair(el.stitches, el.stitchesNumber, debouncedRender);
   if (el.holeSpacing && el.holeSpacingNumber) UI.syncPair(el.holeSpacing, el.holeSpacingNumber, debouncedRender);
   if (el.cornerStitchDistance && el.cornerStitchDistanceNumber) UI.syncPair(el.cornerStitchDistance, el.cornerStitchDistanceNumber, debouncedRender);

@@ -18,12 +18,12 @@ export function resetPanelSettings(el: DOMElements, ui: any, render: () => void)
   if (el.shape) el.shape.value = '5'; // Pentagon
   if (el.curved) el.curved.checked = false; // Straight edges
   if (el.side) el.side.value = '30'; // 30mm side length
-  if (el.seam) el.seam.value = '5'; // 5mm seam allowance
+  if (el.seam) el.seam.value = '5'; // default seam allowance (can be negative)
   if (el.stitches) el.stitches.value = '10'; // 10 stitch holes per side
   if (el.cornerMargin) el.cornerMargin.value = '6'; // 6mm corner margin
   if (el.holeSpacing) el.holeSpacing.value = '3'; // 3mm hole spacing
   if (el.dotSize) el.dotSize.value = '1'; // 1mm dot size
-  if (el.curveFactor) el.curveFactor.value = '0.30'; // Default curve factor
+  if (el.curveRadius) el.curveRadius.value = '60'; // Default curve radius (mm)
   if (el.hexType) el.hexType.value = 'truncated'; // Truncated triangle
   if (el.hexLong) el.hexLong.value = '30'; // 30mm long side
   if (el.hexRatio) el.hexRatio.value = '0.5'; // 0.5 ratio
@@ -36,8 +36,8 @@ export function resetPanelSettings(el: DOMElements, ui: any, render: () => void)
   ui.syncPair(el.cornerMargin!, el.cornerMarginNumber!, () => {});
   ui.syncPair(el.holeSpacing!, el.holeSpacingNumber!, () => {});
   ui.syncPair(el.dotSize!, el.dotSizeNumber!, () => {});
-  if (el.curveFactor && el.curveFactorNumber) {
-    ui.syncPair(el.curveFactor, el.curveFactorNumber, () => {});
+  if (el.curveRadius && el.curveRadiusNumber) {
+    ui.syncPair(el.curveRadius, el.curveRadiusNumber, () => {});
   }
   if (el.hexLong && el.hexLongNumber) {
     ui.syncPair(el.hexLong, el.hexLongNumber, () => {});
@@ -173,7 +173,7 @@ export function setupImportSettings(el: DOMElements, ui: any, render: () => void
         syncPairDisplay(el.seam, el.seamNumber);
         syncPairDisplay(el.dotSize, el.dotSizeNumber);
         syncPairDisplay(el.cornerMargin, el.cornerMarginNumber);
-        syncPairDisplay(el.curveFactor, el.curveFactorNumber);
+        syncPairDisplay(el.curveRadius, el.curveRadiusNumber);
         syncPairDisplay(el.stitches, el.stitchesNumber);
         syncPairDisplay(el.holeSpacing, el.holeSpacingNumber);
         syncPairDisplay(el.cornerStitchDistance, el.cornerStitchDistanceNumber);

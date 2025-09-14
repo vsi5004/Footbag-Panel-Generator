@@ -16,6 +16,9 @@ export interface Panel {
     width: number;
     height: number;
   };
+  // Length of one side along the stitch path (seam path), in mm
+  stitchedSideLength?: number;
+  debugPaths?: string[];
 }
 
 export interface PanelConfig {
@@ -27,7 +30,7 @@ export interface PanelConfig {
   hexType?: 'regular' | 'truncated';
   hexLong?: number;
   hexRatio?: number;
-  curveFactor: number;
+  curveRadius: number;
   holeSpacing: number;
   cornerMargin: number;
   starRootOffset: number;
@@ -59,7 +62,7 @@ export interface UIConfig {
   hexType: string;
   hexLong: number;
   hexRatio: number;
-  curveFactor: number;
+  curveRadius: number;
   dotSize: number;
   starRootOffset: number;
   starRootAngle: number;
@@ -110,9 +113,9 @@ export interface DOMElements {
   sideNumber: HTMLSpanElement | null;
   sideRow: HTMLElement | null;
   seamNumber: HTMLSpanElement | null;
-  curveFactorRow: HTMLElement | null;
-  curveFactor: HTMLInputElement | null;
-  curveFactorNumber: HTMLSpanElement | null;
+  curveRadiusRow: HTMLElement | null;
+  curveRadius: HTMLInputElement | null;
+  curveRadiusNumber: HTMLSpanElement | null;
   stitchesNumber: HTMLSpanElement | null;
   cornerMargin: HTMLInputElement | null;
   cornerMarginNumber: HTMLSpanElement | null;
@@ -174,12 +177,14 @@ declare global {
         truncatedHexagonVertices: (longSide: number, shortSide: number) => Point[];
         starVertices: (outerRadius: number, rootAngle?: number) => Point[];
         quadraticCurvePath: (verts: Point[], depth: number) => string;
+        circularArcPath: (verts: Point[], radius: number) => string;
         approxEdgeSamples: (a: Point, b: Point, depth: number, samples: number) => EdgeSample[];
+        approxArcEdgeSamples: (a: Point, b: Point, radius: number, samples: number) => EdgeSample[];
       };
       stitches: {
         stitchPositions: (
           verts: Point[],
-          depth: number,
+          radius: number,
           count: number,
           seamOffset: number,
           holeSpacing: number,
@@ -192,7 +197,7 @@ declare global {
         ) => Point[];
         computeAllowableSpacing: (
           verts: Point[],
-          depth: number,
+          radius: number,
           count: number,
           cornerMargin: number,
           precision: number,

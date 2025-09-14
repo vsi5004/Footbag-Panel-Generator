@@ -6,69 +6,29 @@ import { collectInputValues, computeGeometry, updateDynamicConstraints, createPa
 import { createLayoutSvg, calculateMaterialUtilization } from './layout';
 import { utils } from './utils';
 
-/**
- * Calculates the actual stitched side length for a panel by measuring distances between stitch points
- * This accounts for corner stitch spacing and other advanced features
- */
-function calculatePanelStitchedSideLength(panel: Panel, config: PanelConfig): number {
-  const { stitchCount } = config;
-  const stitches = panel.stitches;
-  
-  if (stitches.length === 0 || stitchCount < 2) return 0;
-  
-  // Use the configured stitches per side rather than assuming even distribution
-  // since some sides might be excluded (edgeInclude) or have insufficient space
-  const expectedStitchesPerSide = stitchCount;
-  
-  if (expectedStitchesPerSide < 2) {
-    // If less than 2 stitches per side, there are no gaps to measure
-    return 0;
-  }
-  
-  // Calculate the distance between the first expectedStitchesPerSide stitches
-  // (representing the first side's stitch pattern)
-  let totalStitchedLength = 0;
-  const numGaps = Math.min(expectedStitchesPerSide - 1, stitches.length - 1);
-  
-  for (let i = 0; i < numGaps; i++) {
-    const currentStitch = stitches[i];
-    const nextStitch = stitches[i + 1];
-    
-    const distance = Math.hypot(
-      nextStitch.x - currentStitch.x,
-      nextStitch.y - currentStitch.y
-    );
-    
-    totalStitchedLength += distance;
-  }
-  
-  return totalStitchedLength;
-}
+// (old hole-to-hole estimate removed; we compute seam length analytically per side)
 
 /**
  * Computes a panel from the given configuration
  */
 export function computePanel(params: PanelConfig): Panel {
-  const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveFactor, holeSpacing, cornerMargin, starRootOffset, starRootAngle, cornerStitchSpacing = false, cornerStitchDistance = 2.0 } = params;
+  const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveRadius, holeSpacing, cornerMargin, starRootOffset, starRootAngle, cornerStitchSpacing = false, cornerStitchDistance = 2.0 } = params;
   const { geometry, stitches: stitchHelpers } = window.FB;
-  const { CURVATURE, SAMPLING, LAYOUT } = window.FB.CONSTANTS;
+  const { SAMPLING, LAYOUT } = window.FB.CONSTANTS;
+  // Apply negative seam internally for curved edges only, per request
+  const appliedSeam = curvedEdges ? -Math.abs(seamOffset) : seamOffset;
   
   let verts: any[];
-  let curveScaleR: number;
   let edgeInclude: ((i: number) => boolean) | null = null;
 
   if (nSides === 6 && hexType === 'truncated') {
     const longSideLength = hexLong;
     const shortSideLength = hexRatio * longSideLength;
     verts = geometry.truncatedHexagonVertices(longSideLength, shortSideLength);
-    let sumr = 0;
-    for (const v of verts) sumr += Math.hypot(v.x, v.y);
-    curveScaleR = (sumr / verts.length) || longSideLength;
     edgeInclude = (i: number) => i % 2 === 0;
   } else if (nSides === 10) {
     // Star shape - use sideLen as the outer radius
     verts = geometry.starVertices(sideLen, starRootAngle);
-    curveScaleR = sideLen;
     // For stars, we want to avoid stitching at the sharp points
     // Use edgeInclude to only stitch certain edges, and increase corner margin
     edgeInclude = null; // Include all edges for now
@@ -84,24 +44,60 @@ export function computePanel(params: PanelConfig): Panel {
       // Rotate regular hexagons by 90 degrees to have flat sides horizontal
       verts = utils.rotateHexagonVertices(verts);
     }
-    
-    curveScaleR = circumRadius;
   }
 
-  const factor = curvedEdges ? (Number.isFinite(curveFactor) ? curveFactor : (CURVATURE[nSides] || 0.3)) : 0;
-  const curveDepth = curvedEdges ? curveScaleR * factor : 0;
-  const outlinePath = geometry.quadraticCurvePath(verts, curveDepth);
+  const radius = curvedEdges ? (Number.isFinite(curveRadius) ? curveRadius : 0) : 0;
+  const outlinePath = geometry.circularArcPath(verts, radius);
+  // We'll compute stitched side length from actual hole spacing after placing holes
+  let stitchedSideLength = 0;
+  // Build debug paths: concentric arcs offset inside the panel along each side (for visualization)
+  const debugPaths: string[] = [];
+  if (radius > 0) {
+    const insetR = radius + appliedSeam; // use applied seam sign
+    for (let i = 0; i < verts.length; i++) {
+      const a = verts[i];
+      const b = verts[(i + 1) % verts.length];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const chord = Math.hypot(dx, dy);
+  if (insetR >= chord / 2) {
+  const p = (window.FB.geometry as any).getInsetArcParams(a, b, radius, appliedSeam);
+        if (p && p.valid) {
+          const aPrime = { x: p.c.x + p.r * Math.cos(p.angA), y: p.c.y + p.r * Math.sin(p.angA) };
+          const bPrime = { x: p.c.x + p.r * Math.cos(p.angA + p.dAng), y: p.c.y + p.r * Math.sin(p.angA + p.dAng) };
+          const largeArcFlag = 0;
+          const sweepFlag = 1; // force outward bulge, matching side arcs' sweep
+          const seg = `M ${aPrime.x.toFixed(3)} ${aPrime.y.toFixed(3)} A ${p.r.toFixed(3)} ${p.r.toFixed(3)} 0 ${largeArcFlag} ${sweepFlag} ${bPrime.x.toFixed(3)} ${bPrime.y.toFixed(3)}`;
+          debugPaths.push(seg);
+        }
+      }
+    }
+  }
   
   // For stars, use larger corner margin to avoid stitching too close to sharp points
   const effectiveCornerMargin = nSides === 10 ? Math.max(cornerMargin, 3.0) : cornerMargin;
   
-  const stitches = stitchHelpers.stitchPositions(verts, curveDepth, stitchCount, seamOffset, holeSpacing, effectiveCornerMargin, SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset, cornerStitchSpacing, cornerStitchDistance);
+  // Get stitches grouped by edge
+  const stitchesByEdge: any[][] = (stitchHelpers as any).stitchPositionsByEdge(
+    verts, radius, stitchCount, appliedSeam, holeSpacing, effectiveCornerMargin,
+    SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset, cornerStitchSpacing, cornerStitchDistance
+  );
+  // Flatten for rendering
+  const stitches = ([] as any[]).concat(...stitchesByEdge);
+  // Sum hole-to-hole distances for the first non-empty side's stitches (1..n)
+  const firstSide = stitchesByEdge.find((arr: any[]) => arr && arr.length >= 2);
+  if (firstSide) {
+    for (let i = 0; i < firstSide.length - 1; i++) {
+      const a = firstSide[i];
+      const b = firstSide[i + 1];
+      stitchedSideLength += Math.hypot(b.x - a.x, b.y - a.y);
+    }
+  }
   const allX: number[] = [];
   const allY: number[] = [];
   for (let vertexIndex = 0; vertexIndex < verts.length; vertexIndex++) {
     const startVertex = verts[vertexIndex]; 
     const endVertex = verts[(vertexIndex + 1) % verts.length];
-    const seg = geometry.approxEdgeSamples(startVertex, endVertex, curveDepth, SAMPLING.BOUNDS_SAMPLES);
+    const seg = geometry.approxArcEdgeSamples(startVertex, endVertex, radius, SAMPLING.BOUNDS_SAMPLES);
     for (const s of seg) { allX.push(s.p.x); allY.push(s.p.y); }
   }
   for (const p of stitches) { allX.push(p.x); allY.push(p.y); }
@@ -114,7 +110,7 @@ export function computePanel(params: PanelConfig): Panel {
   const height = (maxY - minY) + margin * 2;
   const viewMinX = minX - margin;
   const viewMinY = minY - margin;
-  return { outlinePath, stitches, bounds: { viewMinX, viewMinY, width, height } };
+  return { outlinePath, stitches, bounds: { viewMinX, viewMinY, width, height }, stitchedSideLength, debugPaths };
 }
 
 /**
@@ -144,9 +140,11 @@ export function renderSVGToDOM(panel: Panel, dotDiameter: number, el: any, confi
     // Display the panel side length (from user input)
     el.panelSideLengthValue.textContent = `${config.sideLen.toFixed(1)} mm`;
     
-    // Calculate and display the stitched side length
-    const stitchedLength = calculatePanelStitchedSideLength(panel, config);
-    el.panelStitchedLengthValue.textContent = `${stitchedLength.toFixed(1)} mm`;
+  // Calculate and display the stitched side length from seam path
+  const stitchedLength = panel.stitchedSideLength ?? 0;
+  el.panelStitchedLengthValue.textContent = `${stitchedLength.toFixed(1)} mm`;
+    
+  // Panel side radius element removed from UI
     
     // Show the panel info container
     el.panelInfoContainer.style.display = 'flex';
