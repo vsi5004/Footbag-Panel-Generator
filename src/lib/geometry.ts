@@ -200,6 +200,72 @@ export function getSvgCircularArcParams(
   return { valid: true, c: chosen.c, r, angA: chosen.ang0, dAng };
 }
 
+// Compute a tight bounding box for the single edge between a and b, assuming
+// a circular arc of radius r bulging outward (minor CCW arc). If r is invalid
+// for the chord, falls back to the straight segment [a,b].
+function getArcEdgeBoundingBox(a: Point, b: Point, r: number): { minX: number; minY: number; maxX: number; maxY: number } {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const d = Math.hypot(dx, dy);
+  if (!isValidRadiusForChord(r, d)) {
+    const minX = Math.min(a.x, b.x);
+    const maxX = Math.max(a.x, b.x);
+    const minY = Math.min(a.y, b.y);
+    const maxY = Math.max(a.y, b.y);
+    return { minX, minY, maxX, maxY };
+  }
+  const arc = getSvgCircularArcParams(a, b, r, 0, 1); // minor, CCW if possible
+  if (!arc.valid) {
+    const minX = Math.min(a.x, b.x);
+    const maxX = Math.max(a.x, b.x);
+    const minY = Math.min(a.y, b.y);
+    const maxY = Math.max(a.y, b.y);
+    return { minX, minY, maxX, maxY };
+  }
+  const { c, angA, dAng } = arc;
+  const endAng = angA + dAng;
+  function norm(a0: number): number {
+    let t = a0;
+    while (t <= -Math.PI) t += 2 * Math.PI;
+    while (t > Math.PI) t -= 2 * Math.PI;
+    return t;
+  }
+  function isThetaOnArc(theta: number): boolean {
+    // Normalize relative angle from angA
+    const rel = norm(theta - angA);
+    const span = norm(dAng);
+    if (span >= 0) {
+      return rel >= -1e-9 && rel <= span + 1e-9;
+    } else {
+      return rel <= 1e-9 && rel >= span - 1e-9;
+    }
+  }
+  // Start with endpoints
+  let minX = Math.min(a.x, b.x);
+  let maxX = Math.max(a.x, b.x);
+  let minY = Math.min(a.y, b.y);
+  let maxY = Math.max(a.y, b.y);
+  // Check cardinal directions relative to center
+  const cardinals = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
+  for (const th of cardinals) {
+    const thRel = th; // angles are absolute around center
+    if (isThetaOnArc(thRel)) {
+      const px = c.x + r * Math.cos(thRel);
+      const py = c.y + r * Math.sin(thRel);
+      if (px < minX) minX = px; if (px > maxX) maxX = px;
+      if (py < minY) minY = py; if (py > maxY) maxY = py;
+    }
+  }
+  // Include also end angle explicitly to be safe
+  const endPts = [angA, endAng];
+  for (const th of endPts) {
+    const px = c.x + r * Math.cos(th);
+    const py = c.y + r * Math.sin(th);
+    if (px < minX) minX = px; if (px > maxX) maxX = px;
+    if (py < minY) minY = py; if (py > maxY) maxY = py;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 function circularArcPath(verts: Point[], radius: number): string {
   const n = verts.length; 
   if (n < 3) return '';
@@ -324,6 +390,7 @@ export const geometry = {
   computeArcCenterOutward,
   getInsetArcParams,
   getSvgCircularArcParams,
+  getArcEdgeBoundingBox,
 };
 
 window.FB = window.FB || {};

@@ -71,19 +71,30 @@ export function computePanel(params: PanelConfig): Panel {
       stitchedSideLength += Math.hypot(b.x - a.x, b.y - a.y);
     }
   }
-  const allX: number[] = [];
-  const allY: number[] = [];
-  for (let vertexIndex = 0; vertexIndex < verts.length; vertexIndex++) {
-    const startVertex = verts[vertexIndex]; 
-    const endVertex = verts[(vertexIndex + 1) % verts.length];
-    const seg = geometry.approxArcEdgeSamples(startVertex, endVertex, radius, SAMPLING.BOUNDS_SAMPLES);
-    for (const s of seg) { allX.push(s.p.x); allY.push(s.p.y); }
+  // Tight bounds: use exact arc edge bbox instead of sampled points
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let i = 0; i < verts.length; i++) {
+    const a = verts[i];
+    const b = verts[(i + 1) % verts.length];
+    const box = (window.FB.geometry as any).getArcEdgeBoundingBox
+      ? (window.FB.geometry as any).getArcEdgeBoundingBox(a, b, radius)
+      : null;
+    if (box) {
+      if (box.minX < minX) minX = box.minX; if (box.maxX > maxX) maxX = box.maxX;
+      if (box.minY < minY) minY = box.minY; if (box.maxY > maxY) maxY = box.maxY;
+    } else {
+      // Fallback to sampled bounds if helper not available
+      const seg = geometry.approxArcEdgeSamples(a, b, radius, SAMPLING.BOUNDS_SAMPLES);
+      for (const s of seg) {
+        if (s.p.x < minX) minX = s.p.x; if (s.p.x > maxX) maxX = s.p.x;
+        if (s.p.y < minY) minY = s.p.y; if (s.p.y > maxY) maxY = s.p.y;
+      }
+    }
   }
-  for (const p of stitches) { allX.push(p.x); allY.push(p.y); }
-  const minX = Math.min(...allX);
-  const maxX = Math.max(...allX);
-  const minY = Math.min(...allY);
-  const maxY = Math.max(...allY);
+  for (const p of stitches) {
+    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+  }
   const margin = LAYOUT.MARGIN_MM;
   const width = (maxX - minX) + margin * 2;
   const height = (maxY - minY) + margin * 2;
@@ -168,8 +179,12 @@ export function renderLayout(
   // Compute if we need to auto-fit to the host viewport
   const MM_TO_PX = 96 / 25.4;
   const margin = LAYOUT.MARGIN_MM;
-  const cellW = Math.max(0, panel.bounds.width - 2 * margin);
-  const cellH = Math.max(0, panel.bounds.height - 2 * margin);
+  // Match layout.ts: include visual padding for stroke/holes so dimensions match SVG
+  const strokePad = ((window.FB.CONSTANTS?.STROKES?.cut) || 0) / 2;
+  const dotPad = Math.max(0, dotDiameter / 2);
+  const renderPad = Math.max(strokePad, dotPad);
+  const cellW = Math.max(0, panel.bounds.width - 2 * margin + 2 * renderPad);
+  const cellH = Math.max(0, panel.bounds.height - 2 * margin + 2 * renderPad);
   const layoutWmm = cols * cellW + (cols - 1) * hSpace;
   let layoutHmm = rows * cellH + (rows - 1) * vSpace;
   

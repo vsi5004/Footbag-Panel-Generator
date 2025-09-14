@@ -170,6 +170,7 @@ declare global {
         starVertices: (outerRadius: number, rootAngle?: number) => Point[];
         circularArcPath: (verts: Point[], radius: number) => string;
         approxArcEdgeSamples: (a: Point, b: Point, radius: number, samples: number) => EdgeSample[];
+  getArcEdgeBoundingBox: (a: Point, b: Point, r: number) => { minX: number; minY: number; maxX: number; maxY: number };
       };
       stitches: {
         stitchPositions: (
