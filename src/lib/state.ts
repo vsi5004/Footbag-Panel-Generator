@@ -102,7 +102,7 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
   if (el.seamNumber && el.seam) el.seamNumber.textContent = el.seam.value;
 
   if (el.curved?.checked && s.curveRadius != null) {
-    set(el.curveRadius, clamp(parseFloat(String(s.curveRadius)), 1, 1000));
+    set(el.curveRadius, clamp(parseFloat(String(s.curveRadius)), 10, 130));
     if (el.curveRadiusNumber && el.curveRadius) el.curveRadiusNumber.textContent = el.curveRadius.value;
   }
 

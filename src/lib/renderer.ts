@@ -15,7 +15,7 @@ export function computePanel(params: PanelConfig): Panel {
   const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveRadius, holeSpacing, cornerMargin, starRootOffset, starRootAngle, cornerStitchSpacing = false, cornerStitchDistance = 2.0 } = params;
   const { geometry, stitches: stitchHelpers } = window.FB;
   const { SAMPLING, LAYOUT } = window.FB.CONSTANTS;
-  // Apply negative seam internally for curved edges only, per request
+  // Apply negative seam internally for curved edges
   const appliedSeam = curvedEdges ? -Math.abs(seamOffset) : seamOffset;
   
   let verts: any[];

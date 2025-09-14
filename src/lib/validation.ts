@@ -14,7 +14,7 @@ export const INPUT_VALIDATORS: Record<string, ValidatorFunction> = {
   stitches: (value: string | number) => clamp(parseInt(value.toString(), 10), 0, 20),
   hexLong: (value: string | number) => clamp(parseFloat(value.toString()), 10, 80),
   hexRatio: (value: string | number) => clamp(parseFloat(value.toString()), 0.1, 0.9),
-  curveRadius: (value: string | number) => clamp(parseFloat(value.toString()), 1, 130),
+  curveRadius: (value: string | number) => clamp(parseFloat(value.toString()), 10, 130),
   cornerMargin: (value: string | number, max: number = 100) => clamp(parseFloat(value.toString()), 0, Math.max(0, max)),
   holeSpacing: (value: string | number, max: number = 100) => clamp(parseFloat(value.toString()), 1, max),
   dotSize: (value: string | number) => clamp(parseFloat(value.toString()), 0.2, 1.5),

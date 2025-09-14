@@ -5,6 +5,12 @@ import { CONSTANTS } from './constants';
 const { deg2rad } = utils;
 const { SAMPLING } = CONSTANTS;
 
+// Shared validation: radius must be finite, > 0, chord must be > 0,
+// and the circle radius must be at least half the chord length.
+function isValidRadiusForChord(radius: number, chord: number): boolean {
+  return Number.isFinite(radius) && radius > 0 && chord > 0 && radius >= chord / 2;
+}
+
 function regularPolygonVertices(n: number, radius: number): Point[] {
   const verts: Point[] = [];
   const startAngle = -Math.PI / 2;
@@ -79,14 +85,10 @@ function computeArcCenterOutward(a: Point, b: Point, radius: number): { c: Point
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const d = Math.hypot(dx, dy);
-  if (!isFinite(radius) || radius <= 0 || d === 0) {
+  if (!isValidRadiusForChord(radius, d)) {
     return { c: null, largeArcFlag: 0, sweepFlag: 0 };
   }
   const halfChord = d / 2;
-  if (radius < halfChord) {
-    // Not geometrically possible; caller should treat as straight line.
-    return { c: null, largeArcFlag: 0, sweepFlag: 0 };
-  }
   // Distance from chord midpoint to circle center
   const h = Math.sqrt(Math.max(0, radius * radius - halfChord * halfChord));
   const m = edgeMidpoint(a, b);
@@ -123,7 +125,7 @@ export function getInsetArcParams(
 ): { valid: boolean; c: Point; r: number; angA: number; dAng: number } {
   const dx = b.x - a.x, dy = b.y - a.y;
   const chord = Math.hypot(dx, dy);
-  if (!isFinite(baseRadius) || baseRadius <= 0 || baseRadius < chord / 2) {
+  if (!isValidRadiusForChord(baseRadius, chord)) {
     return { valid: false, c: { x: 0, y: 0 }, r: 0, angA: 0, dAng: 0 };
   }
   // Derive the base arc's center using the exact same SVG-flag semantics
@@ -157,7 +159,7 @@ export function getSvgCircularArcParams(
 ): { valid: boolean; c: Point; r: number; angA: number; dAng: number } {
   const dx = b.x - a.x, dy = b.y - a.y;
   const d = Math.hypot(dx, dy);
-  if (!isFinite(r) || r <= 0 || d === 0 || r < d / 2) {
+  if (!isValidRadiusForChord(r, d)) {
     return { valid: false, c: { x: 0, y: 0 }, r: 0, angA: 0, dAng: 0 };
   }
   const m = edgeMidpoint(a, b);
@@ -210,7 +212,7 @@ function circularArcPath(verts: Point[], radius: number): string {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const chord = Math.hypot(dx, dy);
-    if (!isFinite(radius) || radius <= 0 || radius < chord / 2) {
+  if (!isValidRadiusForChord(radius, chord)) {
       // Straight fallback if radius invalid for this chord
       dstr += `L ${b.x.toFixed(3)} ${b.y.toFixed(3)} `;
       continue;
@@ -230,8 +232,7 @@ function approxArcEdgeSamples(a: Point, b: Point, radius: number, samples: numbe
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const d = Math.hypot(dx, dy);
-  const halfChord = d / 2;
-  if (!isFinite(radius) || radius <= 0 || radius < halfChord) {
+  if (!isValidRadiusForChord(radius, d)) {
     // Fallback to straight line sampling - but still apply proper normals for seam offset
     for (let i = 0; i <= samples; i++) {
       const t = i / samples;
