@@ -58,11 +58,11 @@
           </div>
         </div>
 
-        <div class="control hidden" id="curveFactorRow">
-          <label for="curveFactor">Curvature factor</label>
+        <div class="control hidden" id="curveRadiusRow">
+          <label for="curveRadius">Curvature radius (mm)</label>
           <div class="range-row">
-            <input id="curveFactor" type="range" min="0.10" max="0.40" step="0.01" value="0.30" />
-            <input id="curveFactorNumber" type="number" min="0.10" max="0.40" step="0.01" value="0.30" />
+            <input id="curveRadius" type="range" min="10" max="130" step="0.5" value="60" />
+            <input id="curveRadiusNumber" type="number" min="10" max="130" step="0.5" value="60" />
           </div>
         </div>
 
@@ -275,6 +275,7 @@
               <span class="panel-stitched-label">Panel stitched side length: </span>
               <span id="panelStitchedLengthValue" class="panel-stitched-value">0 mm</span>
             </div>
+            
           </div>
           <!-- SVG injected here -->
           <div id="svgHost" class="svg-host"></div>
@@ -318,8 +319,8 @@
             </div>
           </div>
           <div class="range-row">
-            <input id="pageHSpace" type="range" min="-40" max="70" step="0.5" value="20" />
-            <input id="pageHSpaceNumber" type="number" min="-40" max="70" step="0.5" value="0" />
+            <input id="pageHSpace" type="range" min="-20" max="50" step="0.5" value="0" />
+            <input id="pageHSpaceNumber" type="number" min="-20" max="50" step="0.5" value="0" />
           </div>
         </div>
 
@@ -401,7 +402,7 @@
     </div>
 
     <footer class="app-footer">
-      <small>Units in millimeters. Black: cut lines. Gray: seam + marks.</small>
+      <small>Units in millimeters. Black: cut lines. Gray: stitch holes. 10mm grid</small>
     </footer>
 
     <!-- Main application entry point -->

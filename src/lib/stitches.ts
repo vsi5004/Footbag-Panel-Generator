@@ -10,6 +10,9 @@ const { SAMPLING } = CONSTANTS;
 /**
  * Helper function to place a stitch at a specific position along an edge
  */
+/**
+ * Helper function to place a stitch at a specific position along an edge
+ */
 function placeStitchAtPosition(
   target: number,
   cumulativeDistances: number[],
@@ -29,8 +32,15 @@ function placeStitchAtPosition(
   const interpolatedY = startSample.p.y + (endSample.p.y - startSample.p.y) * interpolationFactor;
   
   if (startSample.n && endSample.n) {
-    const normalX = startSample.n.x + (endSample.n.x - startSample.n.x) * interpolationFactor; 
-    const normalY = startSample.n.y + (endSample.n.y - startSample.n.y) * interpolationFactor;
+    let normalX = startSample.n.x + (endSample.n.x - startSample.n.x) * interpolationFactor; 
+    let normalY = startSample.n.y + (endSample.n.y - startSample.n.y) * interpolationFactor;
+    // Ensure inward offset: flip if the normal points roughly away from polygon center (origin)
+    const toOriginX = -interpolatedX;
+    const toOriginY = -interpolatedY;
+    if (normalX * toOriginX + normalY * toOriginY < 0) {
+      normalX = -normalX;
+      normalY = -normalY;
+    }
     const normalLength = Math.hypot(normalX, normalY) || 1;
     stitchPoints.push({ x: interpolatedX + (normalX / normalLength) * seamOffset, y: interpolatedY + (normalY / normalLength) * seamOffset });
   } else {
@@ -38,9 +48,9 @@ function placeStitchAtPosition(
   }
 }
 
-function stitchPositions(
+function stitchPositionsByEdge(
   vertices: Point[], 
-  curveDepth: number, 
+  curveRadius: number, 
   stitchesPerSide: number, 
   seamOffset: number, 
   preferredSpacing: number, 
@@ -50,21 +60,26 @@ function stitchPositions(
   starRootOffset: number = -1.5,
   cornerStitchSpacing: boolean = false,
   cornerStitchDistance: number = 3
-): Point[] {
+): Point[][] {
   const vertexCount = vertices.length; 
-  const stitchPoints: Point[] = [];
+  const stitchesByEdge: Point[][] = [];
   
   // Detect if this is a star shape (10 vertices alternating between outer and inner)
   const isStar = vertexCount === 10;
   
   for (let i = 0; i < vertexCount; i++) {
-    if (edgeInclude && !edgeInclude(i)) continue;
+    if (edgeInclude && !edgeInclude(i)) {
+      // Preserve edge index alignment with optional empty group
+      stitchesByEdge.push([]);
+      continue;
+    }
     
     const startVertex = vertices[i];
     const endVertex = vertices[(i + 1) % vertexCount];
-    const edgeSamples = G.approxEdgeSamples(startVertex, endVertex, curveDepth, samplesPerEdge);
+    const edgeSamples = G.approxArcEdgeSamples(startVertex, endVertex, curveRadius, samplesPerEdge);
     const cumulativeDistances = [0]; 
     let totalEdgeLength = 0;
+    const currentEdgePoints: Point[] = [];
     
     for (let j = 1; j < edgeSamples.length; j++) {
       const previousPoint = edgeSamples[j - 1].p; 
@@ -72,12 +87,36 @@ function stitchPositions(
       totalEdgeLength += Math.hypot(currentPoint.x - previousPoint.x, currentPoint.y - previousPoint.y); 
       cumulativeDistances.push(totalEdgeLength);
     }
+
+    // Detect if we can treat this edge as a true circular arc
+    const dx = endVertex.x - startVertex.x;
+    const dy = endVertex.y - startVertex.y;
+    const chord = Math.hypot(dx, dy);
+  const hasCurvedArc = isFinite(curveRadius) && curveRadius > 0 && curveRadius >= chord / 2;
+    // Precompute inset arc parameters for curved edges (parallel path at R+seamOffset)
+    let arcCenter: Point | null = null;
+    let angA = 0, dAng = 0;
+    let insetR = 0, arcLenInset = 0;
+  if (hasCurvedArc) {
+      // Use exact concentric inset arc parameters to keep a true constant offset (seam allowance)
+      const p = (window.FB.geometry as any).getInsetArcParams(startVertex, endVertex, curveRadius, seamOffset);
+      if (p && p.valid) {
+        arcCenter = p.c as Point;
+        angA = p.angA;
+        dAng = p.dAng;
+        insetR = p.r;
+        arcLenInset = Math.abs(dAng) * insetR;
+      } else {
+        // Invalid inset (e.g., negative seam made radius < chord/2); treat this edge as straight for holes
+        // Keep arcCenter null so we use sampling + signed normal offset below
+      }
+    }
     
     // For stars, apply different corner margins based on corner type
-    let startMargin = cornerMargin; // margin at vertex i (start of edge)
-    let endMargin = cornerMargin;   // margin at vertex (i+1) (end of edge)
+  let startMargin = cornerMargin; // margin at vertex i (start of edge)
+  let endMargin = cornerMargin;   // margin at vertex (i+1) (end of edge)
     
-    if (isStar) {
+  if (isStar) {
       // Even indices (0,2,4,6,8) are outer points (sharp), odd indices (1,3,5,7,9) are inner points (roots)
       const startIsOuterPoint = i % 2 === 0;
       const endIsOuterPoint = ((i + 1) % vertexCount) % 2 === 0;
@@ -105,18 +144,32 @@ function stitchPositions(
       // else: allow negative margin for roots (no constraint)
     } else {
       // For non-stars, use original logic with non-negative constraints
-      startMargin = Math.max(0, Math.min(startMargin, Math.max(0, totalEdgeLength / 2 - 0.1)));
-      endMargin = Math.max(0, Math.min(endMargin, Math.max(0, totalEdgeLength / 2 - 0.1)));
+      const halfLen = (hasCurvedArc ? arcLenInset : totalEdgeLength) / 2;
+      startMargin = Math.max(0, Math.min(startMargin, Math.max(0, halfLen - 0.1)));
+      endMargin = Math.max(0, Math.min(endMargin, Math.max(0, halfLen - 0.1)));
     }
     
-    const usableLength = Math.max(0, totalEdgeLength - startMargin - endMargin);
+  const effectiveEdgeLength = hasCurvedArc ? arcLenInset : totalEdgeLength;
+  const usableLength = Math.max(0, effectiveEdgeLength - startMargin - endMargin);
     // With custom corner stitch control available, allow much more generous spacing
     const maxAllowableSpacing = (usableLength / (Math.max(1, stitchesPerSide) + 1)) * 2.5;
     const actualSpacing = Math.min(Math.max(0.1, preferredSpacing), maxAllowableSpacing);
     
     if (stitchesPerSide <= 0 || actualSpacing <= 0 || usableLength <= 0) continue;
+
+    // Helper: place stitches along a circular arc using inset radius (true concentric/parallel)
+  const placeAlongInsetArc = (absoluteTargets: number[]) => {
+      if (!arcCenter) return;
+      for (const target of absoluteTargets) {
+        const t = arcLenInset > 0 ? (target / arcLenInset) : 0; // 0..1 along inset arc
+        const theta = angA + dAng * t;
+        const x = arcCenter.x + insetR * Math.cos(theta);
+        const y = arcCenter.y + insetR * Math.sin(theta);
+        currentEdgePoints.push({ x, y });
+      }
+    };
     
-    // Calculate positions for each stitch on this edge
+  // Calculate positions for each stitch on this edge
     if (cornerStitchSpacing && stitchesPerSide >= 2) {
       // For stars, only apply corner spacing at tips, not roots
       let applyCornerSpacingStart = true;
@@ -139,19 +192,22 @@ function stitchPositions(
       
       if (stitchesPerSide === 2) {
         // Only 2 stitches: use appropriate spacing based on star geometry
-        const usedSpacing = (applyCornerSpacingStart || applyCornerSpacingEnd) ? 
+  const usedSpacing = (applyCornerSpacingStart || applyCornerSpacingEnd) ? 
           Math.min(firstStitchSpacing, lastStitchSpacing) : actualSpacing;
-        const totalUsableSpace = usableLength;
-        const remainingSpace = totalUsableSpace - usedSpacing;
+  const totalUsableSpace = usableLength;
+  const remainingSpace = totalUsableSpace - usedSpacing;
         const startOffset = remainingSpace / 2;
         
-        const stitchPositions = [
+        const absTargets = [
           startMargin + startOffset,
           startMargin + startOffset + usedSpacing
         ];
-        
-        for (let k = 0; k < stitchPositions.length; k++) {
-          placeStitchAtPosition(stitchPositions[k], cumulativeDistances, edgeSamples, seamOffset, stitchPoints);
+        if (hasCurvedArc) {
+          placeAlongInsetArc(absTargets);
+        } else {
+          for (const target of absTargets) {
+            placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, currentEdgePoints);
+          }
         }
       } else {
         // 3+ stitches: first and last gaps use appropriate spacing based on star geometry
@@ -165,7 +221,7 @@ function stitchPositions(
         
         if (remainingSpaceForMiddle > 0 && middleStitchCount > 0) {
           // Use the original global spacing for middle stitches
-          const middleSpacing = actualSpacing;
+            const middleSpacing = actualSpacing;
           const totalMiddleSpace = middleSpacing * (middleStitchCount - 1); // gaps between middle stitches only
           
           // Check if we have enough space for middle stitches with their preferred spacing
@@ -192,8 +248,13 @@ function stitchPositions(
             stitchPositions.push(stitchPositions[stitchPositions.length - 1] + lastStitchSpacing);
             
             // Place stitches at calculated positions
-            for (const target of stitchPositions) {
-              placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, stitchPoints);
+            if (arcCenter) {
+              const absTargets = stitchPositions; // already absolute distances from 0
+              placeAlongInsetArc(absTargets);
+            } else {
+              for (const target of stitchPositions) {
+                placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, currentEdgePoints);
+              }
             }
           } else {
             // Not enough space for global spacing - fall back to uniform spacing
@@ -201,7 +262,11 @@ function stitchPositions(
             
             for (let k = 0; k < stitchesPerSide; k++) {
               const target = start + k * actualSpacing;
-              placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, stitchPoints);
+              if (arcCenter) {
+                placeAlongInsetArc([target]);
+              } else {
+                placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, currentEdgePoints);
+              }
             }
           }
         } else {
@@ -210,7 +275,11 @@ function stitchPositions(
           
           for (let k = 0; k < stitchesPerSide; k++) {
             const target = start + k * actualSpacing;
-            placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, stitchPoints);
+            if (arcCenter) {
+              placeAlongInsetArc([target]);
+            } else {
+              placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, currentEdgePoints);
+            }
           }
         }
       }
@@ -220,16 +289,46 @@ function stitchPositions(
       
       for (let k = 0; k < stitchesPerSide; k++) {
         const target = start + k * actualSpacing;
-        placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, stitchPoints);
+        if (arcCenter) {
+          placeAlongInsetArc([target]);
+        } else {
+          placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, currentEdgePoints);
+        }
       }
     }
+    stitchesByEdge.push(currentEdgePoints);
   }
-  return stitchPoints;
+  return stitchesByEdge;
+}
+
+function stitchPositions(
+  vertices: Point[], 
+  curveRadius: number, 
+  stitchesPerSide: number, 
+  seamOffset: number, 
+  preferredSpacing: number, 
+  cornerMargin: number, 
+  samplesPerEdge: number = SAMPLING.EDGE_SAMPLES_DEFAULT, 
+  edgeInclude: ((i: number) => boolean) | null = null,
+  starRootOffset: number = -1.5,
+  cornerStitchSpacing: boolean = false,
+  cornerStitchDistance: number = 3
+): Point[] {
+  const grouped = stitchPositionsByEdge(
+    vertices, curveRadius, stitchesPerSide, seamOffset, preferredSpacing, cornerMargin,
+    samplesPerEdge, edgeInclude, starRootOffset, cornerStitchSpacing, cornerStitchDistance
+  );
+  // Flatten
+  const flat: Point[] = [];
+  for (const edge of grouped) {
+    for (const p of edge) flat.push(p);
+  }
+  return flat;
 }
 
 function computeAllowableSpacing(
   vertices: Point[], 
-  curveDepth: number, 
+  curveRadius: number, 
   stitchesPerSide: number, 
   cornerMargin: number, 
   samplesPerEdge: number = SAMPLING.EDGE_SAMPLES_DEFAULT, 
@@ -247,7 +346,7 @@ function computeAllowableSpacing(
     
     const a = vertices[i]; 
     const b = vertices[(i + 1) % vertexCount];
-    const edgeSamples = G.approxEdgeSamples(a, b, curveDepth, samplesPerEdge);
+    const edgeSamples = G.approxArcEdgeSamples(a, b, curveRadius, samplesPerEdge);
     let edgeLen = 0;
     
     for (let j = 1; j < edgeSamples.length; j++) {
@@ -255,6 +354,23 @@ function computeAllowableSpacing(
       edgeLen += Math.hypot(p1.x - p0.x, p1.y - p0.y);
     }
     
+    // If arc is curved, use inset-arc length rather than base samples
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const chord = Math.hypot(dx, dy);
+    const isArc = isFinite(curveRadius) && curveRadius > 0 && curveRadius >= chord / 2;
+    if (isArc) {
+      const { c } = (window.FB.geometry as any).computeArcCenterOutward(a, b, curveRadius);
+      if (c) {
+        const insetR = Math.max(0.1, curveRadius + 0); // seam offset not known here; keep base length conservative
+        const ang0 = Math.atan2(a.y - c.y, a.x - c.x);
+        const ang1 = Math.atan2(b.y - c.y, b.x - c.x);
+        let dAng = ang1 - ang0;
+        while (dAng <= -Math.PI) dAng += 2 * Math.PI;
+        while (dAng > Math.PI) dAng -= 2 * Math.PI;
+        edgeLen = Math.abs(dAng) * insetR;
+      }
+    }
+
     // Apply star-specific corner margin logic with asymmetric margins
     let startMargin = cornerMargin;
     let endMargin = cornerMargin;
@@ -283,6 +399,7 @@ function computeAllowableSpacing(
 }
 
 export const stitches = {
+  stitchPositionsByEdge,
   stitchPositions,
   computeAllowableSpacing
 };

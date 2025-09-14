@@ -1,4 +1,3 @@
-// DOM element management utilities
 // Centralizes DOM element selection and setup
 
 import type { DOMElements } from '../types';
@@ -20,9 +19,9 @@ export function createMainElements(): DOMElements {
     sideNumber: document.getElementById('sideNumber') as HTMLSpanElement,
     sideRow: document.getElementById('sideRow'),
     seamNumber: document.getElementById('seamNumber') as HTMLSpanElement,
-    curveFactorRow: document.getElementById('curveFactorRow'),
-    curveFactor: document.getElementById('curveFactor') as HTMLInputElement,
-    curveFactorNumber: document.getElementById('curveFactorNumber') as HTMLSpanElement,
+    curveRadiusRow: document.getElementById('curveRadiusRow'),
+    curveRadius: document.getElementById('curveRadius') as HTMLInputElement,
+    curveRadiusNumber: document.getElementById('curveRadiusNumber') as HTMLSpanElement,
     stitchesNumber: document.getElementById('stitchesNumber') as HTMLSpanElement,
     cornerMargin: document.getElementById('cornerMargin') as HTMLInputElement,
     cornerMarginNumber: document.getElementById('cornerMarginNumber') as HTMLSpanElement,
@@ -71,7 +70,7 @@ export function createMainElements(): DOMElements {
     panelSideLength: document.getElementById('panelSideLength') as HTMLElement,
     panelSideLengthValue: document.getElementById('panelSideLengthValue') as HTMLSpanElement,
     panelStitchedLength: document.getElementById('panelStitchedLength') as HTMLElement,
-    panelStitchedLengthValue: document.getElementById('panelStitchedLengthValue') as HTMLSpanElement,
+  panelStitchedLengthValue: document.getElementById('panelStitchedLengthValue') as HTMLSpanElement,
   };
 }
 
@@ -91,9 +90,9 @@ export function createPageElements(): DOMElements {
     sideNumber: null,
     sideRow: null,
     seamNumber: null,
-    curveFactorRow: null,
-    curveFactor: null,
-    curveFactorNumber: null,
+    curveRadiusRow: null,
+    curveRadius: null,
+    curveRadiusNumber: null,
     stitchesNumber: null,
     cornerMargin: null,
     cornerMarginNumber: null,
@@ -138,8 +137,8 @@ export function createPageElements(): DOMElements {
     panelInfoContainer: null,
     panelSideLength: null,
     panelSideLengthValue: null,
-    panelStitchedLength: null,
-    panelStitchedLengthValue: null,
+  panelStitchedLength: null,
+  panelStitchedLengthValue: null,
   };
 }
 

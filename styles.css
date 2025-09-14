@@ -177,6 +177,17 @@ button:hover { filter: brightness(1.05); }
   font-weight: 600; 
   font-size: 14px; 
 }
+.panel-side-radius { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px;
+}
+.panel-radius-label { color: var(--muted); font-size: 14px; }
+.panel-radius-value { 
+  color: #34d399; 
+  font-weight: 600; 
+  font-size: 14px; 
+}
 .svg-host { width: 100%; overflow: auto; background: #0a0b0f; height: 100%; }
 .svg-wrap { display: inline-block; transform-origin: top left; }
 

@@ -16,6 +16,8 @@ export interface Panel {
     width: number;
     height: number;
   };
+  // Length of one side along the stitch path (seam path), in mm
+  stitchedSideLength?: number;
 }
 
 export interface PanelConfig {
@@ -27,7 +29,7 @@ export interface PanelConfig {
   hexType?: 'regular' | 'truncated';
   hexLong?: number;
   hexRatio?: number;
-  curveFactor: number;
+  curveRadius: number;
   holeSpacing: number;
   cornerMargin: number;
   starRootOffset: number;
@@ -59,7 +61,7 @@ export interface UIConfig {
   hexType: string;
   hexLong: number;
   hexRatio: number;
-  curveFactor: number;
+  curveRadius: number;
   dotSize: number;
   starRootOffset: number;
   starRootAngle: number;
@@ -76,13 +78,11 @@ export interface EdgeSample {
 export interface Constants {
   COLORS: Record<string, string>;
   STROKES: Record<string, number>;
-  CURVATURE: Record<number, number>;
   SAMPLING: {
     EDGE_SAMPLES_DEFAULT: number;
     EDGE_SAMPLES_HIGH_PRECISION: number;
     CURVE_SAMPLES_DEFAULT: number;
     BOUNDS_SAMPLES: number;
-    ARC_LENGTH_SAMPLES: number;
   };
   LAYOUT: {
     MARGIN_MM: number;
@@ -90,11 +90,6 @@ export interface Constants {
   };
   PERFORMANCE: {
     DEBOUNCE_MS: number;
-  };
-  VALIDATION: {
-    MIN_SPACING: number;
-    MIN_EDGE_LENGTH: number;
-    EPSILON: number;
   };
 }
 
@@ -110,9 +105,9 @@ export interface DOMElements {
   sideNumber: HTMLSpanElement | null;
   sideRow: HTMLElement | null;
   seamNumber: HTMLSpanElement | null;
-  curveFactorRow: HTMLElement | null;
-  curveFactor: HTMLInputElement | null;
-  curveFactorNumber: HTMLSpanElement | null;
+  curveRadiusRow: HTMLElement | null;
+  curveRadius: HTMLInputElement | null;
+  curveRadiusNumber: HTMLSpanElement | null;
   stitchesNumber: HTMLSpanElement | null;
   cornerMargin: HTMLInputElement | null;
   cornerMarginNumber: HTMLSpanElement | null;
@@ -173,13 +168,13 @@ declare global {
         regularPolygonVertices: (nSides: number, radius: number) => Point[];
         truncatedHexagonVertices: (longSide: number, shortSide: number) => Point[];
         starVertices: (outerRadius: number, rootAngle?: number) => Point[];
-        quadraticCurvePath: (verts: Point[], depth: number) => string;
-        approxEdgeSamples: (a: Point, b: Point, depth: number, samples: number) => EdgeSample[];
+        circularArcPath: (verts: Point[], radius: number) => string;
+        approxArcEdgeSamples: (a: Point, b: Point, radius: number, samples: number) => EdgeSample[];
       };
       stitches: {
         stitchPositions: (
           verts: Point[],
-          depth: number,
+          radius: number,
           count: number,
           seamOffset: number,
           holeSpacing: number,
@@ -192,7 +187,7 @@ declare global {
         ) => Point[];
         computeAllowableSpacing: (
           verts: Point[],
-          depth: number,
+          radius: number,
           count: number,
           cornerMargin: number,
           precision: number,
