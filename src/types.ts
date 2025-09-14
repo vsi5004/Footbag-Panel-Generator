@@ -18,7 +18,6 @@ export interface Panel {
   };
   // Length of one side along the stitch path (seam path), in mm
   stitchedSideLength?: number;
-  debugPaths?: string[];
 }
 
 export interface PanelConfig {
@@ -79,13 +78,11 @@ export interface EdgeSample {
 export interface Constants {
   COLORS: Record<string, string>;
   STROKES: Record<string, number>;
-  CURVATURE: Record<number, number>;
   SAMPLING: {
     EDGE_SAMPLES_DEFAULT: number;
     EDGE_SAMPLES_HIGH_PRECISION: number;
     CURVE_SAMPLES_DEFAULT: number;
     BOUNDS_SAMPLES: number;
-    ARC_LENGTH_SAMPLES: number;
   };
   LAYOUT: {
     MARGIN_MM: number;
@@ -93,11 +90,6 @@ export interface Constants {
   };
   PERFORMANCE: {
     DEBOUNCE_MS: number;
-  };
-  VALIDATION: {
-    MIN_SPACING: number;
-    MIN_EDGE_LENGTH: number;
-    EPSILON: number;
   };
 }
 
@@ -176,9 +168,7 @@ declare global {
         regularPolygonVertices: (nSides: number, radius: number) => Point[];
         truncatedHexagonVertices: (longSide: number, shortSide: number) => Point[];
         starVertices: (outerRadius: number, rootAngle?: number) => Point[];
-        quadraticCurvePath: (verts: Point[], depth: number) => string;
         circularArcPath: (verts: Point[], radius: number) => string;
-        approxEdgeSamples: (a: Point, b: Point, depth: number, samples: number) => EdgeSample[];
         approxArcEdgeSamples: (a: Point, b: Point, radius: number, samples: number) => EdgeSample[];
       };
       stitches: {

@@ -50,28 +50,7 @@ export function computePanel(params: PanelConfig): Panel {
   const outlinePath = geometry.circularArcPath(verts, radius);
   // We'll compute stitched side length from actual hole spacing after placing holes
   let stitchedSideLength = 0;
-  // Build debug paths: concentric arcs offset inside the panel along each side (for visualization)
-  const debugPaths: string[] = [];
-  if (radius > 0) {
-    const insetR = radius + appliedSeam; // use applied seam sign
-    for (let i = 0; i < verts.length; i++) {
-      const a = verts[i];
-      const b = verts[(i + 1) % verts.length];
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const chord = Math.hypot(dx, dy);
-  if (insetR >= chord / 2) {
-  const p = (window.FB.geometry as any).getInsetArcParams(a, b, radius, appliedSeam);
-        if (p && p.valid) {
-          const aPrime = { x: p.c.x + p.r * Math.cos(p.angA), y: p.c.y + p.r * Math.sin(p.angA) };
-          const bPrime = { x: p.c.x + p.r * Math.cos(p.angA + p.dAng), y: p.c.y + p.r * Math.sin(p.angA + p.dAng) };
-          const largeArcFlag = 0;
-          const sweepFlag = 1; // force outward bulge, matching side arcs' sweep
-          const seg = `M ${aPrime.x.toFixed(3)} ${aPrime.y.toFixed(3)} A ${p.r.toFixed(3)} ${p.r.toFixed(3)} 0 ${largeArcFlag} ${sweepFlag} ${bPrime.x.toFixed(3)} ${bPrime.y.toFixed(3)}`;
-          debugPaths.push(seg);
-        }
-      }
-    }
-  }
+  // Debug inset path rendering removed as unused
   
   // For stars, use larger corner margin to avoid stitching too close to sharp points
   const effectiveCornerMargin = nSides === 10 ? Math.max(cornerMargin, 3.0) : cornerMargin;
@@ -110,7 +89,7 @@ export function computePanel(params: PanelConfig): Panel {
   const height = (maxY - minY) + margin * 2;
   const viewMinX = minX - margin;
   const viewMinY = minY - margin;
-  return { outlinePath, stitches, bounds: { viewMinX, viewMinY, width, height }, stitchedSideLength, debugPaths };
+  return { outlinePath, stitches, bounds: { viewMinX, viewMinY, width, height }, stitchedSideLength };
 }
 
 /**
@@ -316,14 +295,4 @@ export function createMainRenderFunction(
 /**
  * Applies grid visibility to the main SVG
  */
-export function applyGridVisibility(el: any): void {
-  const svg = el.svgHost!.querySelector('svg');
-  if (!svg) return;
-  const grid = svg.querySelector('#grid');
-  if (!grid) return;
-  if (el.showGrid && !el.showGrid.checked) {
-    grid.setAttribute('style', 'display:none');
-  } else {
-    grid.removeAttribute('style');
-  }
-}
+// Removed unused applyGridVisibility helper

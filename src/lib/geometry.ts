@@ -72,35 +72,7 @@ function outwardNormal(a: Point, b: Point): Point {
   return { x: dy / len, y: -dx / len };
 }
 
-function quadPoint(a: Point, c: Point, b: Point, t: number): Point {
-  const mt = 1 - t;
-  const x = mt * mt * a.x + 2 * mt * t * c.x + t * t * b.x;
-  const y = mt * mt * a.y + 2 * mt * t * c.y + t * t * b.y;
-  return { x, y };
-}
-
-function quadTangent(a: Point, c: Point, b: Point, t: number): Point {
-  const x = 2 * (1 - t) * (c.x - a.x) + 2 * t * (b.x - c.x);
-  const y = 2 * (1 - t) * (c.y - a.y) + 2 * t * (b.y - c.y);
-  return { x, y };
-}
-
-function quadraticCurvePath(verts: Point[], curveDepth: number): string {
-  const n = verts.length; 
-  if (n < 3) return '';
-  let d = '';
-  for (let i = 0; i < n; i++) {
-    const a = verts[i];
-    const b = verts[(i + 1) % n];
-    const m = edgeMidpoint(a, b);
-    const nrm = outwardNormal(a, b);
-    const c = { x: m.x + nrm.x * curveDepth, y: m.y + nrm.y * curveDepth };
-    if (i === 0) d += `M ${a.x.toFixed(3)} ${a.y.toFixed(3)} `;
-    d += `Q ${c.x.toFixed(3)} ${c.y.toFixed(3)} ${b.x.toFixed(3)} ${b.y.toFixed(3)} `;
-  }
-  d += 'Z';
-  return d;
-}
+// Removed unused quadratic Bézier helpers and path generator
 
 // Helper: compute arc center on the outward side of edge a->b for a given radius.
 function computeArcCenterOutward(a: Point, b: Point, radius: number): { c: Point | null; largeArcFlag: number; sweepFlag: number } {
@@ -138,30 +110,7 @@ function computeArcCenterOutward(a: Point, b: Point, radius: number): { c: Point
 // Variant: choose center based on a provided polygon centroid.
 // Returns center on the side OPPOSITE the centroid for an outward bulge
 // (i.e., farther from centroid). Useful when panel is not perfectly centered at origin.
-function computeArcCenterFromCentroid(
-  a: Point,
-  b: Point,
-  radius: number,
-  centroid: Point
-): { c: Point | null } {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const d = Math.hypot(dx, dy);
-  if (!isFinite(radius) || radius <= 0 || d === 0) return { c: null };
-  const halfChord = d / 2;
-  if (radius < halfChord) return { c: null };
-  const h = Math.sqrt(Math.max(0, radius * radius - halfChord * halfChord));
-  const m = edgeMidpoint(a, b);
-  const nrm = outwardNormal(a, b);
-  const cPlus = { x: m.x + nrm.x * h, y: m.y + nrm.y * h };
-  const cMinus = { x: m.x - nrm.x * h, y: m.y - nrm.y * h };
-  const vCent = { x: centroid.x - m.x, y: centroid.y - m.y };
-  // Outward center is the one with a smaller dot with vCent (more opposite direction)
-  const dotPlus = nrm.x * vCent.x + nrm.y * vCent.y; // sign for + side
-  // If centroid lies roughly on +normal side (dot>0), use minus; else use plus
-  const c = dotPlus > 0 ? cMinus : cPlus;
-  return { c };
-}
+// Removed unused centroid-based arc center helper
 
 // Shared: compute parameters for an inset arc parallel to edge a->b
 // using base circular arc radius (R) and an inward seam offset (s).
@@ -274,23 +223,7 @@ function circularArcPath(verts: Point[], radius: number): string {
   return dstr;
 }
 
-function approxEdgeSamples(a: Point, b: Point, depth: number, samples: number = SAMPLING.CURVE_SAMPLES_DEFAULT): EdgeSample[] {
-  // Backward-compatible: quadratic sampling with control point offset by depth
-  const m = edgeMidpoint(a, b);
-  const nrm = outwardNormal(a, b);
-  const c = { x: m.x + nrm.x * depth, y: m.y + nrm.y * depth };
-  const pts: EdgeSample[] = [];
-  for (let i = 0; i <= samples; i++) {
-    const t = i / samples;
-    const p = quadPoint(a, c, b, t);
-    const tan = quadTangent(a, c, b, t);
-    const len = Math.hypot(tan.x, tan.y) || 1;
-    const nx = -tan.y / len; 
-    const ny = tan.x / len;
-    pts.push({ p, t, n: { x: nx, y: ny } });
-  }
-  return pts;
-}
+// Removed unused quadratic sampling helper
 
 function approxArcEdgeSamples(a: Point, b: Point, radius: number, samples: number = SAMPLING.CURVE_SAMPLES_DEFAULT): EdgeSample[] {
   const pts: EdgeSample[] = [];
@@ -376,58 +309,18 @@ function truncatedHexagonVertices(longSide: number, shortSide: number): Point[] 
   return centerVertices(verts);
 }
 
-function calculateCurveRadius(sideLength: number, curveDepth: number): number {
-  // Calculate the radius of a circle passing through three points:
-  // P1 = (0, 0) - start of edge
-  // P2 = (sideLength, 0) - end of edge  
-  // P3 = (sideLength/2, curveDepth) - midpoint of curve
-  
-  if (curveDepth <= 0) return Infinity; // Straight edge has infinite radius
-  
-  const x1 = 0;
-  const y1 = 0;
-  const x2 = sideLength;
-  const y2 = 0;
-  const x3 = sideLength / 2;
-  const y3 = curveDepth;
-  
-  // For three points (x1,y1), (x2,y2), (x3,y3), the radius of the circumcircle is:
-  // R = ||(P1-P2) × (P2-P3) × (P3-P1)|| / (4 * Area)
-  // where Area is the area of the triangle formed by the three points
-  
-  // Calculate the area of the triangle using the cross product formula
-  // Area = 0.5 * |(x1(y2-y3) + x2(y3-y1) + x3(y1-y2))|
-  const area = 0.5 * Math.abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
-  
-  if (area === 0) return Infinity; // Collinear points
-  
-  // Calculate the side lengths of the triangle
-  const a = Math.sqrt((x2 - x3) * (x2 - x3) + (y2 - y3) * (y2 - y3)); // P2 to P3
-  const b = Math.sqrt((x1 - x3) * (x1 - x3) + (y1 - y3) * (y1 - y3)); // P1 to P3  
-  const c = Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2)); // P1 to P2
-  
-  // Circumradius formula: R = (abc) / (4 * Area)
-  const radius = (a * b * c) / (4 * area);
-  
-  return radius;
-}
+// Removed unused curve radius calculator
 
 export const geometry = {
   regularPolygonVertices,
   starVertices,
   edgeMidpoint,
   outwardNormal,
-  quadPoint,
-  quadTangent,
-  quadraticCurvePath,
   circularArcPath,
-  approxEdgeSamples,
   approxArcEdgeSamples,
   centerVertices,
   truncatedHexagonVertices,
-  calculateCurveRadius,
   computeArcCenterOutward,
-  computeArcCenterFromCentroid,
   getInsetArcParams,
   getSvgCircularArcParams,
 };
