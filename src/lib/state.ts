@@ -12,6 +12,7 @@ export interface SettingsData {
   curveRadius?: number;
   side: number;
   seam: number;
+  showHoles?: boolean;
   stitches: number;
   showGrid?: boolean;
   cornerMargin?: number;
@@ -47,6 +48,7 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
     curveRadius: el.curved?.checked && el.curveRadius ? INPUT_VALIDATORS.curveRadius(el.curveRadius.value) : undefined,
     side: INPUT_VALIDATORS.side(el.side?.value || '30'),
     seam: INPUT_VALIDATORS.seam(el.seam?.value || '5'),
+    showHoles: el.showHoles ? !!el.showHoles.checked : undefined,
     stitches: INPUT_VALIDATORS.stitches(el.stitches?.value || '8'),
     showGrid: el.showGrid ? !!el.showGrid.checked : undefined,
     cornerMargin: el.cornerMargin ? clamp(parseFloat(el.cornerMargin.value), 0, 999) : undefined,
@@ -106,6 +108,10 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
   if (el.curved?.checked && s.curveRadius != null) {
     set(el.curveRadius, clamp(parseFloat(String(s.curveRadius)), 10, 130));
     if (el.curveRadiusNumber && el.curveRadius) el.curveRadiusNumber.textContent = el.curveRadius.value;
+  }
+
+  if (s.showHoles != null && el.showHoles) {
+    el.showHoles.checked = !!s.showHoles;
   }
 
   if (s.stitches != null) set(el.stitches, clamp(parseInt(String(s.stitches), 10), 1, 50));

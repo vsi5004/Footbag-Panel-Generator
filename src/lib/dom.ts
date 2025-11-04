@@ -9,6 +9,9 @@ export function createMainElements(): DOMElements {
   return {
     shape: document.getElementById('shape') as HTMLSelectElement,
     side: document.getElementById('side') as HTMLInputElement,
+    showHoles: document.getElementById('showHoles') as HTMLInputElement,
+    stitchesRow: document.getElementById('stitchesRow') as HTMLElement,
+    seamRow: document.getElementById('seamRow') as HTMLElement,
     seam: document.getElementById('seam') as HTMLInputElement,
     curved: document.getElementById('curved') as HTMLInputElement,
     stitches: document.getElementById('stitches') as HTMLInputElement,
@@ -83,6 +86,9 @@ export function createPageElements(): DOMElements {
   return {
     shape: null,
     side: null,
+    showHoles: null,
+    stitchesRow: null,
+    seamRow: null,
     seam: null,
     curved: null,
     stitches: null,

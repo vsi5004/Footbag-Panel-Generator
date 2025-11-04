@@ -122,6 +122,24 @@
 
         <div class="control">
           <div class="tooltip-container">
+            <label>Show stitch holes</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Toggle whether to show stitch holes on the panel. Turn off to generate panels without holes (for manual marking or different construction methods).
+            </div>
+          </div>
+          <div class="switch-row">
+            <span class="switch-label">Off</span>
+            <label class="switch" aria-label="Toggle stitch holes">
+              <input id="showHoles" type="checkbox" checked />
+              <span class="slider"></span>
+            </label>
+            <span class="switch-label">On</span>
+          </div>
+        </div>
+
+        <div class="control" id="stitchesRow">
+          <div class="tooltip-container">
             <label for="stitches">Stitch holes per side</label>
             <span class="tooltip-icon">?</span>
             <div class="tooltip-content">
@@ -129,12 +147,12 @@
             </div>
           </div>
           <div class="range-row">
-            <input id="stitches" type="range" min="0" max="20" step="1" value="8" />
-            <input id="stitchesNumber" type="number" min="0" max="20" step="1" value="8" />
+            <input id="stitches" type="range" min="4" max="20" step="1" value="8" />
+            <input id="stitchesNumber" type="number" min="4" max="20" step="1" value="8" />
           </div>
         </div>
 
-        <div class="control">
+        <div class="control" id="seamRow">
           <div class="tooltip-container">
             <label for="seam">Seam allowance (mm)</label>
             <span class="tooltip-icon">?</span>

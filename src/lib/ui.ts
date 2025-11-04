@@ -47,21 +47,18 @@ function updateVisibility(el: DOMElements): void {
   const cornerStitchSpacingOn = !!(el.cornerStitchSpacing && el.cornerStitchSpacing.checked);
   if (el.cornerStitchSpacingRow) el.cornerStitchSpacingRow.classList.toggle('hidden', !cornerStitchSpacingOn);
 
-  // Disable seam allowance and advanced parameters when stitches = 0
-  const stitchCount = parseInt(el.stitches?.value || '8', 10);
-  const hasStitches = stitchCount > 0;
+  // Show/hide hole-related settings based on showHoles toggle
+  const showHoles = el.showHoles?.checked ?? true;
 
-  if (el.seam) el.seam.disabled = !hasStitches;
-  if (el.seamNumber) (el.seamNumber as HTMLInputElement).disabled = !hasStitches;
+  if (el.stitchesRow) el.stitchesRow.classList.toggle('hidden', !showHoles);
+  if (el.seamRow) el.seamRow.classList.toggle('hidden', !showHoles);
 
   const advancedSection = document.getElementById('advanced') as HTMLDetailsElement | null;
   if (advancedSection) {
-    if (!hasStitches) {
-      advancedSection.style.opacity = '0.5';
-      advancedSection.style.pointerEvents = 'none';
+    if (!showHoles) {
+      advancedSection.classList.add('hidden');
     } else {
-      advancedSection.style.opacity = '';
-      advancedSection.style.pointerEvents = '';
+      advancedSection.classList.remove('hidden');
     }
   }
 }

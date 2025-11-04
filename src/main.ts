@@ -115,6 +115,10 @@ function bindUI(): void {
     UI.updateVisibility(el);
     debouncedRender();
   });
+  el.showHoles?.addEventListener('change', () => {
+    UI.updateVisibility(el);
+    debouncedRender();
+  });
   el.cornerStitchSpacing?.addEventListener('change', () => {
     UI.updateVisibility(el);
     debouncedRender();

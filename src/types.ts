@@ -98,6 +98,9 @@ export interface Constants {
 export interface DOMElements {
   shape: HTMLSelectElement | null;
   side: HTMLInputElement | null;
+  showHoles: HTMLInputElement | null;
+  stitchesRow: HTMLElement | null;
+  seamRow: HTMLElement | null;
   seam: HTMLInputElement | null;
   curved: HTMLInputElement | null;
   stitches: HTMLInputElement | null;
