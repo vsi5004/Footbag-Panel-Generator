@@ -166,6 +166,21 @@
               </div>
             </div>
 
+            <!-- Hole bunching -->
+            <div class="control">
+              <div class="tooltip-container">
+                <label for="holeBunching">Hole bunching (mm)</label>
+                <span class="tooltip-icon">?</span>
+                <div class="tooltip-content">
+                  Creates pairs of holes that are closer together. Pairs (1,2), (3,4), (5,6) move closer by this amount, with larger gaps between pairs to compensate.
+                </div>
+              </div>
+              <div class="range-row">
+                <input id="holeBunching" type="range" min="0" max="10" step="0.1" value="0" />
+                <input id="holeBunchingNumber" type="number" min="0" max="10" step="0.1" value="0" />
+              </div>
+            </div>
+
             <!-- Corner stitch spacing -->
             <div class="control">
               <div class="tooltip-container">

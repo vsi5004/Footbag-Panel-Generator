@@ -176,6 +176,7 @@ export function setupImportSettings(el: DOMElements, ui: any, render: () => void
         syncPairDisplay(el.curveRadius, el.curveRadiusNumber);
         syncPairDisplay(el.stitches, el.stitchesNumber);
         syncPairDisplay(el.holeSpacing, el.holeSpacingNumber);
+        syncPairDisplay(el.holeBunching, el.holeBunchingNumber);
         syncPairDisplay(el.cornerStitchDistance, el.cornerStitchDistanceNumber);
         syncPairDisplay(el.starRootOffset, el.starRootOffsetNumber);
         syncPairDisplay(el.starRootAngle, el.starRootAngleNumber);

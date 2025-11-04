@@ -12,7 +12,7 @@ import { utils } from './utils';
  * Computes a panel from the given configuration
  */
 export function computePanel(params: PanelConfig): Panel {
-  const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveRadius, holeSpacing, cornerMargin, starRootOffset, starRootAngle, cornerStitchSpacing = false, cornerStitchDistance = 2.0 } = params;
+  const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveRadius, holeSpacing, holeBunching = 0, cornerMargin, starRootOffset, starRootAngle, cornerStitchSpacing = false, cornerStitchDistance = 2.0 } = params;
   const { geometry, stitches: stitchHelpers } = window.FB;
   const { SAMPLING, LAYOUT } = window.FB.CONSTANTS;
   // Apply negative seam internally for curved edges
@@ -58,7 +58,7 @@ export function computePanel(params: PanelConfig): Panel {
   // Get stitches grouped by edge
   const stitchesByEdge: any[][] = (stitchHelpers as any).stitchPositionsByEdge(
     verts, radius, stitchCount, appliedSeam, holeSpacing, effectiveCornerMargin,
-    SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset, cornerStitchSpacing, cornerStitchDistance
+    SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset, cornerStitchSpacing, cornerStitchDistance, holeBunching
   );
   // Flatten for rendering
   const stitches = ([] as any[]).concat(...stitchesByEdge);
@@ -288,10 +288,10 @@ export function createMainRenderFunction(
       const config = collectInputValues(el);
       
       const geometryResult = computeGeometry(config);
-      
-      const { cornerMargin, holeSpacing } = updateDynamicConstraints(config, geometryResult, el);
-      
-      const panelConfig: PanelConfig = createPanelConfig(config, { cornerMargin, holeSpacing });
+
+      const { cornerMargin, holeSpacing, holeBunching } = updateDynamicConstraints(config, geometryResult, el);
+
+      const panelConfig: PanelConfig = createPanelConfig(config, { cornerMargin, holeSpacing, holeBunching });
       
       const panel = computePanel(panelConfig);
       

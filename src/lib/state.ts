@@ -16,6 +16,7 @@ export interface SettingsData {
   showGrid?: boolean;
   cornerMargin?: number;
   holeSpacing?: number;
+  holeBunching?: number;
   dotSize: number;
   starRootOffset?: number;
   starRootAngle?: number;
@@ -50,6 +51,7 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
     showGrid: el.showGrid ? !!el.showGrid.checked : undefined,
     cornerMargin: el.cornerMargin ? clamp(parseFloat(el.cornerMargin.value), 0, 999) : undefined,
     holeSpacing: el.holeSpacing ? clamp(parseFloat(el.holeSpacing.value), 1, 999) : undefined,
+    holeBunching: el.holeBunching ? clamp(parseFloat(el.holeBunching.value), 0, 999) : undefined,
     dotSize: INPUT_VALIDATORS.dotSize(el.dotSize?.value || '1'),
     starRootOffset: el.starRootOffset ? INPUT_VALIDATORS.starRootOffset(el.starRootOffset.value) : undefined,
     starRootAngle: el.starRootAngle ? INPUT_VALIDATORS.starRootAngle(el.starRootAngle.value) : undefined,
@@ -116,11 +118,16 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
     if (el.cornerMarginNumber) el.cornerMarginNumber.textContent = el.cornerMargin.value;
   }
   
-  if (s.holeSpacing != null && el.holeSpacing) { 
-    set(el.holeSpacing, Math.max(1, parseFloat(String(s.holeSpacing)))); 
+  if (s.holeSpacing != null && el.holeSpacing) {
+    set(el.holeSpacing, Math.max(1, parseFloat(String(s.holeSpacing))));
     if (el.holeSpacingNumber) el.holeSpacingNumber.textContent = el.holeSpacing.value;
   }
-  
+
+  if (s.holeBunching != null && el.holeBunching) {
+    set(el.holeBunching, Math.max(0, parseFloat(String(s.holeBunching))));
+    if (el.holeBunchingNumber) el.holeBunchingNumber.textContent = el.holeBunching.value;
+  }
+
   if (s.cornerStitchSpacing != null && el.cornerStitchSpacing) {
     el.cornerStitchSpacing.checked = !!s.cornerStitchSpacing;
   }
