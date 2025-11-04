@@ -118,7 +118,10 @@ function bindUI(): void {
     UI.updateVisibility(el);
     debouncedRender();
   });
-  el.stitches?.addEventListener('input', debouncedRender);
+  el.stitches?.addEventListener('input', () => {
+    UI.updateVisibility(el);
+    debouncedRender();
+  });
   
   el.cornerMargin?.addEventListener('input', debouncedRender);
   el.holeSpacing?.addEventListener('input', debouncedRender);

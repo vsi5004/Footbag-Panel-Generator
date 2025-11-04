@@ -33,19 +33,37 @@ function updateVisibility(el: DOMElements): void {
   const isHex = shapeValue === 6;
   const isStar = shapeValue === 10;
   const isTrunc = isHex && el.hexType && el.hexType.value === 'truncated';
-  
+
   if (el.hexTypeRow) el.hexTypeRow.classList.toggle('hidden', !isHex);
   if (el.hexLongRow) el.hexLongRow.classList.toggle('hidden', !isTrunc);
   if (el.hexRatioRow) el.hexRatioRow.classList.toggle('hidden', !isTrunc);
   if (el.sideRow) el.sideRow.classList.toggle('hidden', isTrunc || false);
   if (el.starRootOffsetRow) el.starRootOffsetRow.classList.toggle('hidden', !isStar);
   if (el.starRootAngleRow) el.starRootAngleRow.classList.toggle('hidden', !isStar);
-  
+
   const curvedOn = !!(el.curved && el.curved.checked);
   if (el.curveRadiusRow) el.curveRadiusRow.classList.toggle('hidden', !curvedOn);
-  
+
   const cornerStitchSpacingOn = !!(el.cornerStitchSpacing && el.cornerStitchSpacing.checked);
   if (el.cornerStitchSpacingRow) el.cornerStitchSpacingRow.classList.toggle('hidden', !cornerStitchSpacingOn);
+
+  // Disable seam allowance and advanced parameters when stitches = 0
+  const stitchCount = parseInt(el.stitches?.value || '8', 10);
+  const hasStitches = stitchCount > 0;
+
+  if (el.seam) el.seam.disabled = !hasStitches;
+  if (el.seamNumber) (el.seamNumber as HTMLInputElement).disabled = !hasStitches;
+
+  const advancedSection = document.getElementById('advanced') as HTMLDetailsElement | null;
+  if (advancedSection) {
+    if (!hasStitches) {
+      advancedSection.style.opacity = '0.5';
+      advancedSection.style.pointerEvents = 'none';
+    } else {
+      advancedSection.style.opacity = '';
+      advancedSection.style.pointerEvents = '';
+    }
+  }
 }
 
 function fixUiTextArtifacts(): void {
