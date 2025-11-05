@@ -286,7 +286,21 @@ function stitchPositionsByEdge(
       }
     } else {
       // Use uniform spacing with optional hole bunching
-      const start = startMargin + (usableLength - actualSpacing * (stitchesPerSide + 1)) / 2 + actualSpacing;
+      // Calculate total distance used by all holes with bunching
+      let totalDistance;
+      if (holeBunching > 0 && stitchesPerSide > 1) {
+        // With bunching, pairs are closer and gaps between pairs are larger
+        // For even number of holes: total = (n-1)*spacing - bunching
+        // For odd number of holes: total = (n-1)*spacing (bunching cancels out)
+        const numGaps = stitchesPerSide - 1;
+        const isEven = stitchesPerSide % 2 === 0;
+        totalDistance = numGaps * actualSpacing - (isEven ? holeBunching : 0);
+      } else {
+        totalDistance = (stitchesPerSide - 1) * actualSpacing;
+      }
+
+      // Center the holes within the usable length
+      const start = startMargin + (usableLength - totalDistance) / 2;
 
       let cumulativePos = start;
       for (let k = 0; k < stitchesPerSide; k++) {
