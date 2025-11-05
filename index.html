@@ -326,7 +326,21 @@
             Reset
           </button>
         </div>
-        
+
+        <div class="control">
+          <div class="tooltip-container">
+            <label for="pagePadding">Layout padding (mm)</label>
+            <span class="tooltip-icon">?</span>
+            <div class="tooltip-content">
+              Whitespace margin around the outer border of the entire layout.
+            </div>
+          </div>
+          <div class="range-row">
+            <input id="pagePadding" type="range" min="0" max="50" step="1" value="10" />
+            <input id="pagePaddingNumber" type="number" min="0" max="50" step="1" value="10" />
+          </div>
+        </div>
+
         <div class="control">
           <label for="pageRows">Panel rows</label>
           <div class="range-row">

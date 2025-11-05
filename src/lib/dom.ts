@@ -157,6 +157,8 @@ export function createPageElements(): DOMElements {
  */
 export function getLayoutElements() {
   return {
+    pagePadding: document.getElementById('pagePadding') as HTMLInputElement | null,
+    pagePaddingNumber: document.getElementById('pagePaddingNumber') as HTMLInputElement | null,
     pageRows: document.getElementById('pageRows') as HTMLInputElement | null,
     pageRowsNumber: document.getElementById('pageRowsNumber') as HTMLInputElement | null,
     pageCols: document.getElementById('pageCols') as HTMLInputElement | null,

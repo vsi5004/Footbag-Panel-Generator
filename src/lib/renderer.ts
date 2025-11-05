@@ -162,19 +162,20 @@ export function renderLayout(
     if (pageEl.materialInfoContainer) pageEl.materialInfoContainer.style.display = 'none';
     return; 
   }
-  
-  const { pageRows, pageCols, pageVSpace, pageInvert, nestingOffset, pageHSpaceNumber } = layoutElements;
-  
+
+  const { pageRows, pageCols, pageVSpace, pageInvert, nestingOffset, pageHSpaceNumber, pagePadding } = layoutElements;
+
   const rows = pageRows ? Math.max(1, Math.min(50, parseInt(pageRows.value || '3', 10))) : 3;
   const cols = pageCols ? Math.max(1, Math.min(50, parseInt(pageCols.value || '3', 10))) : 3;
-  
+
   // Get horizontal spacing from the number input (which shows the actual value)
   const hSpace = pageHSpaceNumber ? parseFloat(pageHSpaceNumber.value || '0') : 0;
-  
+
   const vSpace = pageVSpace ? parseFloat(pageVSpace.value || '10') : 10;
   const showGrid = !!(pageEl.showGrid && pageEl.showGrid.checked);
   const invertOdd = !!(pageInvert && pageInvert.checked);
   const nestingVerticalOffset = nestingOffset ? parseFloat(nestingOffset.value || '0') : 0;
+  const padding = pagePadding ? Math.max(0, parseFloat(pagePadding.value || '10')) : 10;
 
   // Compute if we need to auto-fit to the host viewport
   const MM_TO_PX = 96 / 25.4;
@@ -185,13 +186,17 @@ export function renderLayout(
   const renderPad = Math.max(strokePad, dotPad);
   const cellW = Math.max(0, panel.bounds.width - 2 * margin + 2 * renderPad);
   const cellH = Math.max(0, panel.bounds.height - 2 * margin + 2 * renderPad);
-  const layoutWmm = cols * cellW + (cols - 1) * hSpace;
-  let layoutHmm = rows * cellH + (rows - 1) * vSpace;
-  
+  const contentWmm = cols * cellW + (cols - 1) * hSpace;
+  let contentHmm = rows * cellH + (rows - 1) * vSpace;
+
   // Add nesting vertical offset to height when applicable (same logic as in layout.ts)
   if (invertOdd && nestingVerticalOffset !== 0) {
-    layoutHmm += Math.abs(nestingVerticalOffset);
+    contentHmm += Math.abs(nestingVerticalOffset);
   }
+
+  // Add padding to get total layout dimensions
+  const layoutWmm = contentWmm + 2 * padding;
+  const layoutHmm = contentHmm + 2 * padding;
   const layoutWpx = layoutWmm * MM_TO_PX;
   const layoutHpx = layoutHmm * MM_TO_PX;
   state.lastLayoutWpx = layoutWpx;
@@ -203,7 +208,7 @@ export function renderLayout(
   const fitPct = Math.max(20, Math.min(300, Math.floor(rawFitPct) - 1));
 
   pageEl.svgHost.innerHTML = '';
-  const svg = createLayoutSvg(panel, { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset });
+  const svg = createLayoutSvg(panel, { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset, padding });
   
   // Calculate and display material dimensions
   if (pageEl.dimensionsValue) {

@@ -29,6 +29,7 @@ export interface SettingsData {
     ratio?: number;
   };
   layout: {
+    padding: number;
     rows: number;
     cols: number;
     hSpace: number;
@@ -65,6 +66,7 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
       ratio: el.hexRatio ? clamp(parseFloat(el.hexRatio.value), 0.1, 0.9) : undefined,
     },
     layout: {
+      padding: parseFloat(layoutEl?.pagePadding?.value || '10'),
       rows: parseInt(layoutEl?.pageRows?.value || '3', 10),
       cols: parseInt(layoutEl?.pageCols?.value || '3', 10),
       hSpace: parseFloat(layoutEl?.pageHSpaceNumber?.value || '0'),
@@ -160,6 +162,10 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
 
   // Layout settings
   if (s.layout && typeof s.layout === 'object' && layoutEl) {
+    if (s.layout.padding != null) {
+      set(layoutEl.pagePadding, clamp(parseFloat(String(s.layout.padding)), 0, 50));
+      set(layoutEl.pagePaddingNumber, layoutEl.pagePadding?.value);
+    }
     if (s.layout.rows != null) {
       set(layoutEl.pageRows, clamp(parseInt(String(s.layout.rows), 10), 1, 10));
       set(layoutEl.pageRowsNumber, layoutEl.pageRows?.value);

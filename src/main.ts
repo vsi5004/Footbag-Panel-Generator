@@ -164,10 +164,11 @@ function bindUI(): void {
     resetPanelSettings(el, UI, debouncedRender);
   });
 
-  const { pageRows, pageRowsNumber, pageCols, pageColsNumber, pageHSpace, pageHSpaceNumber, 
-          pageVSpace, pageVSpaceNumber, pageInvert, nestingOffset, nestingOffsetNumber, 
+  const { pagePadding, pagePaddingNumber, pageRows, pageRowsNumber, pageCols, pageColsNumber, pageHSpace, pageHSpaceNumber,
+          pageVSpace, pageVSpaceNumber, pageInvert, nestingOffset, nestingOffsetNumber,
           nestingOffsetRow } = layoutElements;
 
+  if (pagePadding && pagePaddingNumber) UI.syncPair(pagePadding, pagePaddingNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   if (pageRows && pageRowsNumber) UI.syncPair(pageRows, pageRowsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   if (pageCols && pageColsNumber) UI.syncPair(pageCols, pageColsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   
