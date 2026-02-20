@@ -31,6 +31,7 @@ export interface PanelConfig {
   hexRatio?: number;
   curveRadius: number;
   holeSpacing: number;
+  holeBunching: number;
   cornerMargin: number;
   starRootOffset: number;
   starRootAngle: number;
@@ -63,6 +64,7 @@ export interface UIConfig {
   hexRatio: number;
   curveRadius: number;
   dotSize: number;
+  holeBunching: number;
   starRootOffset: number;
   starRootAngle: number;
   cornerStitchSpacing: boolean;
@@ -96,6 +98,9 @@ export interface Constants {
 export interface DOMElements {
   shape: HTMLSelectElement | null;
   side: HTMLInputElement | null;
+  showHoles: HTMLInputElement | null;
+  stitchesRow: HTMLElement | null;
+  seamRow: HTMLElement | null;
   seam: HTMLInputElement | null;
   curved: HTMLInputElement | null;
   stitches: HTMLInputElement | null;
@@ -119,6 +124,8 @@ export interface DOMElements {
   starRootAngleNumber: HTMLSpanElement | null;
   holeSpacing: HTMLInputElement | null;
   holeSpacingNumber: HTMLSpanElement | null;
+  holeBunching: HTMLInputElement | null;
+  holeBunchingNumber: HTMLSpanElement | null;
   cornerStitchSpacing: HTMLInputElement | null;
   cornerStitchSpacingRow: HTMLElement | null;
   cornerStitchDistance: HTMLInputElement | null;

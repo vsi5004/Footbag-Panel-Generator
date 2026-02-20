@@ -98,6 +98,7 @@ function bindUI(): void {
   if (el.curveRadius && el.curveRadiusNumber) UI.syncPair(el.curveRadius, el.curveRadiusNumber, debouncedRender);
   if (el.stitches && el.stitchesNumber) UI.syncPair(el.stitches, el.stitchesNumber, debouncedRender);
   if (el.holeSpacing && el.holeSpacingNumber) UI.syncPair(el.holeSpacing, el.holeSpacingNumber, debouncedRender);
+  if (el.holeBunching && el.holeBunchingNumber) UI.syncPair(el.holeBunching, el.holeBunchingNumber, debouncedRender);
   if (el.cornerStitchDistance && el.cornerStitchDistanceNumber) UI.syncPair(el.cornerStitchDistance, el.cornerStitchDistanceNumber, debouncedRender);
   if (el.starRootOffset && el.starRootOffsetNumber) UI.syncPair(el.starRootOffset, el.starRootOffsetNumber, debouncedRender);
   if (el.starRootAngle && el.starRootAngleNumber) UI.syncPair(el.starRootAngle, el.starRootAngleNumber, debouncedRender);
@@ -114,11 +115,18 @@ function bindUI(): void {
     UI.updateVisibility(el);
     debouncedRender();
   });
+  el.showHoles?.addEventListener('change', () => {
+    UI.updateVisibility(el);
+    debouncedRender();
+  });
   el.cornerStitchSpacing?.addEventListener('change', () => {
     UI.updateVisibility(el);
     debouncedRender();
   });
-  el.stitches?.addEventListener('input', debouncedRender);
+  el.stitches?.addEventListener('input', () => {
+    UI.updateVisibility(el);
+    debouncedRender();
+  });
   
   el.cornerMargin?.addEventListener('input', debouncedRender);
   el.holeSpacing?.addEventListener('input', debouncedRender);
@@ -156,10 +164,11 @@ function bindUI(): void {
     resetPanelSettings(el, UI, debouncedRender);
   });
 
-  const { pageRows, pageRowsNumber, pageCols, pageColsNumber, pageHSpace, pageHSpaceNumber, 
-          pageVSpace, pageVSpaceNumber, pageInvert, nestingOffset, nestingOffsetNumber, 
+  const { pagePadding, pagePaddingNumber, pageRows, pageRowsNumber, pageCols, pageColsNumber, pageHSpace, pageHSpaceNumber,
+          pageVSpace, pageVSpaceNumber, pageInvert, nestingOffset, nestingOffsetNumber,
           nestingOffsetRow } = layoutElements;
 
+  if (pagePadding && pagePaddingNumber) UI.syncPair(pagePadding, pagePaddingNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   if (pageRows && pageRowsNumber) UI.syncPair(pageRows, pageRowsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   if (pageCols && pageColsNumber) UI.syncPair(pageCols, pageColsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
   

@@ -54,12 +54,14 @@ export function resetPanelSettings(el: DOMElements, ui: any, render: () => void)
  * Resets layout settings to default values
  */
 export function resetLayoutSettings(layoutEl: any, renderLayout: (panel: Panel | null, dotSize: number, config?: PanelConfig) => void, lastPanel: Panel | null, lastDotSize: number, config?: PanelConfig): void {
-  const { pageRows, pageRowsNumber, pageCols, pageColsNumber, pageHSpace, pageHSpaceNumber, 
-          pageVSpace, pageVSpaceNumber, pageInvert, nestingOffset, nestingOffsetNumber, 
+  const { pagePadding, pagePaddingNumber, pageRows, pageRowsNumber, pageCols, pageColsNumber, pageHSpace, pageHSpaceNumber,
+          pageVSpace, pageVSpaceNumber, pageInvert, nestingOffset, nestingOffsetNumber,
           nestingOffsetRow } = layoutEl;
   const { pageEl } = layoutEl;
-          
+
   // Reset all layout controls to their default values
+  if (pagePadding) pagePadding.value = '10';
+  if (pagePaddingNumber) pagePaddingNumber.value = '10';
   if (pageRows) pageRows.value = '3';
   if (pageRowsNumber) pageRowsNumber.value = '3';
   if (pageCols) pageCols.value = '3';
@@ -176,14 +178,16 @@ export function setupImportSettings(el: DOMElements, ui: any, render: () => void
         syncPairDisplay(el.curveRadius, el.curveRadiusNumber);
         syncPairDisplay(el.stitches, el.stitchesNumber);
         syncPairDisplay(el.holeSpacing, el.holeSpacingNumber);
+        syncPairDisplay(el.holeBunching, el.holeBunchingNumber);
         syncPairDisplay(el.cornerStitchDistance, el.cornerStitchDistanceNumber);
         syncPairDisplay(el.starRootOffset, el.starRootOffsetNumber);
         syncPairDisplay(el.starRootAngle, el.starRootAngleNumber);
         syncPairDisplay(el.hexLong, el.hexLongNumber);
         syncPairDisplay(el.hexRatio, el.hexRatioNumber);
         
-        // Sync layout pairs 
+        // Sync layout pairs
         if (layoutEl) {
+          syncPairDisplay(layoutEl.pagePadding, layoutEl.pagePaddingNumber);
           syncPairDisplay(layoutEl.pageRows, layoutEl.pageRowsNumber);
           syncPairDisplay(layoutEl.pageCols, layoutEl.pageColsNumber);
           syncPairDisplay(layoutEl.pageHSpace, layoutEl.pageHSpaceNumber);

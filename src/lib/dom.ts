@@ -9,6 +9,9 @@ export function createMainElements(): DOMElements {
   return {
     shape: document.getElementById('shape') as HTMLSelectElement,
     side: document.getElementById('side') as HTMLInputElement,
+    showHoles: document.getElementById('showHoles') as HTMLInputElement,
+    stitchesRow: document.getElementById('stitchesRow') as HTMLElement,
+    seamRow: document.getElementById('seamRow') as HTMLElement,
     seam: document.getElementById('seam') as HTMLInputElement,
     curved: document.getElementById('curved') as HTMLInputElement,
     stitches: document.getElementById('stitches') as HTMLInputElement,
@@ -33,6 +36,8 @@ export function createMainElements(): DOMElements {
     starRootAngleNumber: document.getElementById('starRootAngleNumber') as HTMLSpanElement,
     holeSpacing: document.getElementById('holeSpacing') as HTMLInputElement,
     holeSpacingNumber: document.getElementById('holeSpacingNumber') as HTMLSpanElement,
+    holeBunching: document.getElementById('holeBunching') as HTMLInputElement,
+    holeBunchingNumber: document.getElementById('holeBunchingNumber') as HTMLSpanElement,
     cornerStitchSpacing: document.getElementById('cornerStitchSpacing') as HTMLInputElement,
     cornerStitchSpacingRow: document.getElementById('cornerStitchSpacingRow') as HTMLElement,
     cornerStitchDistance: document.getElementById('cornerStitchDistance') as HTMLInputElement,
@@ -81,6 +86,9 @@ export function createPageElements(): DOMElements {
   return {
     shape: null,
     side: null,
+    showHoles: null,
+    stitchesRow: null,
+    seamRow: null,
     seam: null,
     curved: null,
     stitches: null,
@@ -104,6 +112,8 @@ export function createPageElements(): DOMElements {
     starRootAngleNumber: null,
     holeSpacing: null,
     holeSpacingNumber: null,
+    holeBunching: null,
+    holeBunchingNumber: null,
     cornerStitchSpacing: null,
     cornerStitchSpacingRow: null,
     cornerStitchDistance: null,
@@ -147,6 +157,8 @@ export function createPageElements(): DOMElements {
  */
 export function getLayoutElements() {
   return {
+    pagePadding: document.getElementById('pagePadding') as HTMLInputElement | null,
+    pagePaddingNumber: document.getElementById('pagePaddingNumber') as HTMLInputElement | null,
     pageRows: document.getElementById('pageRows') as HTMLInputElement | null,
     pageRowsNumber: document.getElementById('pageRowsNumber') as HTMLInputElement | null,
     pageCols: document.getElementById('pageCols') as HTMLInputElement | null,

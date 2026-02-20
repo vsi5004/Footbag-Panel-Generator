@@ -33,19 +33,34 @@ function updateVisibility(el: DOMElements): void {
   const isHex = shapeValue === 6;
   const isStar = shapeValue === 10;
   const isTrunc = isHex && el.hexType && el.hexType.value === 'truncated';
-  
+
   if (el.hexTypeRow) el.hexTypeRow.classList.toggle('hidden', !isHex);
   if (el.hexLongRow) el.hexLongRow.classList.toggle('hidden', !isTrunc);
   if (el.hexRatioRow) el.hexRatioRow.classList.toggle('hidden', !isTrunc);
   if (el.sideRow) el.sideRow.classList.toggle('hidden', isTrunc || false);
   if (el.starRootOffsetRow) el.starRootOffsetRow.classList.toggle('hidden', !isStar);
   if (el.starRootAngleRow) el.starRootAngleRow.classList.toggle('hidden', !isStar);
-  
+
   const curvedOn = !!(el.curved && el.curved.checked);
   if (el.curveRadiusRow) el.curveRadiusRow.classList.toggle('hidden', !curvedOn);
-  
+
   const cornerStitchSpacingOn = !!(el.cornerStitchSpacing && el.cornerStitchSpacing.checked);
   if (el.cornerStitchSpacingRow) el.cornerStitchSpacingRow.classList.toggle('hidden', !cornerStitchSpacingOn);
+
+  // Show/hide hole-related settings based on showHoles toggle
+  const showHoles = el.showHoles?.checked ?? true;
+
+  if (el.stitchesRow) el.stitchesRow.classList.toggle('hidden', !showHoles);
+  if (el.seamRow) el.seamRow.classList.toggle('hidden', !showHoles);
+
+  const advancedSection = document.getElementById('advanced') as HTMLDetailsElement | null;
+  if (advancedSection) {
+    if (!showHoles) {
+      advancedSection.classList.add('hidden');
+    } else {
+      advancedSection.classList.remove('hidden');
+    }
+  }
 }
 
 function fixUiTextArtifacts(): void {

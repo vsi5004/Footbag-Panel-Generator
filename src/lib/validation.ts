@@ -11,12 +11,13 @@ export const INPUT_VALIDATORS: Record<string, ValidatorFunction> = {
   nSides: (value: string | number) => clamp(parseInt(value.toString(), 10), 3, 10),
   side: (value: string | number) => clamp(parseFloat(value.toString()), 10, 80),
   seam: (value: string | number) => clamp(parseFloat(value.toString()), 2, 9),
-  stitches: (value: string | number) => clamp(parseInt(value.toString(), 10), 0, 20),
+  stitches: (value: string | number) => clamp(parseInt(value.toString(), 10), 4, 20),
   hexLong: (value: string | number) => clamp(parseFloat(value.toString()), 10, 80),
   hexRatio: (value: string | number) => clamp(parseFloat(value.toString()), 0.1, 0.9),
   curveRadius: (value: string | number) => clamp(parseFloat(value.toString()), 10, 130),
   cornerMargin: (value: string | number, max: number = 100) => clamp(parseFloat(value.toString()), 0, Math.max(0, max)),
   holeSpacing: (value: string | number, max: number = 100) => clamp(parseFloat(value.toString()), 1, max),
+  holeBunching: (value: string | number, max: number = 100) => clamp(parseFloat(value.toString()), 0, max),
   dotSize: (value: string | number) => clamp(parseFloat(value.toString()), 0.2, 1.5),
   starRootOffset: (value: string | number) => clamp(parseFloat(value.toString()), -3, 1),
   starRootAngle: (value: string | number) => clamp(parseFloat(value.toString()), 100, 150),
@@ -34,13 +35,15 @@ export function collectInputValues(el: any): UIConfig {
   const nSides = INPUT_VALIDATORS.nSides(el.shape?.value ?? '5');
   const side = INPUT_VALIDATORS.side(el.side?.value ?? '30');
   const seam = INPUT_VALIDATORS.seam(el.seam?.value ?? '5');
-  const stitches = INPUT_VALIDATORS.stitches(el.stitches?.value ?? '10');
+  const showHoles = el.showHoles?.checked ?? true;
+  const stitches = showHoles ? INPUT_VALIDATORS.stitches(el.stitches?.value ?? '10') : 0;
   const curvedEdges = el.curved?.checked ?? false;
   const hexType = el.hexType?.value ?? 'regular';
   const hexLong = el.hexLong ? INPUT_VALIDATORS.hexLong(el.hexLong.value) : 30;
   const hexRatio = el.hexRatio ? INPUT_VALIDATORS.hexRatio(el.hexRatio.value) : 0.5;
   const curveRadius = el.curveRadius ? INPUT_VALIDATORS.curveRadius(el.curveRadius.value) : 60;
   const dotSize = INPUT_VALIDATORS.dotSize(el.dotSize?.value ?? '1');
+  const holeBunching = el.holeBunching ? INPUT_VALIDATORS.holeBunching(el.holeBunching.value, 10) : 0;
   const starRootOffset = el.starRootOffset ? INPUT_VALIDATORS.starRootOffset(el.starRootOffset.value) : -1.5;
   const starRootAngle = el.starRootAngle ? INPUT_VALIDATORS.starRootAngle(el.starRootAngle.value) : 128;
   const cornerStitchSpacing = el.cornerStitchSpacing?.checked ?? false;
@@ -57,6 +60,7 @@ export function collectInputValues(el: any): UIConfig {
     hexRatio,
     curveRadius,
     dotSize,
+    holeBunching,
     starRootOffset,
     starRootAngle,
     cornerStitchSpacing,
@@ -105,7 +109,7 @@ export function computeGeometry(config: GeometryConfig): GeometryResult {
 /**
  * Updates dynamic UI constraints based on current geometry
  */
-export function updateDynamicConstraints(config: UIConfig, geometry: GeometryResult, el: any): { cornerMargin: number; holeSpacing: number } {
+export function updateDynamicConstraints(config: UIConfig, geometry: GeometryResult, el: any): { cornerMargin: number; holeSpacing: number; holeBunching: number } {
   const { nSides, hexType, hexLong, side, stitches, curvedEdges, curveRadius, starRootOffset } = config;
   const { verts, edgeInclude } = geometry;
   const { SAMPLING } = window.FB.CONSTANTS;
@@ -153,16 +157,27 @@ export function updateDynamicConstraints(config: UIConfig, geometry: GeometryRes
     el.holeSpacingNumber?.setAttribute('max', maxStr);
   }
   
-  const holeSpacing = el.holeSpacing ? 
+  const holeSpacing = el.holeSpacing ?
     INPUT_VALIDATORS.holeSpacing(el.holeSpacing.value, allowableSpacing) : 3;
-  
-  return { cornerMargin, holeSpacing };
+
+  // Update holeBunching max to be half of holeSpacing
+  const bunchingMax = holeSpacing / 2;
+  if (el.holeBunching) {
+    const maxStr = String(Math.max(0, Math.round(bunchingMax * 10) / 10));
+    el.holeBunching.max = maxStr;
+    el.holeBunchingNumber?.setAttribute('max', maxStr);
+  }
+
+  const holeBunching = el.holeBunching ?
+    INPUT_VALIDATORS.holeBunching(el.holeBunching.value, bunchingMax) : 0;
+
+  return { cornerMargin, holeSpacing, holeBunching };
 }
 
 /**
  * Creates a panel configuration from the UI config and constraints
  */
-export function createPanelConfig(config: UIConfig, constraints: { cornerMargin: number; holeSpacing: number }): PanelConfig {
+export function createPanelConfig(config: UIConfig, constraints: { cornerMargin: number; holeSpacing: number; holeBunching: number }): PanelConfig {
   return {
     nSides: config.nSides,
     sideLen: config.side,
@@ -174,6 +189,7 @@ export function createPanelConfig(config: UIConfig, constraints: { cornerMargin:
     hexRatio: config.hexRatio,
     curveRadius: config.curveRadius,
     holeSpacing: constraints.holeSpacing,
+    holeBunching: constraints.holeBunching,
     cornerMargin: constraints.cornerMargin,
     starRootOffset: config.starRootOffset,
     starRootAngle: config.starRootAngle,

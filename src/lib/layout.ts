@@ -9,9 +9,9 @@ import { utils } from './utils';
  */
 export function createLayoutSvg(
   panel: Panel,
-  opts: { rows: number; cols: number; hSpace: number; vSpace: number; dotDiameter: number; showGrid: boolean; invertOdd: boolean; nestingVerticalOffset: number }
+  opts: { rows: number; cols: number; hSpace: number; vSpace: number; dotDiameter: number; showGrid: boolean; invertOdd: boolean; nestingVerticalOffset: number; padding?: number }
 ): SVGElement {
-  const { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset } = opts;
+  const { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset, padding = 10 } = opts;
   const { COLORS, STROKES, LAYOUT } = window.FB.CONSTANTS;
 
   // Use the panel's tight bounds (without the per-panel margin) so spacing=0
@@ -23,31 +23,36 @@ export function createLayoutSvg(
   const renderPad = Math.max(strokePad, dotPad);
   const cellW = Math.max(0, panel.bounds.width - 2 * margin + 2 * renderPad);
   const cellH = Math.max(0, panel.bounds.height - 2 * margin + 2 * renderPad);
-  const width = cols * cellW + (cols - 1) * hSpace;
-  let height = rows * cellH + (rows - 1) * vSpace;
-  
+  const contentWidth = cols * cellW + (cols - 1) * hSpace;
+  let contentHeight = rows * cellH + (rows - 1) * vSpace;
+
   // Adjust height to account for nesting vertical offset when inverted
   if (invertOdd && nestingVerticalOffset !== 0) {
-    height += Math.abs(nestingVerticalOffset);
+    contentHeight += Math.abs(nestingVerticalOffset);
   }
+
+  // Add padding around the entire layout
+  const width = contentWidth + 2 * padding;
+  const height = contentHeight + 2 * padding;
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   svg.setAttribute('width', `${width}mm`);
   svg.setAttribute('height', `${height}mm`);
-  
-  // Adjust viewBox to account for negative vertical offset
-  let viewBoxY = 0;
+
+  // Adjust viewBox to account for padding and negative vertical offset
+  let viewBoxX = -padding;
+  let viewBoxY = -padding;
   if (invertOdd && nestingVerticalOffset < 0) {
-    viewBoxY = nestingVerticalOffset;
+    viewBoxY += nestingVerticalOffset;
   }
-  svg.setAttribute('viewBox', `0 ${viewBoxY.toFixed(3)} ${width.toFixed(3)} ${height.toFixed(3)}`);
+  svg.setAttribute('viewBox', `${viewBoxX.toFixed(3)} ${viewBoxY.toFixed(3)} ${width.toFixed(3)} ${height.toFixed(3)}`);
   svg.setAttribute('fill', 'none');
   svg.style.background = 'white';
 
   // Optional sheet grid
   if (showGrid) {
-    const layoutBounds = { viewMinX: 0, viewMinY: viewBoxY, width, height };
+    const layoutBounds = { viewMinX: viewBoxX, viewMinY: viewBoxY, width, height };
     const grid = utils.createGrid(svg, layoutBounds, LAYOUT.GRID_SPACING_MM);
     svg.appendChild(grid);
   }

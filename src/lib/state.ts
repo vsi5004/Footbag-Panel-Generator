@@ -12,10 +12,12 @@ export interface SettingsData {
   curveRadius?: number;
   side: number;
   seam: number;
+  showHoles?: boolean;
   stitches: number;
   showGrid?: boolean;
   cornerMargin?: number;
   holeSpacing?: number;
+  holeBunching?: number;
   dotSize: number;
   starRootOffset?: number;
   starRootAngle?: number;
@@ -27,6 +29,7 @@ export interface SettingsData {
     ratio?: number;
   };
   layout: {
+    padding: number;
     rows: number;
     cols: number;
     hSpace: number;
@@ -46,10 +49,12 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
     curveRadius: el.curved?.checked && el.curveRadius ? INPUT_VALIDATORS.curveRadius(el.curveRadius.value) : undefined,
     side: INPUT_VALIDATORS.side(el.side?.value || '30'),
     seam: INPUT_VALIDATORS.seam(el.seam?.value || '5'),
+    showHoles: el.showHoles ? !!el.showHoles.checked : undefined,
     stitches: INPUT_VALIDATORS.stitches(el.stitches?.value || '8'),
     showGrid: el.showGrid ? !!el.showGrid.checked : undefined,
     cornerMargin: el.cornerMargin ? clamp(parseFloat(el.cornerMargin.value), 0, 999) : undefined,
     holeSpacing: el.holeSpacing ? clamp(parseFloat(el.holeSpacing.value), 1, 999) : undefined,
+    holeBunching: el.holeBunching ? clamp(parseFloat(el.holeBunching.value), 0, 999) : undefined,
     dotSize: INPUT_VALIDATORS.dotSize(el.dotSize?.value || '1'),
     starRootOffset: el.starRootOffset ? INPUT_VALIDATORS.starRootOffset(el.starRootOffset.value) : undefined,
     starRootAngle: el.starRootAngle ? INPUT_VALIDATORS.starRootAngle(el.starRootAngle.value) : undefined,
@@ -61,6 +66,7 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
       ratio: el.hexRatio ? clamp(parseFloat(el.hexRatio.value), 0.1, 0.9) : undefined,
     },
     layout: {
+      padding: parseFloat(layoutEl?.pagePadding?.value || '10'),
       rows: parseInt(layoutEl?.pageRows?.value || '3', 10),
       cols: parseInt(layoutEl?.pageCols?.value || '3', 10),
       hSpace: parseFloat(layoutEl?.pageHSpaceNumber?.value || '0'),
@@ -106,6 +112,10 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
     if (el.curveRadiusNumber && el.curveRadius) el.curveRadiusNumber.textContent = el.curveRadius.value;
   }
 
+  if (s.showHoles != null && el.showHoles) {
+    el.showHoles.checked = !!s.showHoles;
+  }
+
   if (s.stitches != null) set(el.stitches, clamp(parseInt(String(s.stitches), 10), 1, 50));
   if (el.stitchesNumber && el.stitches) el.stitchesNumber.textContent = el.stitches.value;
   
@@ -116,11 +126,16 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
     if (el.cornerMarginNumber) el.cornerMarginNumber.textContent = el.cornerMargin.value;
   }
   
-  if (s.holeSpacing != null && el.holeSpacing) { 
-    set(el.holeSpacing, Math.max(1, parseFloat(String(s.holeSpacing)))); 
+  if (s.holeSpacing != null && el.holeSpacing) {
+    set(el.holeSpacing, Math.max(1, parseFloat(String(s.holeSpacing))));
     if (el.holeSpacingNumber) el.holeSpacingNumber.textContent = el.holeSpacing.value;
   }
-  
+
+  if (s.holeBunching != null && el.holeBunching) {
+    set(el.holeBunching, Math.max(0, parseFloat(String(s.holeBunching))));
+    if (el.holeBunchingNumber) el.holeBunchingNumber.textContent = el.holeBunching.value;
+  }
+
   if (s.cornerStitchSpacing != null && el.cornerStitchSpacing) {
     el.cornerStitchSpacing.checked = !!s.cornerStitchSpacing;
   }
@@ -147,6 +162,10 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
 
   // Layout settings
   if (s.layout && typeof s.layout === 'object' && layoutEl) {
+    if (s.layout.padding != null) {
+      set(layoutEl.pagePadding, clamp(parseFloat(String(s.layout.padding)), 0, 50));
+      set(layoutEl.pagePaddingNumber, layoutEl.pagePadding?.value);
+    }
     if (s.layout.rows != null) {
       set(layoutEl.pageRows, clamp(parseInt(String(s.layout.rows), 10), 1, 10));
       set(layoutEl.pageRowsNumber, layoutEl.pageRows?.value);

@@ -49,17 +49,18 @@ function placeStitchAtPosition(
 }
 
 function stitchPositionsByEdge(
-  vertices: Point[], 
-  curveRadius: number, 
-  stitchesPerSide: number, 
-  seamOffset: number, 
-  preferredSpacing: number, 
-  cornerMargin: number, 
-  samplesPerEdge: number = SAMPLING.EDGE_SAMPLES_DEFAULT, 
+  vertices: Point[],
+  curveRadius: number,
+  stitchesPerSide: number,
+  seamOffset: number,
+  preferredSpacing: number,
+  cornerMargin: number,
+  samplesPerEdge: number = SAMPLING.EDGE_SAMPLES_DEFAULT,
   edgeInclude: ((i: number) => boolean) | null = null,
   starRootOffset: number = -1.5,
   cornerStitchSpacing: boolean = false,
-  cornerStitchDistance: number = 3
+  cornerStitchDistance: number = 3,
+  holeBunching: number = 0
 ): Point[][] {
   const vertexCount = vertices.length; 
   const stitchesByEdge: Point[][] = [];
@@ -284,15 +285,46 @@ function stitchPositionsByEdge(
         }
       }
     } else {
-      // Use uniform spacing (original logic)
-      const start = startMargin + (usableLength - actualSpacing * (stitchesPerSide + 1)) / 2 + actualSpacing;
-      
+      // Use uniform spacing with optional hole bunching
+      // Calculate total distance used by all holes with bunching
+      let totalDistance;
+      if (holeBunching > 0 && stitchesPerSide > 1) {
+        // With bunching, pairs are closer and gaps between pairs are larger
+        // For even number of holes: total = (n-1)*spacing - bunching
+        // For odd number of holes: total = (n-1)*spacing (bunching cancels out)
+        const numGaps = stitchesPerSide - 1;
+        const isEven = stitchesPerSide % 2 === 0;
+        totalDistance = numGaps * actualSpacing - (isEven ? holeBunching : 0);
+      } else {
+        totalDistance = (stitchesPerSide - 1) * actualSpacing;
+      }
+
+      // Center the holes within the usable length
+      const start = startMargin + (usableLength - totalDistance) / 2;
+
+      let cumulativePos = start;
       for (let k = 0; k < stitchesPerSide; k++) {
-        const target = start + k * actualSpacing;
+        const target = cumulativePos;
         if (arcCenter) {
           placeAlongInsetArc([target]);
         } else {
           placeStitchAtPosition(target, cumulativeDistances, edgeSamples, seamOffset, currentEdgePoints);
+        }
+
+        // Calculate spacing to next hole
+        if (k < stitchesPerSide - 1) {
+          let spacing = actualSpacing;
+          if (holeBunching > 0) {
+            // Apply bunching: pairs (0,1), (2,3), (4,5)...
+            if (k % 2 === 0) {
+              // Next gap is within a pair (0->1, 2->3, 4->5)
+              spacing -= holeBunching;
+            } else {
+              // Next gap is between pairs (1->2, 3->4, 5->6)
+              spacing += holeBunching;
+            }
+          }
+          cumulativePos += spacing;
         }
       }
     }
@@ -302,21 +334,22 @@ function stitchPositionsByEdge(
 }
 
 function stitchPositions(
-  vertices: Point[], 
-  curveRadius: number, 
-  stitchesPerSide: number, 
-  seamOffset: number, 
-  preferredSpacing: number, 
-  cornerMargin: number, 
-  samplesPerEdge: number = SAMPLING.EDGE_SAMPLES_DEFAULT, 
+  vertices: Point[],
+  curveRadius: number,
+  stitchesPerSide: number,
+  seamOffset: number,
+  preferredSpacing: number,
+  cornerMargin: number,
+  samplesPerEdge: number = SAMPLING.EDGE_SAMPLES_DEFAULT,
   edgeInclude: ((i: number) => boolean) | null = null,
   starRootOffset: number = -1.5,
   cornerStitchSpacing: boolean = false,
-  cornerStitchDistance: number = 3
+  cornerStitchDistance: number = 3,
+  holeBunching: number = 0
 ): Point[] {
   const grouped = stitchPositionsByEdge(
     vertices, curveRadius, stitchesPerSide, seamOffset, preferredSpacing, cornerMargin,
-    samplesPerEdge, edgeInclude, starRootOffset, cornerStitchSpacing, cornerStitchDistance
+    samplesPerEdge, edgeInclude, starRootOffset, cornerStitchSpacing, cornerStitchDistance, holeBunching
   );
   // Flatten
   const flat: Point[] = [];
