@@ -1,0 +1,39 @@
+name: Auto-nesting tests
+
+on:
+  push:
+    branches:
+      - feature/auto-nesting-common-lines
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Run auto-nesting regression tests
+        run: npm run test:auto-nesting
+
+      - name: Build app
+        run: npm run build

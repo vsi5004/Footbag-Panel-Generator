@@ -4,11 +4,12 @@
   "description": "Generate SVG patterns for footbag panels",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "type-check": "tsc --noEmit"
-  },
+  "dev": "vite",
+  "build": "tsc && vite build",
+  "preview": "vite preview",
+  "type-check": "tsc --noEmit",
+  "test:auto-nesting": "tsc -p tsconfig.test.json && node --test tests/autoNesting.test.mjs"
+},
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^4.9.5",
