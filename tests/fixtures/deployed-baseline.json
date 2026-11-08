@@ -1,0 +1,545 @@
+{
+  "sourceCommit": "a9ced1f5a55791f736a9dd6bbd3f2bdad5a4b201",
+  "cases": {
+    "3-regular-false-normal": {
+      "panel": "9d136d154fc6e886b5378b914e3dd2355324d35e6302c49a96940999097ee501",
+      "sheet": "25a238529bb8052f1545186b986dc0f775bbfd6c97c1a37e9441eee980cd7820",
+      "exports": [
+        "c8c3d473ab06e8a1b5537bf64bf96517fa1ea1d2e17090a12196914769cbd633",
+        "25a238529bb8052f1545186b986dc0f775bbfd6c97c1a37e9441eee980cd7820",
+        "0a6bfa8ef3b732a0111d2539454d3c3155f9a418a91af47972cfbcfdaa6f8cf8"
+      ],
+      "utilization": 46.113410414882544,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "3-regular-false-no-holes": {
+      "panel": "49e1f0b8790b141f6eacbd34e8312b2667eb9f75a8a4cfb9946a828bd6c39e4c",
+      "sheet": "49040a179074770c20d15ea0199c6acb7c1304746cd35a9e0bf95c09624b84d1",
+      "exports": [
+        "bbba1a592de820f26d7e6fa17aae41c849d88d19da6af2e8978facb1d5dc066b",
+        "49040a179074770c20d15ea0199c6acb7c1304746cd35a9e0bf95c09624b84d1",
+        "9a368147ea7f34a3ad9e6f9d22f32bb78da3ee68251ad5698cc7d52035262e4b"
+      ],
+      "utilization": 46.113410414882544,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "3-regular-false-bunched-corners": {
+      "panel": "e9bca77fad7b9ff27d4641d6f11493f02454b929126ff313d0cc82b8702bf8f2",
+      "sheet": "d8cd8286eadba8e07cf47e0d21961e4b7e4fedf18f3899f2fff34c54686e94c3",
+      "exports": [
+        "0500936bbd94d72becf20cddb0e75703c63259964a4e75ee498360b5ab6ee22f",
+        "d8cd8286eadba8e07cf47e0d21961e4b7e4fedf18f3899f2fff34c54686e94c3",
+        "0f5d3b656db95f5718d694e93a6a5f02f8942902c0481d4969814fc89a9629fa"
+      ],
+      "utilization": 46.113410414882544,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "3-regular-true-normal": {
+      "panel": "dc163b6f342bbfd4c649e0db4477f3e61d74dac67c8c17801635606c3132228d",
+      "sheet": "3825b3f64291f574d8a990991ba71c3d3267ccc670306f8db15e0a945219a736",
+      "exports": [
+        "d1772e2586e3252a160ca5f6ad2d5caaf6e73c05fb5affbb342061c3e000b1c1",
+        "3825b3f64291f574d8a990991ba71c3d3267ccc670306f8db15e0a945219a736",
+        "8e460bd3e9efe5e16a32c02680b25136575974703622d52610d50a30a20014b3"
+      ],
+      "utilization": 56.0604976791091,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "3-regular-true-no-holes": {
+      "panel": "93435845868f19976bfff2dc2bb7d69ce0eddaf9a6840cd902db4dfd9a9a6bbe",
+      "sheet": "9adb1552ce99ecec54446ea4e09c14d9cf64ce35a42de0220ab6258b7bfb8951",
+      "exports": [
+        "54b3e29188e1740dd66f50b0639f3f23995fecf7d1c76b6193086bfdf472ad1f",
+        "9adb1552ce99ecec54446ea4e09c14d9cf64ce35a42de0220ab6258b7bfb8951",
+        "250468f4e3f96639b12a52fbfdd25f2357ddf1f04c9e5ed014d2fd78fa5859c6"
+      ],
+      "utilization": 56.0604976791091,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "3-regular-true-bunched-corners": {
+      "panel": "566105e56a3099edff451dac4a49a98ae00303e823aa57ad7837422dfaa33a97",
+      "sheet": "ce056d057345b4b9283c6df09bdc73f248c2421f2b41eaa7ca67eddabfce44ef",
+      "exports": [
+        "c32862f99b3b48481a87d3d5cf30ee45c013cc9bb28c3863c1d1edbdc4e1d08d",
+        "ce056d057345b4b9283c6df09bdc73f248c2421f2b41eaa7ca67eddabfce44ef",
+        "83cfd091106d5957516d276d58d3476caad2d5992034c692c8cac9f529b39ef5"
+      ],
+      "utilization": 56.0604976791091,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "4-regular-false-normal": {
+      "panel": "192f6abb4a8a06e3ad9465c53453cd8d0ab92f06ad519b6e29b9637bec6bc038",
+      "sheet": "3abf83e1d38fd859b16b9b793e71277d5ce83f4cb8629541241893eeae3ebb8b",
+      "exports": [
+        "9efdae713a5e99f36a2bb51972cf45b98d43a834740f567e74509bf2a275592d",
+        "3abf83e1d38fd859b16b9b793e71277d5ce83f4cb8629541241893eeae3ebb8b",
+        "55b03201a197806a473db5e92152381455e82883b6b721ed27b7937a2fa2ea52"
+      ],
+      "utilization": 93.71745921555015,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "4-regular-false-no-holes": {
+      "panel": "dfd4cc5efceece6c430bc41c9073caa265b60ce9f19cbf543475bc92af4fe903",
+      "sheet": "5e234e6110d3a96bb72639e8da04e79597ea72367cda4f0d941cadcb0d3ac3fd",
+      "exports": [
+        "bd6a145c69c435dd2d0df2f5b3f71b62cfd9cab58721bde62d77da8771d8811c",
+        "5e234e6110d3a96bb72639e8da04e79597ea72367cda4f0d941cadcb0d3ac3fd",
+        "8520f43617ef492737997bd70a1f74069657fefbf6239dfded69f0e2b124b6f4"
+      ],
+      "utilization": 93.71745921555015,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "4-regular-false-bunched-corners": {
+      "panel": "f4379aa1e8ee5377e68ff1b02c9b484b9145f1522ec693ae445ce8aafe0f13d4",
+      "sheet": "92a4685fd5f55212cf7136ce8ae8c0842ac794f1fe4a171f33b824101d30bf84",
+      "exports": [
+        "4b0ea15d1f45b7b552012c50c3076a07b1c629eb39333c5e40cae191b71d9b8c",
+        "92a4685fd5f55212cf7136ce8ae8c0842ac794f1fe4a171f33b824101d30bf84",
+        "e5dedb7df6445220e689c38e6bc04f3bcc663eee07fb9727d62f8d5f48b2ae04"
+      ],
+      "utilization": 93.71745921555015,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "4-regular-true-normal": {
+      "panel": "0600e52ba34e5719a1b9a5b41b447924f74bbe619378dd7dd3f64a1d4b042930",
+      "sheet": "e52a3d388cd8e7909b6e375642581219ade1c9ca8abeecf4069c7d26bd34b763",
+      "exports": [
+        "e6c815034766ab550bac50950541cea2a79629503bd6103c52088ae9569ac85a",
+        "e52a3d388cd8e7909b6e375642581219ade1c9ca8abeecf4069c7d26bd34b763",
+        "f0c73a5499019997c68cc092f1c295cc20d2497f57f7e9c6030078c82174be07"
+      ],
+      "utilization": 86.89250752957516,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "4-regular-true-no-holes": {
+      "panel": "9ebecc6d6089fa30fede9aac58b54896a0a277e95c83728939c05e17a5a75ce6",
+      "sheet": "1f0f3692f9801e0181c577fca3c362a6bf866927f17e833e5e1f5592a1223041",
+      "exports": [
+        "c53ab07e3f5d0ae433afaa2e0bb87a1d399f3761980ef34b30073ec4cbad5280",
+        "1f0f3692f9801e0181c577fca3c362a6bf866927f17e833e5e1f5592a1223041",
+        "4c4f0e39740141e078f9a84662a948b84caa4c497a738f84f9295c12dbb375c9"
+      ],
+      "utilization": 86.89250752957516,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "4-regular-true-bunched-corners": {
+      "panel": "d1cfa54a12b68e1157c84129e6b284a3c0db58ec94f70d7979858142a0e11cb3",
+      "sheet": "481dd8044043150c33f48df8f1155c2d31c3425e5cae6a2908848c2980534de6",
+      "exports": [
+        "45bb2138b7f3573de60f3fc70096377a5d2a4c3c8c1bf3aada736823e9dd2e31",
+        "481dd8044043150c33f48df8f1155c2d31c3425e5cae6a2908848c2980534de6",
+        "fece0b5845ab5c840b256a63aecd7b4b039b903b23758695c5db4bd76bc29e14"
+      ],
+      "utilization": 86.89250752957516,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "5-regular-false-normal": {
+      "panel": "2a988da9413b4101b1df723ad7eb52d5ed559060402294eddc44faa790477e53",
+      "sheet": "51bbdf0c39d1479fb90dabf14d13ad13434fd8c46b620e84b8d660bc086e8c1f",
+      "exports": [
+        "e5aef592bd2f4c1c27f6c7c8635284a80c42208eaee07c46f30722626cabccc8",
+        "51bbdf0c39d1479fb90dabf14d13ad13434fd8c46b620e84b8d660bc086e8c1f",
+        "721a30509b10a8d8d8b7667c587d1d64f560294aa8f7ee5f1fd9c2b5b803fb61"
+      ],
+      "utilization": 66.04289663206347,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "5-regular-false-no-holes": {
+      "panel": "d27ba988199c9867f4a1574a12bbfb79c36ed2506c78758f34bfe4f543229fd6",
+      "sheet": "5292081e38c52471339b08a6c3c33122261cb5a57f2230a4270e125eea20200e",
+      "exports": [
+        "29200085f489c31729be91992d3552c7f12c6320572aec4598b5bdc4b6077763",
+        "5292081e38c52471339b08a6c3c33122261cb5a57f2230a4270e125eea20200e",
+        "1519fe46c0a2e08a9c0c1e0fe8552f3c8d71443bfd10a2b9fc9e1bc5b30d3f13"
+      ],
+      "utilization": 66.04289663206347,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "5-regular-false-bunched-corners": {
+      "panel": "b55515bcb5b85600358bb79b9c06bc3350658bc8f945a02d2949c60b4e9acf0d",
+      "sheet": "1c4bcfd9f11b8346e21619b0a1d5728af73065b61a50ba44d68b56267efd7427",
+      "exports": [
+        "c09df3113587e611d784e3d5577c316f8f9497658bdb49c386589e60065fd90e",
+        "1c4bcfd9f11b8346e21619b0a1d5728af73065b61a50ba44d68b56267efd7427",
+        "6c47e73312a08e068cad27acfac5766dcc0beb63a1c7eb9c5c6a8498447ad7e2"
+      ],
+      "utilization": 66.04289663206347,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "5-regular-true-normal": {
+      "panel": "d172a543fbc6764dbf7235d0adebf7fdc6accaf93a365cd1ef019107dffdbaec",
+      "sheet": "9d5899f6584e61bcd56fc70bf96caf20a88c3cc44f672c32f5416fd6e78be567",
+      "exports": [
+        "790c8dfa1e97005763e4c1e38145c2539d703eb6410f1b3f522c8974ac425066",
+        "9d5899f6584e61bcd56fc70bf96caf20a88c3cc44f672c32f5416fd6e78be567",
+        "850e45a03f88e62700fa4e2dd482723739fb46da1941f109a92c615fab307b9b"
+      ],
+      "utilization": 71.45412822666167,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "5-regular-true-no-holes": {
+      "panel": "faef44406f8158639b248fb8aff115cdd2bf65638c191e8e9899c6ca20c1a4ed",
+      "sheet": "6491bee5929dbc34ea1834cf3f50121808b1dce7d804807caf6df6e98658b490",
+      "exports": [
+        "bc22aaae9e145b15f32160d1b60516039d856caf05e2de9973436e5390ec6e75",
+        "6491bee5929dbc34ea1834cf3f50121808b1dce7d804807caf6df6e98658b490",
+        "8390498ecba1394447767a90e489d2f54ced97f972ee4163d721b7972d091c22"
+      ],
+      "utilization": 71.45412822666167,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "5-regular-true-bunched-corners": {
+      "panel": "f8a6543eac8b045372d88b4c7cb194e9433a5e679103211eb2dc46f7771a3557",
+      "sheet": "4f1e56c54a0b186a7f704a17bb2c8acc414ddf6ae650dea5c8a492aec590c9ef",
+      "exports": [
+        "65d7a7b260710b8ec5c785092b02371898475038aa78f0e020ede62a91c76968",
+        "4f1e56c54a0b186a7f704a17bb2c8acc414ddf6ae650dea5c8a492aec590c9ef",
+        "5517f56e323bc3a36ea3068893676cc67de82167e3a9f2c8721c53c76cc425aa"
+      ],
+      "utilization": 71.45412822666167,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-regular-false-normal": {
+      "panel": "e80241e5eb33adaa614788dfad21576f9ee4c990a30470b050547076984fbb19",
+      "sheet": "5427df8230c437c49a66caf986977d67af34a9af8e81acca3a0e0a7bb45ba88c",
+      "exports": [
+        "d3edc9fef1caee9d7b731aeff42640e6520434b42a5201d712f98a10a4d8909d",
+        "5427df8230c437c49a66caf986977d67af34a9af8e81acca3a0e0a7bb45ba88c",
+        "bdb124b7b727e9ce5e1f6fa0d817a9eeab8135abcc9b85ed36cc591304ffad5f"
+      ],
+      "utilization": 71.86396610097816,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-regular-false-no-holes": {
+      "panel": "9fcf3f20be13d85f8a0f424ed949254cad37fee67eb78eaeec68ec1bd8dbad39",
+      "sheet": "c146e88ec44bdae961425c5d73aa492908e67d127b128c339f1b9cd27730bc2c",
+      "exports": [
+        "3705d5cd9b7167dbb446e001ea13fb65500ef877afd2eded80d75d433ed735ce",
+        "c146e88ec44bdae961425c5d73aa492908e67d127b128c339f1b9cd27730bc2c",
+        "1a6d1dc29d5fe7c386efdf12b2c59b47f198d8b73fb931c5c880eb6058ec9265"
+      ],
+      "utilization": 71.86396610097816,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-regular-false-bunched-corners": {
+      "panel": "495ba1e75a7c248203c97f63f6a6e41b8173725affc2a54fe7d4146a5a45a9b7",
+      "sheet": "d24d9e9d8c5d01ddf0ad47a5c0265874b3b3f1600bea3d7dd78955c8b9afcb37",
+      "exports": [
+        "a5331a97981764bf4a6a7f57573ab908cc19e75b0ae0e44faa22d48c909ab652",
+        "d24d9e9d8c5d01ddf0ad47a5c0265874b3b3f1600bea3d7dd78955c8b9afcb37",
+        "7e20f479ee5751592f066be455b53cdf03a2508739c0053ac418bb65ef33e2c2"
+      ],
+      "utilization": 71.86396610097816,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-regular-true-normal": {
+      "panel": "03a476b59207c8e80a868feae7e7a015cfccc50a8dcbd35c115dda00e94b04e3",
+      "sheet": "a85ea4d213a1d32fdb62ce5b66c93bcc0d7b705fae86f4a873676c47c759ad7f",
+      "exports": [
+        "bc64770f416f35d8d9a3e6ab51ff74991ea33aa5a7735a55da55cd1bbc4531fe",
+        "a85ea4d213a1d32fdb62ce5b66c93bcc0d7b705fae86f4a873676c47c759ad7f",
+        "68eb11ec04a125a18e9f5bd3df0687fd0599eadfd0b70861c52e2eeab7102447"
+      ],
+      "utilization": 73.84006104944667,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-regular-true-no-holes": {
+      "panel": "913e6be4a94166bfc3cd6267395a65db95cfcdbb7cb7fcfdf2e5e31aefca38eb",
+      "sheet": "1930a9ff7c3c225aba1ae770ffa63f631d8ba9f3af0060cf0868c2836df8bcbe",
+      "exports": [
+        "3ec22e7ca6c3191012d67fe6137b0a62caaf295b172f6f76afd27c55d89caac8",
+        "1930a9ff7c3c225aba1ae770ffa63f631d8ba9f3af0060cf0868c2836df8bcbe",
+        "6af20763de44acd1cdf482431dcb239cefcfa1bbb8cba8f7ba6f9671b0613ca4"
+      ],
+      "utilization": 73.84006104944667,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-regular-true-bunched-corners": {
+      "panel": "557dc2666a1be103804af62d760ce2de7fa3119aa7a0b3c57aeff08d919bd094",
+      "sheet": "482a1bc797661ad2113d4efdfb2eec8382044feec01e2981dae6d6828a260db5",
+      "exports": [
+        "b2d7178c8f2cafa7f0e26483dcb063706d0378473419cae4671e456f3467f41e",
+        "482a1bc797661ad2113d4efdfb2eec8382044feec01e2981dae6d6828a260db5",
+        "3aa3286ec1f00cd6802dbd441b1473bffde144c133b4c22c89b5a6e095c87e4e"
+      ],
+      "utilization": 73.84006104944667,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-truncated-false-normal": {
+      "panel": "e2644dc9c4a0134227aa13ca13097329195a25a3334b120c4f89b19a2808fce5",
+      "sheet": "2cdb1e474939fa8cd74936897aa34cfcf4c4ccb05b5c5ce3195f4dfd43302435",
+      "exports": [
+        "b06d05cb6047305502614e2834950e8d3918eb2d5ee114c91dae68f908faf500",
+        "2cdb1e474939fa8cd74936897aa34cfcf4c4ccb05b5c5ce3195f4dfd43302435",
+        "aff522d5325b4c1b21962342d61866ffeb1bd54bf349cc24ea40be748755c5b8"
+      ],
+      "utilization": 67.625417844384,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-truncated-false-no-holes": {
+      "panel": "20c94cd87e48977dae3335715ef757c4cd5e5519aeef43d3fb725243ebe5b4c2",
+      "sheet": "e7e926bed89ce3082cacd45381aa6dfe64931ee131b1b6152cb51f60f2e044c3",
+      "exports": [
+        "9f7729d4559dd75dcd40492cd4d703cfaaa55957c3580c672609bd40e6c192ef",
+        "e7e926bed89ce3082cacd45381aa6dfe64931ee131b1b6152cb51f60f2e044c3",
+        "d735084b010a7cef0e68659921f537f9e3f9b0efa291a78c849c1bc8d59b27ea"
+      ],
+      "utilization": 67.625417844384,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-truncated-false-bunched-corners": {
+      "panel": "9c744586fb990ed865293e14a9e940896f18d0e8ca488ea34b5d83a52a9c27e9",
+      "sheet": "9955a977d4cfbf88d5e085bafb5fdc0a782a946e143daef4561a1ad605f8b024",
+      "exports": [
+        "73001aa9feb82dd7ff9ab86a1c658bfe3beb84f38e730bf721bbf81ed0141259",
+        "9955a977d4cfbf88d5e085bafb5fdc0a782a946e143daef4561a1ad605f8b024",
+        "63b04d24594cda98c07e5274ee3f9ab323b80d5afca2e41b4ec1dbe0058e01ee"
+      ],
+      "utilization": 67.625417844384,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-truncated-true-normal": {
+      "panel": "d8fff35b4a18553da2816c452cbd0ad20efa5e12f894f4d5ff80ac01d7b2bb54",
+      "sheet": "6a463f649bef90dc9ef1c2692316a11f816fa56bd25da1c8aa24f0d734aaa7e3",
+      "exports": [
+        "50a6e4408e8f138c7580a5fb38a29407912a535caf3134ed1aef934bd0ee15a7",
+        "6a463f649bef90dc9ef1c2692316a11f816fa56bd25da1c8aa24f0d734aaa7e3",
+        "8d86e2f49374a61a6bbecf6303bb47e94efbb7d6c96657971c79728bd88a093b"
+      ],
+      "utilization": 71.10694547098949,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-truncated-true-no-holes": {
+      "panel": "ed79a3ee1de597ba91b611536406349b4211247f5575b9b1910e91a6b119c07a",
+      "sheet": "8f0758f2e3766b12972e8bfb4996b4ff6fbcef75a8dc9a94bce444f91c1df8cc",
+      "exports": [
+        "751151c985b2c0c0691de014392503102d01a8d25f326ff674c2a9a501491b02",
+        "8f0758f2e3766b12972e8bfb4996b4ff6fbcef75a8dc9a94bce444f91c1df8cc",
+        "84bea6301dac749648d2e620208c889ec0670fc401eb2386cdca95fb3b5d6565"
+      ],
+      "utilization": 71.10694547098949,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "6-truncated-true-bunched-corners": {
+      "panel": "edc284f99d2e8b05183c8f484a1bebba2aa3bdcd1fb0a32f85b23244c5110ed4",
+      "sheet": "14dca94d9a536c043e613add89311b668c5451e65de2186354059358bef32984",
+      "exports": [
+        "813927c7504afd161be3580aaef9e8b1fbaf1fa082fd26ba9a25ec3968940219",
+        "14dca94d9a536c043e613add89311b668c5451e65de2186354059358bef32984",
+        "20fadf11df325c14dde35960ec8a926b35447536381af4a3ad9b328b9bdbe656"
+      ],
+      "utilization": 71.10694547098949,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "10-regular-false-normal": {
+      "panel": "0e83ffdf33e334e13fe85cc20f0328d74c247ac43814c9c6aa4f8a4dfd794bb6",
+      "sheet": "134ece4f9c0bb22ed6e5067909cd665e9a304d30e7f48e23b963a76312743e27",
+      "exports": [
+        "7eced2f8ff69d3ebd92f825a02d7df82a8a82b18444ab3d7a68841ca9b11cf47",
+        "134ece4f9c0bb22ed6e5067909cd665e9a304d30e7f48e23b963a76312743e27",
+        "eeb30c13ccc62c787ec6c25a141c516a7f88683f72074387af58bd80f5d76897"
+      ],
+      "utilization": 40.788951450008696,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "10-regular-false-no-holes": {
+      "panel": "5b496edfdf7fa72adc28332c833b9de7224d28c3a9288d3697dc55a1f6e6547c",
+      "sheet": "42226932ce13a539d9ae8611f9858322ef4d0a3fada645a9498c906781482054",
+      "exports": [
+        "3f1f8b74d07c2e83ca95ed8df2f7668a24bedff587a1fcb9b96d5dc8a7757da1",
+        "42226932ce13a539d9ae8611f9858322ef4d0a3fada645a9498c906781482054",
+        "3fc0f7646d720d3b912e63c73dd23bff065f8df37ef0f7752c00d8311d98e606"
+      ],
+      "utilization": 40.788951450008696,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "10-regular-false-bunched-corners": {
+      "panel": "0e83ffdf33e334e13fe85cc20f0328d74c247ac43814c9c6aa4f8a4dfd794bb6",
+      "sheet": "134ece4f9c0bb22ed6e5067909cd665e9a304d30e7f48e23b963a76312743e27",
+      "exports": [
+        "7eced2f8ff69d3ebd92f825a02d7df82a8a82b18444ab3d7a68841ca9b11cf47",
+        "134ece4f9c0bb22ed6e5067909cd665e9a304d30e7f48e23b963a76312743e27",
+        "eeb30c13ccc62c787ec6c25a141c516a7f88683f72074387af58bd80f5d76897"
+      ],
+      "utilization": 40.788951450008696,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "10-regular-true-normal": {
+      "panel": "fe1dfb965c6719eb84ed8eb0bd601ef5c9c2d19046e88377339380779e07c3c7",
+      "sheet": "b756291fe8187b711f8b47b690048b2c760dab12955712f679ae0e8dcaff7c12",
+      "exports": [
+        "d1ea802b461478b439b05e1b25cd1246aa7f791dd22d1d81cdc71a682a4acdbf",
+        "b756291fe8187b711f8b47b690048b2c760dab12955712f679ae0e8dcaff7c12",
+        "f3e4296abde58cc3a34f1f1a69086ca43fe93989b1a3621d77d1c276dd4f4faf"
+      ],
+      "utilization": 44.254202740927525,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "10-regular-true-no-holes": {
+      "panel": "1d8b0d87d3052256a3a0eb9fee0f5df36dbada9d50a0e691d8107ef28c846023",
+      "sheet": "ddd26569f45be56b52c883f067cf0bd0a9618df19273ba9b165b88b6fa6dfea7",
+      "exports": [
+        "4ef30b19d7139f411bd5ab4d9ad12d5190ffc5a28ad5c6b524c9d950fa60e9f1",
+        "ddd26569f45be56b52c883f067cf0bd0a9618df19273ba9b165b88b6fa6dfea7",
+        "cc3fd7f8adb8c4bd39a761b3d30e2c3aea2b64633732d65e31ad1a954c317170"
+      ],
+      "utilization": 44.254202740927525,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    },
+    "10-regular-true-bunched-corners": {
+      "panel": "fe1dfb965c6719eb84ed8eb0bd601ef5c9c2d19046e88377339380779e07c3c7",
+      "sheet": "b756291fe8187b711f8b47b690048b2c760dab12955712f679ae0e8dcaff7c12",
+      "exports": [
+        "d1ea802b461478b439b05e1b25cd1246aa7f791dd22d1d81cdc71a682a4acdbf",
+        "b756291fe8187b711f8b47b690048b2c760dab12955712f679ae0e8dcaff7c12",
+        "f3e4296abde58cc3a34f1f1a69086ca43fe93989b1a3621d77d1c276dd4f4faf"
+      ],
+      "utilization": 44.254202740927525,
+      "constraints": {
+        "cornerMargin": 0,
+        "holeSpacing": 3,
+        "holeBunching": 0
+      }
+    }
+  }
+}
