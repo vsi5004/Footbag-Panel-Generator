@@ -139,6 +139,7 @@ export interface DOMElements {
   hexLongNumber: HTMLSpanElement | null;
   hexRatio: HTMLInputElement | null;
   hexRatioNumber: HTMLSpanElement | null;
+  exportScale: HTMLInputElement | null;
   exportSettings: HTMLButtonElement | null;
   importSettings: HTMLButtonElement | null;
   importFile: HTMLInputElement | null;
