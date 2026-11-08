@@ -1,15 +1,19 @@
 import type { DOMElements } from '../types';
 
+/** Refresh a paired display without attaching event listeners. */
+export function syncPairDisplay(range: HTMLInputElement | null, number: HTMLElement | null): void {
+  if (!range || !number) return;
+  if ('value' in number) {
+    (number as HTMLInputElement).value = range.value;
+  } else {
+    number.textContent = range.value;
+  }
+}
+
 function syncPair(range: HTMLInputElement | null, number: HTMLElement | null, onChange?: () => void): void {
   if (!range || !number) return;
   
-  const sync = () => { 
-    if ('value' in number) {
-      (number as HTMLInputElement).value = range.value; 
-    } else {
-      number.textContent = range.value;
-    }
-  };
+  const sync = () => syncPairDisplay(range, number);
   
   const syncBack = () => { 
     if ('value' in number) {

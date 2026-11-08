@@ -173,11 +173,11 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
       set(layoutEl.pagePaddingNumber, layoutEl.pagePadding?.value);
     }
     if (s.layout.rows != null) {
-      set(layoutEl.pageRows, clamp(parseInt(String(s.layout.rows), 10), 1, 10));
+      set(layoutEl.pageRows, clamp(parseInt(String(s.layout.rows), 10), 1, 12));
       set(layoutEl.pageRowsNumber, layoutEl.pageRows?.value);
     }
     if (s.layout.cols != null) {
-      set(layoutEl.pageCols, clamp(parseInt(String(s.layout.cols), 10), 1, 10));
+      set(layoutEl.pageCols, clamp(parseInt(String(s.layout.cols), 10), 1, 12));
       set(layoutEl.pageColsNumber, layoutEl.pageCols?.value);
     }
     if (s.layout.hSpace != null) {
