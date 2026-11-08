@@ -315,3 +315,95 @@ test('changing a curved star angle renders the resolved radius immediately and e
     expect(text).toContain(`d="${path}"`);
   }
 });
+
+test('panel area ratio matches the exported sheet and responds to padding and dot size', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, {
+    ...initial,
+    shape: 4,
+    side: 30,
+    curved: false,
+    dotSize: 1,
+    layout: {
+      ...initial.layout,
+      rows: 2,
+      cols: 3,
+      hSpace: 4,
+      vSpace: 5,
+      padding: 10,
+      invert: false,
+      nestingOffset: 0,
+    },
+  });
+  await expect(page.locator('#utilizationValue')).toHaveText('51.3%');
+  await expect(page.locator('#dimensionsValue')).toHaveText('121.0 × 87.0');
+  await page.locator('#pagePaddingNumber').fill('20');
+  await expect(page.locator('#utilizationValue')).toHaveText(
+    `${((5400 / (141 * 107)) * 100).toFixed(1)}%`,
+  );
+  await page.locator('#pagePaddingNumber').fill('10');
+  await page.locator('#advanced').evaluate((element: HTMLDetailsElement) => (element.open = true));
+  await page.locator('#dotSizeNumber').fill('1.5');
+  const expected = `${((5400 / (122.5 * 88)) * 100).toFixed(1)}%`;
+  await expect(page.locator('#utilizationValue')).toHaveText(expected);
+  await page.locator('#exportScale').fill('125');
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  const download = await pending;
+  const text = await readFile((await download.path())!, 'utf8');
+  expect(parseFloat(text.match(/\bwidth="([^"]+)"/)![1])).toBeCloseTo(122.5 * 1.25, 8);
+  expect(parseFloat(text.match(/\bheight="([^"]+)"/)![1])).toBeCloseTo(88 * 1.25, 8);
+  await expect(page.locator('#utilizationValue')).toHaveText(expected);
+});
+
+test('overlap ratios and invalid sheet dimensions have explicit meanings', async ({ page }) => {
+  const initial = await settingsDownload(page);
+  const overlapping = {
+    ...initial,
+    shape: 4,
+    side: 30,
+    curved: false,
+    dotSize: 1,
+    layout: {
+      ...initial.layout,
+      rows: 2,
+      cols: 2,
+      hSpace: -20,
+      vSpace: -20,
+      padding: 0,
+      invert: false,
+      nestingOffset: 0,
+    },
+  };
+  await importSettings(page, overlapping);
+  await expect(page.locator('#utilizationValue')).toHaveText('204.1%');
+  await page.getByRole('button', { name: 'About panel area utilization' }).click();
+  await expect(page.locator('#utilizationHelp')).toBeVisible();
+  await expect(page.locator('#utilizationHelp')).toContainText(
+    'Overlapping panels are counted separately',
+  );
+  await importSettings(page, {
+    ...overlapping,
+    side: 10,
+    showHoles: false,
+    layout: { ...overlapping.layout, rows: 3 },
+  });
+  await expect(page.locator('#utilizationValue')).toHaveText('—');
+  await expect(page.locator('#utilizationValue')).toHaveAttribute(
+    'title',
+    /sheet width and height must be positive/,
+  );
+});
+
+test('sheet-area explanation fits and works on a phone-sized viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const info = page.locator('#materialUtilization');
+  await info.scrollIntoViewIfNeeded();
+  const bounds = await info.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+  await page.getByRole('button', { name: 'About panel area utilization' }).click();
+  await expect(page.locator('#utilizationHelp')).toBeVisible();
+});

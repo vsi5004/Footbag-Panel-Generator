@@ -448,9 +448,13 @@
               <span class="dimensions-label">Material dimensions (WxH): </span>
               <span id="dimensionsValue" class="dimensions-value">0 × 0</span>
             </div>
-            <div id="materialUtilization" class="material-utilization">
-              <span class="utilization-label">Material utilization: </span>
+            <div id="materialUtilization" class="material-utilization tooltip-container">
+              <span class="utilization-label">Panel area / sheet area: </span>
               <span id="utilizationValue" class="utilization-value">0%</span>
+              <button type="button" class="tooltip-icon" aria-label="About panel area utilization" aria-describedby="utilizationHelp">?</button>
+              <div id="utilizationHelp" class="tooltip-content" role="tooltip">
+                Total panel area divided by the full exported sheet area, including padding, spacing, and stroke/dot allowances. Overlapping panels are counted separately, so this can exceed 100%. Export scaling leaves the percentage unchanged.
+              </div>
             </div>
           </div>
           <div id="pageSvgHost" class="svg-host"></div>

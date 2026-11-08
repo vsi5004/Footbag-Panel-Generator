@@ -119,6 +119,7 @@ button:hover { filter: brightness(1.05); }
 .zoom-label { color: var(--muted); min-width: 48px; text-align: right; }
 .material-info-container {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
@@ -142,6 +143,7 @@ button:hover { filter: brightness(1.05); }
   align-items: center; 
   gap: 8px;
 }
+.material-utilization .tooltip-icon { padding: 0; flex-shrink: 0; }
 .utilization-label { color: var(--muted); font-size: 14px; }
 .utilization-value { 
   color: #4ade80; 

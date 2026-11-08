@@ -4,7 +4,7 @@
 import type { Panel, Point, PanelConfig } from '../types';
 import { utils } from './utils';
 import { CONSTANTS } from './constants';
-import { geometry } from './geometry';
+import { createPolygonGeometry } from './shape-geometry';
 
 export interface LayoutArrangement {
   rows: number;
@@ -137,24 +137,20 @@ export function createLayoutSvg(panel: Panel, opts: LayoutSvgOptions): SVGElemen
 }
 
 /**
- * Calculates material utilization percentage for a layout
+ * Sum of panel areas divided by the full exported sheet area.
+ * Overlapping panels are counted separately, so the ratio may exceed 100%.
  */
 export function calculateMaterialUtilization(
   panel: Panel,
-  opts: LayoutArrangement,
+  opts: LayoutSvgOptions,
   config?: PanelConfig,
-): number {
-  const { rows, cols } = opts;
-  const actualPanelArea = calculateActualPanelArea(panel, config);
-  const totalPanelArea = actualPanelArea * rows * cols;
-  // Preserve the deployed utilization definition: tight cells excluding stroke,
-  // dot padding and sheet margins. This differs intentionally from export bounds.
-  const { width, height } = measureLayout(panel, opts, 0, 0);
-  const totalCanvasArea = width * height;
-
-  // Calculate utilization percentage
-  if (totalCanvasArea === 0) return 0;
-  return (totalPanelArea / totalCanvasArea) * 100;
+): number | null {
+  const { width, height } = measureLayoutSvg(panel, opts);
+  const totalSheetArea = width * height;
+  if (width <= 0 || height <= 0 || !Number.isFinite(totalSheetArea)) return null;
+  const totalPanelArea = calculateActualPanelArea(panel, config) * opts.rows * opts.cols;
+  const percentage = (totalPanelArea / totalSheetArea) * 100;
+  return Number.isFinite(percentage) ? percentage : null;
 }
 
 /**
@@ -191,44 +187,23 @@ function calculatePrecisePolygonArea(config: PanelConfig): number {
     hexRatio = 0.5,
   } = config;
 
-  let vertices: Point[];
-  let baseArea: number;
-
-  if (nSides === 6 && hexType === 'truncated') {
-    // Truncated hexagon - get vertices and calculate area directly
-    const longSideLength = hexLong;
-    const shortSideLength = hexRatio * longSideLength;
-    vertices = geometry.truncatedHexagonVertices(longSideLength, shortSideLength);
-    baseArea = calculatePolygonArea(vertices);
-
-    // Add curved area if needed (use circular segment area per edge)
-    if (curvedEdges && curveRadius && isFinite(curveRadius) && curveRadius > 0) {
-      baseArea += sumCircularSegmentsArea(vertices, curveRadius);
-    }
-  } else if (nSides === 10) {
-    // Star shape: sideLen represents outer radius (distance from center to star points)
-    const starRootAngle = config.starRootAngle || 128;
-    vertices = geometry.starVertices(sideLen, starRootAngle);
-    baseArea = calculatePolygonArea(vertices);
-
-    // Add curved area if needed
-    if (curvedEdges && curveRadius && isFinite(curveRadius) && curveRadius > 0) {
-      baseArea += sumCircularSegmentsArea(vertices, curveRadius);
-    }
-  } else if (nSides >= 3) {
-    // Regular polygon area: A = (n * s²) / (4 * tan(π/n))
-    // where n = number of sides, s = side length
-
-    baseArea = (nSides * Math.pow(sideLen, 2)) / (4 * Math.tan(Math.PI / nSides));
-
-    // Add curved area if needed
-    if (curvedEdges && curveRadius && isFinite(curveRadius) && curveRadius > 0) {
-      const circumRadius = sideLen / (2 * Math.sin(Math.PI / nSides));
-      const regVerts = geometry.regularPolygonVertices(nSides, circumRadius);
-      baseArea += sumCircularSegmentsArea(regVerts, curveRadius);
-    }
-  } else {
-    return 0;
+  if (nSides < 3) return 0;
+  // Use the exact vertices used for the outline so arc feasibility agrees with
+  // rendering, including rotated squares and alternating star tips/roots.
+  const { verts: vertices } = createPolygonGeometry({
+    nSides,
+    side: sideLen,
+    hexType,
+    hexLong,
+    hexRatio,
+    starRootAngle: config.starRootAngle || 128,
+  });
+  let baseArea =
+    nSides === 10 || (nSides === 6 && hexType === 'truncated')
+      ? calculatePolygonArea(vertices)
+      : (nSides * Math.pow(sideLen, 2)) / (4 * Math.tan(Math.PI / nSides));
+  if (curvedEdges && Number.isFinite(curveRadius) && curveRadius > 0) {
+    baseArea += sumCircularSegmentsArea(vertices, curveRadius);
   }
 
   return baseArea;
@@ -246,7 +221,9 @@ function sumCircularSegmentsArea(vertices: Point[], radius: number): number {
     const b = vertices[(i + 1) % vertices.length];
     const chord = Math.hypot(b.x - a.x, b.y - a.y);
     if (chord <= 0) continue;
-    const R = Math.max(radius, chord / 2);
+    // The SVG falls back to a straight segment when the requested arc is infeasible.
+    if (radius < chord / 2) continue;
+    const R = radius;
     const theta = 2 * Math.asin(Math.min(1, Math.max(-1, chord / (2 * R))));
     const segmentArea = 0.5 * R * R * (theta - Math.sin(theta));
     total += segmentArea;
