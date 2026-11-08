@@ -18,7 +18,7 @@ Single‑page web app that generates printable SVG templates for footbag (hacky 
 ### Layout Optimization
 - Enable inverted nesting and adjust spacing for maximum material efficiency
 - Use negative horizontal spacing for overlapping panel arrangements
-- Monitor material utilization percentage to minimize waste
+- Compare total panel area with full exported sheet area; padding and spacing affect the percentage
 - Export individual panels for single-piece cutting or full layouts for batch production
 
 ### Export Scale
@@ -60,7 +60,7 @@ Single‑page web app that generates printable SVG templates for footbag (hacky 
   - Vertical spacing optimization (0mm to +50mm)
 - **Inverted Nesting**: Flip alternating panels for improved material efficiency
 - **Nesting Offset**: Fine-tune vertical positioning of flipped panels (-40mm to +40mm)
-- **Material Utilization**: Real-time calculation and display of material usage percentage
+- **Panel Area / Sheet Area**: Total panel area divided by the full exported sheet area, including padding and spacing
 - **Layout Preview**: Dedicated preview with independent zoom and grid controls
 
 
@@ -93,11 +93,11 @@ Imported geometry values are applied without limits inherited from the previous 
 
 ### Regression coverage
 
-`tests/fixtures/deployed-baseline.json` records 36 cases captured from main at `a9ced1f5a55791f736a9dd6bbd3f2bdad5a4b201`, before the maintenance refactor. They cover all shapes, straight/curved edges, no-hole and custom/bunched-hole modes, inverted sheets, SVG exports at 75/100/125%, constraints and material utilization. Exact hashes detect changes to geometry and serialized SVG output. Do not regenerate this fixture just to make a refactor pass; investigate differences and document any intentional behavior change.
+`tests/fixtures/deployed-baseline.json` records 36 cases captured from main at `a9ced1f5a55791f736a9dd6bbd3f2bdad5a4b201`, before the maintenance refactor. They cover all shapes, straight/curved edges, no-hole and custom/bunched-hole modes, inverted sheets, SVG exports at 75/100/125%, constraints and material utilization. Exact hashes detect changes to geometry and serialized SVG output. The baseline comparison preserves every field except the intentionally corrected utilization value; dedicated analytic tests now verify that ratio against full exported dimensions. Do not regenerate this fixture just to make a refactor pass; investigate differences and document any intentional behavior change.
 
 Playwright tests use the built app to exercise startup, shape/visibility changes, paired controls, resets, zoom, grids, downloads, file imports, legacy settings, 12×12 layouts, spacing extrema and a mobile viewport. They run in Chromium in CI. On Windows, an installed Edge can be used with `$env:PLAYWRIGHT_CHANNEL='msedge'; npm run test:browser` after `npm run build`.
 
-Star validation and rendering share the same alternating tip/root vertices and the same minimum stitch corner margin. Curvature limits account for the real star edge chords and round upward to the radius control's 0.5 mm step. The material-utilization definition remains unchanged.
+Star validation and rendering share the same alternating tip/root vertices and the same minimum stitch corner margin. Curvature limits account for the real star edge chords and round upward to the radius control's 0.5 mm step. Material utilization uses the full exported sheet area as described below.
 
 Star limits are corrected from the former regular-decagon approximation. For straight edges, eight holes per side, zero requested corner margin and the default root offset:
 
@@ -109,6 +109,14 @@ Star limits are corrected from the former regular-decagon approximation. For str
 | 80 mm | 128° | 40 → 27 mm | 22.2 → 14.4 mm |
 
 Existing star settings above a corrected spacing limit are clamped on edit/import, so affected stitch positions and SVG downloads can change. Valid settings within the new limits retain the same geometry. The original 36 baseline cases, including their star outputs, remain unchanged; additional analytic and browser tests cover the changed limits, live radius changes and corrected-design round trips.
+
+### Panel area / sheet area
+
+The percentage is `100 × sum of panel areas ÷ (exported sheet width × exported sheet height)`. The denominator includes sheet padding, row/column spacing, nesting offset and the stroke/dot allowances used by SVG generation. Stroke and hole markings do not add to the panel-area numerator. Curved panel area includes only arcs that the outline actually renders.
+
+For six 30 mm squares, 4 mm horizontal spacing, 5 mm vertical spacing, 10 mm padding and 1 mm dots, the exported sheet is 121 × 87 mm. The corrected ratio is 51.3%; the old calculation showed 84.8% by excluding sheet margins and rendering allowances.
+
+Panels that overlap are counted separately. A ratio over 100% remains visible and does not represent unique occupied area. Non-positive or non-finite sheet dimensions display an unavailable value (`—`). Global export scaling multiplies both areas by the same factor squared, so the percentage stays unchanged. Panel shapes, stitch positions and SVG dimensions are unchanged by this metric correction.
 
 ### Deployment
 The app is automatically deployed to GitHub Pages via GitHub Actions when pushing to the main branch. Settings, lint, formatting, regression tests, the production build and browser tests must pass before the deployment workflow uploads the site. Pull requests run the same checks without deploying.

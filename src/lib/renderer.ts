@@ -265,11 +265,25 @@ export function renderLayout(
   // Calculate and display material utilization
   const utilization = calculateMaterialUtilization(
     panel,
-    { rows, cols, hSpace, vSpace, invertOdd, nestingVerticalOffset },
+    {
+      rows,
+      cols,
+      hSpace,
+      vSpace,
+      invertOdd,
+      nestingVerticalOffset,
+      dotDiameter,
+      padding,
+      showGrid,
+    },
     config || undefined,
   );
   if (pageEl.utilizationValue) {
-    pageEl.utilizationValue.textContent = `${utilization.toFixed(1)}%`;
+    pageEl.utilizationValue.textContent = utilization === null ? '—' : `${utilization.toFixed(1)}%`;
+    pageEl.utilizationValue.title =
+      utilization === null
+        ? 'Unavailable: sheet width and height must be positive and finite.'
+        : '';
   }
 
   // Show the container that holds both dimensions and utilization
