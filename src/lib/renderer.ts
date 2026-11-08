@@ -16,7 +16,7 @@ import {
   createPanelConfig,
 } from './validation';
 import { createLayoutSvg, calculateMaterialUtilization, measureLayoutSvg } from './layout';
-import { createPolygonGeometry } from './shape-geometry';
+import { createPolygonGeometry, getStitchCornerMargin } from './shape-geometry';
 import { geometry } from './geometry';
 import { stitches as stitchHelpers } from './stitches';
 import { CONSTANTS } from './constants';
@@ -49,10 +49,14 @@ export function computePanel(params: PanelConfig): Panel {
   // Apply negative seam internally for curved edges
   const appliedSeam = curvedEdges ? -Math.abs(seamOffset) : seamOffset;
 
-  const { verts, edgeInclude } =
-    nSides === 10
-      ? { verts: geometry.starVertices(sideLen, starRootAngle), edgeInclude: null }
-      : createPolygonGeometry({ nSides, side: sideLen, hexType, hexLong, hexRatio });
+  const { verts, edgeInclude } = createPolygonGeometry({
+    nSides,
+    side: sideLen,
+    hexType,
+    hexLong,
+    hexRatio,
+    starRootAngle,
+  });
 
   const radius = curvedEdges ? (Number.isFinite(curveRadius) ? curveRadius : 0) : 0;
   const outlinePath = geometry.circularArcPath(verts, radius);
@@ -60,7 +64,7 @@ export function computePanel(params: PanelConfig): Panel {
   let stitchedSideLength = 0;
 
   // For stars, use larger corner margin to avoid stitching too close to sharp points
-  const effectiveCornerMargin = nSides === 10 ? Math.max(cornerMargin, 3.0) : cornerMargin;
+  const effectiveCornerMargin = getStitchCornerMargin(nSides, cornerMargin);
 
   // Get stitches grouped by edge
   const stitchesByEdge = stitchHelpers.stitchPositionsByEdge(
@@ -350,7 +354,13 @@ export function createMainRenderFunction(
         el,
       );
 
-      const panelConfig: PanelConfig = createPanelConfig(config, {
+      // Star constraints may raise the radius on a size/angle change. Use that
+      // resolved radius immediately rather than rendering one frame of straight edges.
+      const resolvedConfig =
+        config.nSides === 10 && el.curveRadius
+          ? { ...config, curveRadius: Number(el.curveRadius.value) }
+          : config;
+      const panelConfig: PanelConfig = createPanelConfig(resolvedConfig, {
         cornerMargin,
         holeSpacing,
         holeBunching,
