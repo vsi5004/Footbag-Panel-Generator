@@ -563,7 +563,7 @@ test('every help icon is an accessible button and supports keyboard dismissal', 
   page,
 }) => {
   const icons = page.locator('.tooltip-icon');
-  expect(await icons.count()).toBe(19);
+  expect(await icons.count()).toBe(20);
   for (const icon of await icons.all()) {
     await expect(icon).toHaveAttribute('type', 'button');
     await expect(icon).toHaveAttribute('aria-label', /^About .+/);
@@ -744,6 +744,14 @@ test('malformed optimized imports are atomic and unsafe arrangements fall back t
 
 test('nesting controls work at phone width and reset restores manual layout', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  const help = page.getByRole('button', { name: 'About Optimize layout', exact: true });
+  await help.click();
+  await expect(page.locator('#optimizeLayoutHelp')).toBeVisible();
+  await expect(page.locator('#optimizeLayoutHelp')).toContainText(
+    'unless you choose capacity mode',
+  );
+  await help.press('Escape');
+  await expect(page.locator('#optimizeLayoutHelp')).toBeHidden();
   await page.locator('#optimizeLayout').click();
   await expect(page.locator('#applyNesting')).toBeEnabled();
   await page.locator('#applyNesting').click();
