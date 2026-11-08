@@ -43,6 +43,7 @@ export interface GeometryConfig {
   hexType: string;
   hexLong: number;
   hexRatio: number;
+  starRootAngle?: number;
 }
 
 export interface GeometryResult {

@@ -14,6 +14,7 @@ async function importSettings(page: Page, data: unknown) {
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(data)),
   });
+  await expect(page.locator('#importFile')).toHaveValue('');
   await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
 }
 
@@ -214,5 +215,103 @@ test('valid JSON with invalid settings leaves the design and previews untouched'
     expect(await settingsDownload(page)).toEqual(before);
     expect(await page.locator('#svgHost').innerHTML()).toBe(panel);
     expect(await page.locator('#pageSvgHost').innerHTML()).toBe(sheet);
+  }
+});
+
+test('star limits follow the actual root angle and outer radius', async ({ page }) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, {
+    ...initial,
+    shape: 10,
+    side: 30,
+    starRootAngle: 128,
+    curved: false,
+    cornerMargin: 0,
+    stitches: 8,
+    holeSpacing: 3,
+  });
+  await expect(page.locator('#holeSpacing')).toHaveAttribute('max', '5.1');
+  await expect(page.locator('#curveRadius')).toHaveAttribute('min', '10');
+  await page.locator('#starRootAngleNumber').fill('100');
+  await expect(page.locator('#holeSpacing')).toHaveAttribute('max', '4.6');
+  await page.locator('#starRootAngleNumber').fill('150');
+  await expect(page.locator('#holeSpacing')).toHaveAttribute('max', '5.9');
+  await expect(page.locator('#curveRadius')).toHaveAttribute('min', '11.5');
+  await page.locator('#starRootAngleNumber').fill('128');
+  await page.locator('#sideNumber').fill('80');
+  await expect(page.locator('#holeSpacing')).toHaveAttribute('max', '14.4');
+  await expect(page.locator('#curveRadius')).toHaveAttribute('min', '27');
+});
+
+test('legacy star spacing is clamped consistently and the corrected design round trips', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, {
+    ...initial,
+    shape: 10,
+    side: 30,
+    starRootAngle: 128,
+    curved: false,
+    cornerMargin: 0,
+    stitches: 8,
+    holeSpacing: 8,
+    holeBunching: 2,
+  });
+  await expect(page.locator('#holeSpacing')).toHaveAttribute('max', '5.1');
+  const spacing = Number(await page.locator('#holeSpacing').inputValue());
+  expect(spacing).toBeLessThanOrEqual(5.1);
+  await expect(page.locator('#holeSpacingNumber')).toHaveValue(String(spacing));
+  const corrected = await settingsDownload(page);
+  const panelBefore = await page.locator('#svgHost svg').innerHTML();
+  const sheetBefore = await page.locator('#pageSvgHost svg').innerHTML();
+  await importSettings(page, corrected);
+  expect(await settingsDownload(page)).toEqual(corrected);
+  expect(await page.locator('#svgHost svg').innerHTML()).toBe(panelBefore);
+  expect(await page.locator('#pageSvgHost svg').innerHTML()).toBe(sheetBefore);
+});
+
+test('changing a curved star angle renders the resolved radius immediately and exports it', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, {
+    ...initial,
+    shape: 10,
+    side: 80,
+    starRootAngle: 128,
+    curved: true,
+    curveRadius: 30,
+    cornerMargin: 0,
+    holeSpacing: 3,
+  });
+  await expect(page.locator('#curveRadiusNumber')).toHaveValue('30');
+  await expect(page.locator('#svgHost svg path')).toHaveAttribute('d', /A 30\.000/);
+  await importSettings(page, {
+    ...initial,
+    shape: 10,
+    side: 80,
+    starRootAngle: 100,
+    curved: true,
+    curveRadius: 10,
+    cornerMargin: 0,
+    holeSpacing: 3,
+  });
+  const oldRadius = Number(await page.locator('#curveRadius').inputValue());
+  await page.locator('#starRootAngleNumber').fill('150');
+  await expect
+    .poll(async () => Number(await page.locator('#curveRadius').inputValue()))
+    .toBeGreaterThan(oldRadius);
+  const radius = await page.locator('#curveRadius').inputValue();
+  await expect(page.locator('#curveRadiusNumber')).toHaveValue(radius);
+  const path = await page.locator('#svgHost svg path').getAttribute('d');
+  expect(path).toContain(`A ${Number(radius).toFixed(3)}`);
+  expect(path).not.toContain(' L ');
+  for (const button of ['#downloadSvg', '#downloadPageSvg']) {
+    const pending = page.waitForEvent('download');
+    await page.locator(button).click();
+    const download = await pending;
+    const text = await readFile((await download.path())!, 'utf8');
+    expect(text).toContain(`d="${path}"`);
   }
 });

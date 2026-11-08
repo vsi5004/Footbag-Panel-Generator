@@ -97,7 +97,18 @@ Imported geometry values are applied without limits inherited from the previous 
 
 Playwright tests use the built app to exercise startup, shape/visibility changes, paired controls, resets, zoom, grids, downloads, file imports, legacy settings, 12×12 layouts, spacing extrema and a mobile viewport. They run in Chromium in CI. On Windows, an installed Edge can be used with `$env:PLAYWRIGHT_CHANNEL='msedge'; npm run test:browser` after `npm run build`.
 
-The existing star constraint approximation and material-utilization definition are preserved. They are documented beside the shared calculations so future numerical changes can be reviewed separately.
+Star validation and rendering share the same alternating tip/root vertices and the same minimum stitch corner margin. Curvature limits account for the real star edge chords and round upward to the radius control's 0.5 mm step. The material-utilization definition remains unchanged.
+
+Star limits are corrected from the former regular-decagon approximation. For straight edges, eight holes per side, zero requested corner margin and the default root offset:
+
+| Outer radius | Root angle | Minimum curve radius, old → new | Maximum hole spacing, old → new |
+| --- | --- | --- | --- |
+| 30 mm | 100° | 15 → 10 mm | 8.3 → 4.6 mm |
+| 30 mm | 128° | 15 → 10 mm | 8.3 → 5.1 mm |
+| 30 mm | 150° | 15 → 11.5 mm | 8.3 → 5.9 mm |
+| 80 mm | 128° | 40 → 27 mm | 22.2 → 14.4 mm |
+
+Existing star settings above a corrected spacing limit are clamped on edit/import, so affected stitch positions and SVG downloads can change. Valid settings within the new limits retain the same geometry. The original 36 baseline cases, including their star outputs, remain unchanged; additional analytic and browser tests cover the changed limits, live radius changes and corrected-design round trips.
 
 ### Deployment
 The app is automatically deployed to GitHub Pages via GitHub Actions when pushing to the main branch. Settings, lint, formatting, regression tests, the production build and browser tests must pass before the deployment workflow uploads the site. Pull requests run the same checks without deploying.

@@ -9,10 +9,12 @@ import type {
   PanelElements,
 } from '../types';
 import { utils } from './utils';
-import { createPolygonGeometry } from './shape-geometry';
+import { createPolygonGeometry, getStitchCornerMargin } from './shape-geometry';
 import { stitches as stitchHelpers } from './stitches';
 import { CONSTANTS } from './constants';
-import { normalizeSetting } from './settings';
+import { normalizeSetting, SETTINGS } from './settings';
+import { panelControlPairs } from './controls';
+import { syncPairDisplay } from './ui';
 
 type ValidatorFunction = (value: string | number, max?: number) => number;
 
@@ -92,8 +94,6 @@ export function collectInputValues(el: PanelElements): UIConfig {
  * Computes geometry parameters based on input configuration
  */
 export function computeGeometry(config: GeometryConfig): GeometryResult {
-  // Keep the deployed star constraint approximation separate from rendered star vertices.
-  // Changing that approximation would change existing stitch-spacing limits.
   return createPolygonGeometry({ ...config, hexRatio: INPUT_VALIDATORS.hexRatio(config.hexRatio) });
 }
 
@@ -109,6 +109,7 @@ export function updateDynamicConstraints(
     config;
   const { verts, edgeInclude } = geometry;
   const { SAMPLING } = CONSTANTS;
+  let resolvedCurveRadius = curveRadius;
 
   const cornerMax = nSides === 6 && hexType === 'truncated' ? hexLong / 4 : side / 4;
   if (el.cornerMargin) {
@@ -130,23 +131,29 @@ export function updateDynamicConstraints(
       const d = Math.hypot(b.x - a.x, b.y - a.y);
       if (d > maxChord) maxChord = d;
     }
-    const minR = Math.max(10, maxChord / 2);
+    const radiusStep = Number(SETTINGS.curveRadius.step);
+    // Keep star limits on the slider's step grid and never round below half a chord.
+    const minR =
+      nSides === 10
+        ? Math.max(SETTINGS.curveRadius.min, Math.ceil(maxChord / 2 / radiusStep) * radiusStep)
+        : Math.max(10, maxChord / 2);
     el.curveRadius.min = String(Math.round(minR * 10) / 10);
     el.curveRadiusNumber?.setAttribute('min', String(Math.round(minR * 10) / 10));
-    // If current radius is too small, clamp display inputs (value will be re-read next render)
+    // Clamp the controls to a feasible radius; star rendering reads it immediately.
     const current = parseFloat(el.curveRadius.value || '60');
     if (current < minR) {
       el.curveRadius.value = String(minR);
       if (el.curveRadiusNumber) el.curveRadiusNumber.value = String(minR);
     }
+    if (nSides === 10) resolvedCurveRadius = Number(el.curveRadius.value);
   }
 
-  const radius = curvedEdges ? curveRadius : 0;
+  const radius = curvedEdges ? resolvedCurveRadius : 0;
   const allowableSpacing = stitchHelpers.computeAllowableSpacing(
     verts,
     radius,
     stitches,
-    cornerMargin,
+    getStitchCornerMargin(nSides, cornerMargin),
     SAMPLING.EDGE_SAMPLES_HIGH_PRECISION,
     edgeInclude,
     starRootOffset,
@@ -173,6 +180,13 @@ export function updateDynamicConstraints(
   const holeBunching = el.holeBunching
     ? INPUT_VALIDATORS.holeBunching(el.holeBunching.value, bunchingMax)
     : 0;
+
+  if (nSides === 10) {
+    // Keep numeric controls consistent when star limits change with size or angle.
+    if (el.holeSpacing) el.holeSpacing.value = String(holeSpacing);
+    if (el.holeBunching) el.holeBunching.value = String(holeBunching);
+    for (const [range, display] of panelControlPairs(el)) syncPairDisplay(range, display);
+  }
 
   return { cornerMargin, holeSpacing, holeBunching };
 }
