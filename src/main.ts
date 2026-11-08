@@ -1,3 +1,4 @@
+import { initializeEditableLayout } from './lib/editable-layout';
 import type { Panel, PanelElements, PageElements, PanelConfig } from './types';
 import { normalizeExportScale } from './lib/export';
 import {
@@ -85,7 +86,8 @@ function initializeApp(): void {
   const debouncedRender = debounce(render, PERFORMANCE.DEBOUNCE_MS);
   const flushRenders = () => {
     debouncedRender.flush();
-    if (layoutElements.nesting?.active?.stock) layoutFrame.schedule();
+    if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
+      layoutFrame.schedule();
     layoutFrame.flush();
   };
 
@@ -148,12 +150,12 @@ function initializeApp(): void {
       return scale;
     };
     el.exportScale?.addEventListener('input', () => {
-      if (layoutElements.nesting?.active?.stock)
+      if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
         renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
     });
     el.exportScale?.addEventListener('change', () => {
       readExportScale();
-      if (layoutElements.nesting?.active?.stock)
+      if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
         renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
     });
 
@@ -189,6 +191,11 @@ function initializeApp(): void {
     for (const [range, display] of layoutControlPairs(layoutElements)) {
       UI.syncPair(range, display, refreshLayout);
     }
+    initializeEditableLayout(
+      layoutElements,
+      () => ({ panel: lastPanel, dot: lastDotSize }),
+      refreshLayout,
+    );
     pageInvert?.addEventListener('change', () => {
       if (layoutElements.nesting) layoutElements.nesting.active = undefined;
       const isInverted = pageInvert.checked;

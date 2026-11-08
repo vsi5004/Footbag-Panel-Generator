@@ -1,3 +1,4 @@
+import type { Lattice } from './lattice';
 import { CONSTANTS } from './constants';
 import type { Point, Panel, PanelConfig } from '../types';
 export interface Placement {
@@ -23,6 +24,7 @@ export interface NestingPreferences {
 }
 export interface NestingPlan {
   version: 1;
+  lattice?: Lattice;
   source: string;
   gap: number;
   rotations?: RotationMode;

@@ -12,6 +12,114 @@ import { validPlan } from '../src/lib/nesting-validation.ts';
 import { calculateMaterialUtilization } from '../src/lib/layout.ts';
 import { createMainElements, getLayoutElements, createPageElements } from '../src/lib/dom.ts';
 import { state } from '../src/lib/state.ts';
+import { adoptPlan, latticePlacements, readEditableLayout } from '../src/lib/lattice.ts';
+import { applyEditableLayout, editablePlan } from '../src/lib/editable-layout.ts';
+import { createLayoutSvg } from '../src/lib/layout.ts';
+
+test('adopted optimizer patterns reproduce exact placements and SVGs across shapes and policies', () => {
+  fresh();
+  for (const [nSides, hexType] of [
+    [3, 'regular'],
+    [4, 'regular'],
+    [5, 'regular'],
+    [6, 'regular'],
+    [6, 'truncated'],
+    [10, 'regular'],
+  ])
+    for (const curvedEdges of [false, true])
+      for (const rotations of ['none', 'half', 'quarter']) {
+        const c = { ...config, nSides, hexType, curvedEdges },
+          panel = computePanel(c);
+        const plan = {
+          ...findNesting(panel, 7, 1, rotations, designKey(c, 1, 7), 10, 1, 3),
+          rotations,
+        };
+        const model = adoptPlan(plan),
+          adopted = editablePlan(model, c, 1);
+        assert.deepEqual(adopted.placements, plan.placements);
+        const opts = {
+          rows: 3,
+          cols: 3,
+          hSpace: 0,
+          vSpace: 1,
+          invertOdd: false,
+          nestingVerticalOffset: 0,
+          padding: 10,
+          dotDiameter: 1,
+          showGrid: true,
+        };
+        assert.equal(
+          createLayoutSvg(panel, { ...opts, optimized: adopted }).outerHTML,
+          createLayoutSvg(panel, { ...opts, optimized: plan }).outerHTML,
+        );
+        const wrong = structuredClone(plan);
+        wrong.lattice.pitchX += 1;
+        if (plan.lattice.columns > 1 && plan.lattice.columns <= 7)
+          assert.throws(() => adoptPlan(wrong), /does not match/);
+      }
+});
+
+test('pattern edits retain placement settings across design changes and guard unsafe exports', () => {
+  const { el, layout, page } = fresh(),
+    panel = computePanel(config);
+  const model = adoptPlan({
+    ...findCapacity(panel, 1, 'none', designKey(config, 1, 9), 10, 1, { width: 120, height: 85 }),
+    rotations: 'none',
+  });
+  applyEditableLayout(layout, model);
+  const original = state.collect(el, layout);
+  assert.deepEqual(original.layout.editable, model);
+  assert.equal(original.layout.optimized, undefined);
+  state.apply(el, JSON.parse(JSON.stringify(original)), layout);
+  assert.deepEqual(layout.editable.current, model);
+  assert.equal(document.getElementById('layoutCount').value, '6');
+  const render = (c) =>
+    renderLayout(
+      computePanel(c),
+      1,
+      page,
+      layout,
+      { lastLayoutWpx: 0, lastLayoutHpx: 0, isFirstLayoutRender: true },
+      c,
+    );
+  render({ ...config, sideLen: 25 });
+  assert.deepEqual(layout.editable.current, model);
+  assert.equal(page.svgHost.querySelectorAll('path').length, 6);
+  render({ ...config, sideLen: 40 });
+  assert.equal(page.svgHost.querySelector('svg'), null);
+  assert.equal(document.getElementById('downloadPageSvg').disabled, true);
+  assert.deepEqual(layout.editable.current, model);
+  render(config);
+  assert.equal(page.svgHost.querySelectorAll('path').length, 6);
+  const schema = JSON.parse(
+    readFileSync(new URL('../schema/settings.schema.json', import.meta.url), 'utf8'),
+  );
+  assert.ok(new Ajv2020({ strict: false }).validate(schema, original));
+  for (const bad of [
+    { ...model, count: 145 },
+    { ...model, columns: 0 },
+    { ...model, pitchX: NaN },
+    { ...model, angle: 45 },
+    { ...model, rotateAlternates: 'true' },
+  ]) {
+    assert.throws(() => readEditableLayout(bad));
+    assert.throws(() =>
+      state.apply(
+        el,
+        { ...original, side: 60, layout: { ...original.layout, editable: bad } },
+        layout,
+      ),
+    );
+    assert.deepEqual(state.collect(el, layout), original);
+  }
+  for (const pattern of [0, 1, 2, 3, 4])
+    for (const angle of [0, 90, 180, 270]) {
+      const placements = latticePlacements({ ...model, pattern, angle, columns: 3 }, 7);
+      assert.equal(placements.length, 7);
+      assert.deepEqual(placements[0], { x: 0, y: 0, angle });
+      assert.ok(placements.every((at) => [0, 90, 180, 270].includes(at.angle)));
+    }
+});
 
 const config = {
   nSides: 4,
@@ -77,6 +185,11 @@ test('capacity is deterministic, obeys full-outline clearance and caps results a
   const plan = findCapacity(panel, 1, 'none', 'capacity', 10, 1, stock);
   assert.equal(plan.placements.length, 6);
   verify(panel, plan, stock, [0]);
+  const strip = findCapacity(panel, 1, 'none', 'strip', 10, 1, { width: 6000, height: 55 });
+  const adoptedStrip = adoptPlan({ ...strip, rotations: 'none' });
+  assert.equal(adoptedStrip.count, 144);
+  assert.equal(adoptedStrip.columns, 144);
+  assert.deepEqual(latticePlacements(adoptedStrip, 144), strip.placements);
   assert.deepEqual(plan, findCapacity(panel, 1, 'none', 'capacity', 10, 1, stock));
   assert.equal(
     findCapacity(panel, 1, 'half', 'cap', 10, 1, { width: 1000, height: 1000 }).placements.length,

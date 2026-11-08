@@ -1,3 +1,5 @@
+import { applyEditableLayout } from './editable-layout';
+import type { EditableLayout } from './lattice';
 import type { PanelElements, LayoutSettingsElements } from '../types';
 import { utils } from './utils';
 import {
@@ -43,6 +45,7 @@ export interface SettingsData {
   };
   export?: { scalePercent?: number };
   layout: {
+    editable?: EditableLayout;
     optimized?: NestingPlan;
     nesting?: NestingPreferences;
     padding: number;
@@ -90,7 +93,10 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
     },
     export: { scalePercent: normalizeExportScale(el.exportScale?.value) },
     layout: {
-      ...(layoutEl?.nesting?.active ? { optimized: layoutEl.nesting.active } : {}),
+      ...(layoutEl?.editable?.current ? { editable: layoutEl.editable.current } : {}),
+      ...(!layoutEl?.editable?.current && layoutEl?.nesting?.active
+        ? { optimized: layoutEl.nesting.active }
+        : {}),
       ...(nesting ? { nesting } : {}),
       padding: parseFloat(layoutEl?.pagePadding?.value || '10'),
       rows: parseInt(layoutEl?.pageRows?.value || '3', 10),
@@ -106,6 +112,7 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
 
 function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElements): void {
   const s = readImportedSettings(data);
+  if (layoutEl) applyEditableLayout(layoutEl, s.layout?.editable);
   // Older files always restore the manual layout, never a previous optimization.
   if (layoutEl?.nesting) layoutEl.nesting.active = s.layout?.optimized;
   if (layoutEl?.nestingGap)

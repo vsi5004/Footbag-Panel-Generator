@@ -356,3 +356,8 @@ details.advanced .advanced-content { margin-top: 8px; }
 .nesting-tools > label, .stock-dimensions label { display: block; margin-top: 10px; }
 .nesting-tools select { max-width: 100%; margin-top: 6px; padding: 6px 8px; background: var(--panel); color: var(--text); border: 1px solid #2a2f43; border-radius: 6px; }
 .stock-dimensions input[type="number"] { width: 180px; max-width: 100%; }
+
+.pattern-controls { padding: 0 16px 12px; }
+.pattern-controls > label { display: block; margin-top: 10px; }
+.pattern-controls input[type="number"], .pattern-controls select, #layoutMode { box-sizing: border-box; width: 100%; max-width: 100%; padding: 6px 8px; background: var(--panel); color: var(--text); border: 1px solid #2a2f43; border-radius: 6px; }
+.pattern-controls p { color: var(--muted); font-size: .85rem; }

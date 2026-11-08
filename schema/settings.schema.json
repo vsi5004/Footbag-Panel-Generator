@@ -258,6 +258,55 @@
                 }
               ],
               "additionalProperties": false
+            },
+            "lattice": {
+              "type": "object",
+              "properties": {
+                "columns": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 144
+                },
+                "pitchX": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "pitchY": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "pattern": {
+                  "enum": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ]
+                },
+                "angle": {
+                  "enum": [
+                    0,
+                    90,
+                    180,
+                    270
+                  ]
+                },
+                "rotateAlternates": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "columns",
+                "pitchX",
+                "pitchY",
+                "pattern",
+                "angle",
+                "rotateAlternates"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -301,9 +350,126 @@
             "rotations"
           ],
           "additionalProperties": false
+        },
+        "editable": {
+          "type": "object",
+          "properties": {
+            "columns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 144
+            },
+            "pitchX": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "pitchY": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "pattern": {
+              "enum": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "angle": {
+              "enum": [
+                0,
+                90,
+                180,
+                270
+              ]
+            },
+            "rotateAlternates": {
+              "type": "boolean"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 144
+            },
+            "gap": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20
+            },
+            "rotations": {
+              "enum": [
+                "none",
+                "half",
+                "quarter"
+              ]
+            },
+            "stock": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "enum": [
+                    "fit",
+                    "capacity"
+                  ]
+                },
+                "width": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 10000
+                },
+                "height": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 10000
+                }
+              },
+              "required": [
+                "mode",
+                "width"
+              ],
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "mode": {
+                        "const": "capacity"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "height"
+                    ]
+                  }
+                }
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "columns",
+            "pitchX",
+            "pitchY",
+            "pattern",
+            "angle",
+            "rotateAlternates",
+            "count",
+            "gap",
+            "rotations"
+          ],
+          "additionalProperties": false
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "not": {
+        "required": [
+          "optimized",
+          "editable"
+        ]
+      }
     }
   },
   "required": [

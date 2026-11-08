@@ -107,6 +107,7 @@ export function createPageElements(): PageElements {
 export function getLayoutElements(): LayoutElements {
   return {
     nesting: {},
+    editable: {},
     nestingGap: document.getElementById('nestingGap') as HTMLInputElement | null,
     nestingRotation: document.getElementById('nestingRotation') as HTMLSelectElement | null,
     nestingMode: document.getElementById('nestingMode') as HTMLSelectElement | null,

@@ -1,3 +1,4 @@
+import { applyEditableLayout } from './editable-layout';
 // Event handling for the footbag panel generator
 // Centralizes all UI event binding and event handler logic
 
@@ -56,6 +57,7 @@ export function resetLayoutSettings(
   lastDotSize: number,
   config?: PanelConfig,
 ): void {
+  applyEditableLayout(layoutEl);
   if (layoutEl.nesting) layoutEl.nesting.active = undefined;
   if (layoutEl.nestingGap) layoutEl.nestingGap.value = layoutEl.nestingGap.defaultValue;
   applyNestingPreferences(layoutEl);
@@ -111,9 +113,11 @@ export function createPanelFilename(el: PanelElements): string {
  * Creates filename for layout download
  */
 export function createLayoutFilename(
-  layoutEl: Pick<LayoutElements, 'pageRows' | 'pageCols' | 'nesting'>,
+  layoutEl: Pick<LayoutElements, 'pageRows' | 'pageCols' | 'nesting' | 'editable'>,
 ): string {
   const { pageRows, pageCols } = layoutEl;
+  if (layoutEl.editable?.current)
+    return 'footbag-layout-' + layoutEl.editable.current.count + 'panels.svg';
   if (layoutEl.nesting?.active)
     return 'footbag-nested-' + layoutEl.nesting.active.placements.length + 'panels.svg';
   return `footbag-layout-${pageRows?.value || '3'}x${pageCols?.value || '3'}.svg`;

@@ -1,3 +1,4 @@
+import type { Lattice } from './lattice';
 import type { Panel } from '../types';
 import {
   bounds,
@@ -56,6 +57,7 @@ export function findNesting(
   const clearance = gap + CLEARANCE_ALLOWANCE;
   let best: Placement[] = [];
   let bestArea = Infinity;
+  let bestLattice: Lattice | undefined;
   const columns = stock
     ? Array.from({ length: count }, (_, i) => i + 1)
     : [
@@ -150,6 +152,14 @@ export function findNesting(
         if ((capacity && candidate.length > best.length) || score < bestArea) {
           bestArea = score;
           best = candidate;
+          bestLattice = {
+            columns: cols,
+            pitchX: px,
+            pitchY: py,
+            pattern: pattern as Lattice['pattern'],
+            angle,
+            rotateAlternates: rotations !== 'none',
+          };
         }
       }
   }
@@ -159,7 +169,7 @@ export function findNesting(
         ? 'No arrangement found within the stock limits. Try fewer panels, larger stock or more rotations.'
         : 'No safe arrangement found.',
     );
-  return { version: 1, source, gap, placements: best };
+  return { version: 1, source, gap, lattice: bestLattice, placements: best };
 }
 
 export function findCapacity(

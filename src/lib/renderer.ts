@@ -1,3 +1,4 @@
+import { editablePlan } from './editable-layout';
 // Rendering system for the footbag panel generator
 // Handles SVG rendering to DOM and render pipeline coordination
 
@@ -248,6 +249,14 @@ export function renderLayout(
       status.textContent =
         'The saved arrangement no longer matches this design or its clearance. Manual layout restored.';
   }
+  const editable = layoutElements.editable?.current;
+  if (editable && config) optimized = editablePlan(editable, config, dotDiameter);
+  const editableSafe =
+    !layoutElements.editable?.error &&
+    (!editable ||
+      (!!optimized &&
+        !!config &&
+        validPlan(optimized, panel, config, dotDiameter, editable.count)));
   const manualButton = document.getElementById('manualLayout') as HTMLButtonElement | null;
   if (manualButton) manualButton.disabled = !optimized;
 
@@ -320,6 +329,7 @@ export function renderLayout(
       normalizeExportScale(layoutElements.exportScale?.value),
     );
   const validDimensions =
+    editableSafe &&
     stockFits &&
     Number.isFinite(layoutWmm) &&
     Number.isFinite(layoutHmm) &&
@@ -332,9 +342,13 @@ export function renderLayout(
     state.lastLayoutHpx = 0;
     const message = document.createElement('p');
     message.setAttribute('role', 'status');
-    message.textContent = !stockFits
-      ? 'This arrangement exceeds the stock limits at the current export scale or padding. Reduce the export scale, search again, or return to manual before downloading.'
-      : 'Sheet width and height must be positive. Increase horizontal or vertical spacing, or sheet padding, to preview and download this layout.';
+    message.textContent =
+      layoutElements.editable?.error ??
+      (!editableSafe
+        ? 'This edited layout does not meet its cutting gap or allowed rotations. Adjust the pattern, center spacing, rotation policy or gap before downloading.'
+        : !stockFits
+          ? 'This arrangement exceeds the stock limits at the current export scale or padding. Reduce the export scale, search again, or choose Grid layout before downloading.'
+          : 'Sheet width and height must be positive. Increase horizontal or vertical spacing, or sheet padding, to preview and download this layout.');
     pageEl.svgHost.appendChild(message);
     return;
   }

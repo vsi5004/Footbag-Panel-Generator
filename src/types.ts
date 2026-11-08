@@ -1,3 +1,4 @@
+import type { EditableLayout } from './lib/lattice';
 import type { NestingState } from './lib/nesting-types';
 
 // TypeScript definitions for the Footbag Panel Generator
@@ -171,6 +172,7 @@ export interface PageElements extends PreviewElements {
 }
 
 export interface LayoutElements {
+  editable?: { current?: EditableLayout; error?: string };
   nesting?: NestingState;
   nestingGap?: HTMLInputElement | null;
   nestingRotation?: HTMLSelectElement | null;

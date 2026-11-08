@@ -1,3 +1,5 @@
+import { adoptPlan } from './lattice';
+import { applyEditableLayout, editablePlan } from './editable-layout';
 import type { Panel, PanelConfig, PageElements, LayoutElements } from '../types';
 import { manualPlacements, measureLayoutSvg, type LayoutSvgOptions } from './layout';
 import { normalizeExportScale } from './export';
@@ -43,7 +45,10 @@ export function initializeNesting(
     dotDiameter: getPanel().dot,
     padding: Number(layout.pagePadding?.value ?? 10),
     showGrid: !!page.showGrid?.checked,
-    optimized: layout.nesting?.active,
+    optimized:
+      layout.editable?.current && getPanel().config
+        ? editablePlan(layout.editable.current, getPanel().config!, getPanel().dot)
+        : layout.nesting?.active,
   });
   const start = (checkOnly: boolean) => {
     stop();
@@ -71,7 +76,7 @@ export function initializeNesting(
     }
     const scalePercent = normalizeExportScale(layout.exportScale?.value);
     const opts = options(),
-      count = opts.rows * opts.cols,
+      count = layout.editable?.current?.count ?? opts.rows * opts.cols,
       source = designKey(config, dot, count);
     const current = measureLayoutSvg(panel, opts);
     optimize.disabled = true;
@@ -95,7 +100,14 @@ export function initializeNesting(
       cancel.disabled = true;
       const latest = getPanel(),
         now = options();
-      if (!latest.config || designKey(latest.config, latest.dot, now.rows * now.cols) !== source) {
+      if (
+        !latest.config ||
+        designKey(
+          latest.config,
+          latest.dot,
+          layout.editable?.current?.count ?? now.rows * now.cols,
+        ) !== source
+      ) {
         stop();
         status.textContent = 'Design changed. Run the search again.';
         return;
@@ -182,12 +194,21 @@ export function initializeNesting(
     if (
       !candidate ||
       !config ||
-      candidate.source !== designKey(config, dot, opts.rows * opts.cols)
+      candidate.source !==
+        designKey(config, dot, layout.editable?.current?.count ?? opts.rows * opts.cols)
     ) {
       stop();
       return;
     }
-    if (layout.nesting) layout.nesting.active = candidate;
+    try {
+      applyEditableLayout(layout, adoptPlan(candidate));
+    } catch (error) {
+      stop();
+      status.textContent =
+        error instanceof Error ? error.message : 'Unable to adopt this arrangement.';
+      return;
+    }
+    if (layout.nesting) layout.nesting.active = undefined;
     const gap = candidate.gap,
       stock = candidate.stock,
       count = candidate.placements.length;
@@ -205,13 +226,14 @@ export function initializeNesting(
         : 'Optimized layout applied. ') +
       'Minimum gap ' +
       gap +
-      ' mm at 100% export. Design or manual layout edits restore the manual arrangement.';
+      ' mm at 100% export. Pattern layout settings now contain this arrangement and remain editable.';
   });
   manual.addEventListener('click', () => {
     stop();
     if (layout.nesting) layout.nesting.active = undefined;
+    applyEditableLayout(layout);
     refresh();
-    status.textContent = 'Manual layout restored.';
+    status.textContent = 'Grid layout selected.';
   });
   cancel.addEventListener('click', () => {
     stop();
@@ -230,11 +252,11 @@ export function initializeNesting(
         stop();
         status.textContent = 'Settings changed. Run the search or clearance check again.';
       } else if (
-        layout.nesting?.active &&
+        (layout.nesting?.active || layout.editable?.current) &&
         [rotation, mode, stockWidth, stockHeight, gapInput].includes(e.target as HTMLInputElement)
       ) {
         status.textContent =
-          'Search options changed. The active arrangement keeps its saved limits until you apply a new candidate.';
+          'Search options changed. The current Pattern layout keeps its settings. Apply a new candidate to replace them.';
       }
     });
 }

@@ -1,3 +1,4 @@
+import { readEditableLayout, readLattice } from './lattice';
 import { readStock, readRotations, readNestingPreferences } from './stock-nesting';
 import schema from '../../schema/settings.schema.json';
 import { SETTINGS } from './settings';
@@ -67,6 +68,10 @@ export function readImportedSettings(value: unknown): ImportedSettings {
         throw new Error(`Invalid layout.${key}`);
     }
   }
+  if (isObject(layout) && 'editable' in layout) {
+    if ('optimized' in layout) throw new Error('Conflicting layout modes');
+    layout.editable = readEditableLayout(layout.editable);
+  }
   if (isObject(layout) && 'nesting' in layout)
     layout.nesting = readNestingPreferences(layout.nesting);
   if (isObject(layout) && 'optimized' in layout) {
@@ -104,6 +109,7 @@ export function readImportedSettings(value: unknown): ImportedSettings {
       source: plan.source,
       gap: plan.gap,
       placements: plan.placements.map((at) => ({ ...at })),
+      ...('lattice' in plan ? { lattice: readLattice(plan.lattice) } : {}),
       ...('rotations' in plan ? { rotations: readRotations(plan.rotations) } : {}),
       ...('stock' in plan ? { stock: readStock(plan.stock) } : {}),
     };
