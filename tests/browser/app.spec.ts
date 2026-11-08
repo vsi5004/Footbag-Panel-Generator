@@ -635,6 +635,51 @@ test('optional nesting previews savings before applying, preserves exports and r
   await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
 });
 
+test('accepting the curved-pentagon pattern preserves zoom even while the preview host collapses', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  for (const viewport of [
+    { width: 2525, height: 1206 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await importSettings(page, {
+      ...initial,
+      shape: 5,
+      side: 30,
+      seam: 3.4,
+      curved: true,
+      curveRadius: 60,
+      layout: { ...initial.layout, rows: 3, cols: 3, hSpace: 0, vSpace: 1, padding: 1 },
+    });
+    await page.locator('#nestingGap').fill('0');
+    await page.locator('#pageZoom').fill('95');
+    await page.locator('#optimizeLayout').click();
+    await expect(page.locator('#applyNesting')).toBeEnabled();
+    await page
+      .locator('#pageSvgHost')
+      .evaluate((host: HTMLElement) => (host.style.maxHeight = '1px'));
+    await page.locator('#applyNesting').click();
+    await expect(page.locator('#pageZoom')).toHaveValue('95');
+    await expect(page.locator('#pageZoomLabel')).toHaveText('95%');
+    await page.locator('#pageSvgHost').evaluate((host: HTMLElement) => (host.style.maxHeight = ''));
+    await expect(page.locator('#pageSvgHost .svg-wrap')).toHaveCSS(
+      'transform',
+      'matrix(0.95, 0, 0, 0.95, 0, 0)',
+    );
+    await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+    await page.locator('#layoutPitchX').fill('60');
+    await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+    await expect(page.locator('#pageZoom')).toHaveValue('95');
+    const width = parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!);
+    const pending = page.waitForEvent('download');
+    await page.locator('#downloadPageSvg').click();
+    const text = await readFile((await (await pending).path())!, 'utf8');
+    expect(parseFloat(text.match(/\bwidth="([^"]+)"/)![1])).toBeCloseTo(width, 8);
+  }
+});
+
 test('worker loading and startup failures explain the app error, preserve the layout and allow retry', async ({
   page,
 }) => {

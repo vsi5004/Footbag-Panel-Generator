@@ -260,7 +260,7 @@ export function renderLayout(
   const manualButton = document.getElementById('manualLayout') as HTMLButtonElement | null;
   if (manualButton) manualButton.disabled = !optimized;
 
-  // Compute if we need to auto-fit to the host viewport
+  // Track physical size for scrolling without changing the user's zoom.
   const MM_TO_PX = 96 / 25.4;
   const { width: layoutWmm, height: layoutHmm } = measureLayoutSvg(panel, {
     rows,
@@ -278,11 +278,6 @@ export function renderLayout(
   const layoutHpx = layoutHmm * MM_TO_PX;
   state.lastLayoutWpx = layoutWpx;
   state.lastLayoutHpx = layoutHpx;
-  const hostW = pageEl.svgHost.clientWidth || 1;
-  const hostH = pageEl.svgHost.clientHeight || 1;
-  const needsFit = layoutWpx > hostW || layoutHpx > hostH;
-  const rawFitPct = Math.min(hostW / layoutWpx, hostH / layoutHpx) * 100;
-  const fitPct = Math.max(20, Math.min(300, Math.floor(rawFitPct) - 1));
 
   // Calculate and display material dimensions
   if (pageEl.dimensionsValue) {
@@ -375,19 +370,11 @@ export function renderLayout(
     wrap.appendChild(svg);
     pageEl.svgHost.replaceChildren(wrap);
   }
-  const currentPct = ui?.zoom?.getPct(pageEl) || 100;
-  if (state.isFirstLayoutRender) {
-    // Keep user's/default 100% on first load; no auto-shrink
-    ui?.zoom?.apply(pageEl);
-    ui?.zoom?.updateDisplay(pageEl);
-    state.isFirstLayoutRender = false;
-  } else if (needsFit && currentPct > fitPct) {
-    // Only shrink if needed to fit
-    ui?.zoom?.setPct(pageEl, fitPct);
-  } else {
-    ui?.zoom?.apply(pageEl);
-    ui?.zoom?.updateDisplay(pageEl);
-  }
+  // Rendering or accepting a proposal must not derive zoom from the previous
+  // content height: it can temporarily collapse while the preview is replaced.
+  ui?.zoom?.apply(pageEl);
+  ui?.zoom?.updateDisplay(pageEl);
+  state.isFirstLayoutRender = false;
 }
 
 /**
