@@ -635,6 +635,51 @@ test('optional nesting previews savings before applying, preserves exports and r
   await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
 });
 
+test('green candidate overlays are transient, rejectable and excluded from current-layout downloads', async ({
+  page,
+}) => {
+  const before = await settingsDownload(page);
+  const svg = page.locator('#pageSvgHost svg');
+  const original = await svg.evaluate((node) => node.outerHTML);
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  const overlay = page.locator('img[data-nesting-preview]');
+  await expect(overlay).toHaveCount(1);
+  await expect
+    .poll(() => overlay.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
+    .toBe(true);
+  await expect(overlay).toHaveCSS('opacity', '0.6');
+  expect(await svg.evaluate((node) => node.outerHTML)).toBe(original);
+  expect((await settingsDownload(page)).layout).toEqual(before.layout);
+  await page.locator('#pageZoom').fill('150');
+  await expect(overlay).toHaveCount(1);
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  const text = await readFile((await (await pending).path())!, 'utf8');
+  expect(text).not.toContain('16a34a');
+  expect(text).not.toContain('nesting-preview');
+  await page.getByRole('button', { name: 'Reject candidate', exact: true }).click();
+  await expect(overlay).toHaveCount(0);
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  expect(await svg.evaluate((node) => node.outerHTML)).toBe(original);
+  expect((await settingsDownload(page)).layout).toEqual(before.layout);
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await expect(overlay).toHaveCount(1);
+  await page.locator('#applyNesting').click();
+  await expect(overlay).toHaveCount(0);
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+  const accepted = await settingsDownload(page);
+  expect(accepted.layout.editable.count).toBe(9);
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await expect(overlay).toHaveCount(1);
+  await page.locator('#nestingGap').fill('2');
+  await expect(overlay).toHaveCount(0);
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  expect((await settingsDownload(page)).layout.editable).toEqual(accepted.layout.editable);
+});
+
 test('accepted layouts remain editable through design changes, block overlaps and recover in place', async ({
   page,
 }) => {

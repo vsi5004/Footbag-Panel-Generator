@@ -1,3 +1,4 @@
+import { showNestingOverlay, clearNestingOverlay } from './nesting-overlay';
 import { adoptPlan } from './lattice';
 import { applyEditableLayout, editablePlan } from './editable-layout';
 import type { Panel, PanelConfig, PageElements, LayoutElements } from '../types';
@@ -27,17 +28,21 @@ export function initializeNesting(
   const status = document.getElementById('nestingStatus')!;
   let worker: Worker | undefined, candidate: NestingPlan | undefined;
   const stop = () => {
+    if (page.svgHost) clearNestingOverlay(page.svgHost);
     worker?.terminate();
     worker = undefined;
     candidate = undefined;
     optimize.disabled = false;
     check.disabled = false;
     cancel.disabled = true;
+    cancel.textContent = 'Cancel search';
     apply.disabled = true;
   };
   const options = (): LayoutSvgOptions => ({
-    rows: Number(layout.pageRows?.value ?? 3),
-    cols: Number(layout.pageCols?.value ?? 3),
+    rows: layout.editable?.current
+      ? Math.ceil(layout.editable.current.count / layout.editable.current.columns)
+      : Number(layout.pageRows?.value ?? 3),
+    cols: layout.editable?.current?.columns ?? Number(layout.pageCols?.value ?? 3),
     hSpace: Number(layout.pageHSpaceNumber?.value ?? 0),
     vSpace: Number(layout.pageVSpace?.value ?? 1),
     invertOdd: !!layout.pageInvert?.checked,
@@ -124,6 +129,11 @@ export function initializeNesting(
       }
       candidate = event.data.plan;
       if (!candidate) return;
+      if (page.svgHost) showNestingOverlay(page.svgHost, panel, candidate, dot, opts.padding ?? 10);
+      cancel.disabled = false;
+      cancel.textContent = 'Reject candidate';
+      const previewHint =
+        ' Translucent green shows the candidate over the current sheet. Apply or reject to finish the comparison.';
       const size = measurePlaced(panel, candidate.placements, dot, opts.padding ?? 10);
       if (candidate.stock) {
         const s = candidate.stock,
@@ -142,7 +152,8 @@ export function initializeNesting(
           ' mm wide' +
           (s.height !== undefined ? ' × ' + s.height + ' mm high' : '') +
           (s.mode === 'capacity' ? '. Search limit: 144 panels; not a proven maximum.' : '.') +
-          ' Apply to use this arrangement.';
+          ' Apply to use this arrangement.' +
+          previewHint;
         apply.disabled = false;
         return;
       }
@@ -166,7 +177,8 @@ export function initializeNesting(
         candidate.placements.length +
         ' panels, minimum gap ' +
         gap +
-        ' mm at 100% export. Apply to use this arrangement.';
+        ' mm at 100% export. Apply to use this arrangement.' +
+        previewHint;
       apply.disabled = false;
     };
     worker.postMessage({
@@ -236,8 +248,11 @@ export function initializeNesting(
     status.textContent = 'Grid layout selected.';
   });
   cancel.addEventListener('click', () => {
+    const rejected = !!candidate;
     stop();
-    status.textContent = 'Search cancelled. Current layout unchanged.';
+    status.textContent = rejected
+      ? 'Candidate rejected. Current layout unchanged.'
+      : 'Search cancelled. Current layout unchanged.';
   });
   for (const id of ['resetPanelSettings', 'resetLayoutSettings'])
     document.getElementById(id)?.addEventListener('click', () => {
@@ -248,6 +263,7 @@ export function initializeNesting(
     });
   for (const event of ['input', 'change'])
     document.addEventListener(event, (e) => {
+      if (['zoom', 'pageZoom'].includes((e.target as HTMLElement)?.id)) return;
       if (worker || candidate) {
         stop();
         status.textContent = 'Settings changed. Run the search or clearance check again.';

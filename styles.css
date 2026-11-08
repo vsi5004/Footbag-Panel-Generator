@@ -197,7 +197,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   font-size: 14px; 
 }
 .svg-host { width: 100%; overflow: auto; background: #0a0b0f; height: 100%; }
-.svg-wrap { display: inline-block; transform-origin: top left; }
+.svg-wrap { position: relative; display: inline-block; transform-origin: top left; }
 
 .app-footer { text-align: center; color: var(--muted); padding: 10px 0 24px; }
 
@@ -361,3 +361,5 @@ details.advanced .advanced-content { margin-top: 8px; }
 .pattern-controls > label { display: block; margin-top: 10px; }
 .pattern-controls input[type="number"], .pattern-controls select, #layoutMode { box-sizing: border-box; width: 100%; max-width: 100%; padding: 6px 8px; background: var(--panel); color: var(--text); border: 1px solid #2a2f43; border-radius: 6px; }
 .pattern-controls p { color: var(--muted); font-size: .85rem; }
+
+img[data-nesting-preview] { position: absolute; left: 0; top: 0; opacity: .6; pointer-events: none; max-width: none; }

@@ -15,6 +15,49 @@ import { state } from '../src/lib/state.ts';
 import { adoptPlan, latticePlacements, readEditableLayout } from '../src/lib/lattice.ts';
 import { applyEditableLayout, editablePlan } from '../src/lib/editable-layout.ts';
 import { createLayoutSvg } from '../src/lib/layout.ts';
+import { showNestingOverlay, clearNestingOverlay } from '../src/lib/nesting-overlay.ts';
+import { createExportSvg } from '../src/lib/export.ts';
+
+test('candidate overlays leave the exportable SVG untouched and restore the comparison canvas', () => {
+  fresh();
+  const panel = computePanel(config);
+  const plan = findNesting(panel, 7, 1, 'half', 'overlay', 10, 1, 3);
+  const host = document.createElement('div'),
+    wrap = document.createElement('div');
+  wrap.className = 'svg-wrap';
+  wrap.style.width = '123px';
+  const svg = createLayoutSvg(panel, {
+    rows: 2,
+    cols: 2,
+    hSpace: 5,
+    vSpace: 5,
+    dotDiameter: 1,
+    padding: 10,
+    showGrid: true,
+  });
+  wrap.appendChild(svg);
+  host.appendChild(wrap);
+  const before = svg.outerHTML,
+    exported = createExportSvg(svg).outerHTML;
+  showNestingOverlay(host, panel, plan, 1, 10);
+  const image = wrap.querySelector('img[data-nesting-preview]');
+  assert.ok(image);
+  assert.ok(decodeURIComponent(image.src).includes('#16a34a'));
+  assert.equal(svg.outerHTML, before);
+  assert.equal(createExportSvg(svg).outerHTML, exported);
+  assert.equal(host.querySelectorAll('svg').length, 1);
+  clearNestingOverlay(host);
+  assert.equal(wrap.querySelector('img'), null);
+  assert.equal(wrap.style.width, '123px');
+  assert.equal(wrap.style.height, '');
+  assert.equal(svg.outerHTML, before);
+  const empty = document.createElement('div');
+  empty.innerHTML = '<p>Current layout needs adjustment</p>';
+  showNestingOverlay(empty, panel, plan, 1, 10);
+  assert.ok(empty.querySelector('img'));
+  clearNestingOverlay(empty);
+  assert.equal(empty.innerHTML, '<p>Current layout needs adjustment</p>');
+});
 
 test('adopted optimizer patterns reproduce exact placements and SVGs across shapes and policies', () => {
   fresh();
