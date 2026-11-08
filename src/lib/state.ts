@@ -104,7 +104,7 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
   set(el.side, s.side ? clamp(parseFloat(String(s.side)), 10, 80) : undefined);
   if (el.sideNumber && el.side) el.sideNumber.textContent = el.side.value;
   
-  set(el.seam, s.seam ? clamp(parseFloat(String(s.seam)), 2, 9) : undefined);
+  set(el.seam, s.seam != null ? clamp(parseFloat(String(s.seam)), 0, 9) : undefined);
   if (el.seamNumber && el.seam) el.seamNumber.textContent = el.seam.value;
 
   if (el.curved?.checked && s.curveRadius != null) {

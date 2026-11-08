@@ -10,7 +10,7 @@ type ValidatorFunction = (value: string | number, max?: number) => number;
 export const INPUT_VALIDATORS: Record<string, ValidatorFunction> = {
   nSides: (value: string | number) => clamp(parseInt(value.toString(), 10), 3, 10),
   side: (value: string | number) => clamp(parseFloat(value.toString()), 10, 80),
-  seam: (value: string | number) => clamp(parseFloat(value.toString()), 2, 9),
+  seam: (value: string | number) => clamp(parseFloat(value.toString()), 0, 9),
   stitches: (value: string | number) => clamp(parseInt(value.toString(), 10), 4, 20),
   hexLong: (value: string | number) => clamp(parseFloat(value.toString()), 10, 80),
   hexRatio: (value: string | number) => clamp(parseFloat(value.toString()), 0.1, 0.9),
