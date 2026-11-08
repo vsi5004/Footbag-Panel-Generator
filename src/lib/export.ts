@@ -1,12 +1,13 @@
 import { utils } from './utils';
 import { CONSTANTS } from './constants';
+import { normalizeSetting, SETTINGS } from './settings';
 
 /** Shared bounds for the export control and imported settings. */
 export function normalizeExportScale(value: unknown): number {
   const scale = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
   return typeof scale === 'number' && Number.isFinite(scale) && scale > 0
-    ? Math.max(1, Math.min(1000, scale))
-    : 100;
+    ? normalizeSetting('exportScale', scale)
+    : SETTINGS.exportScale.default;
 }
 
 /** Scale physical output dimensions while preserving the base design and viewBox. */
@@ -28,8 +29,15 @@ export function createExportSvg(svg: SVGElement, scalePercent: number = 100): SV
   // Keep the reference grid at actual 10 mm spacing even when the template scales.
   const grid = clone.querySelector('#grid');
   if (grid && scale !== 1) {
-    const [viewMinX, viewMinY, width, height] = (clone.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
-    const replacement = utils.createGrid(clone, { viewMinX, viewMinY, width, height }, CONSTANTS.LAYOUT.GRID_SPACING_MM / scale);
+    const [viewMinX, viewMinY, width, height] = (clone.getAttribute('viewBox') || '')
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number);
+    const replacement = utils.createGrid(
+      clone,
+      { viewMinX, viewMinY, width, height },
+      CONSTANTS.LAYOUT.GRID_SPACING_MM / scale,
+    );
     grid.replaceWith(replacement);
   }
   return clone;

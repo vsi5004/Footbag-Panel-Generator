@@ -24,9 +24,9 @@ function regularPolygonVertices(n: number, radius: number): Point[] {
 
 function starVertices(outerRadius: number, rootAngle: number = 128): Point[] {
   const verts: Point[] = [];
-  
+
   // Creates a 5-pointed star with configurable root angles
-  // 
+  //
   // Mathematical relationship:
   // - 5 outer points (tips) at radius R, separated by 72° (360°/5)
   // - 5 inner points (roots) at radius r, with obtuse angle = rootAngle
@@ -36,43 +36,43 @@ function starVertices(outerRadius: number, rootAngle: number = 128): Point[] {
   // tan((180° - rootAngle)/2) = (r * sin(36°)) / (R - r * cos(36°))
   //
   // Solving for inner radius: r = R * tan(halfAcute) / (sin(36°) + tan(halfAcute) * cos(36°))
-  
+
   const acuteAngle = 180 - rootAngle; // Acute angle at tips in degrees
-  const halfAcute = (acuteAngle / 2) * Math.PI / 180; // Half of acute angle in radians
+  const halfAcute = ((acuteAngle / 2) * Math.PI) / 180; // Half of acute angle in radians
   const tan_half_acute = Math.tan(halfAcute);
-  
-  const sin36 = Math.sin(36 * Math.PI / 180);
-  const cos36 = Math.cos(36 * Math.PI / 180);
-  
-  const innerRadius = outerRadius * tan_half_acute / (sin36 + tan_half_acute * cos36);
-  
+
+  const sin36 = Math.sin((36 * Math.PI) / 180);
+  const cos36 = Math.cos((36 * Math.PI) / 180);
+
+  const innerRadius = (outerRadius * tan_half_acute) / (sin36 + tan_half_acute * cos36);
+
   const startAngle = -Math.PI / 2; // Start at top
-  
+
   for (let i = 0; i < 5; i++) {
     // Add outer point (star tip)
-    const outerAngle = startAngle + i * (2 * Math.PI / 5);
-    verts.push({ 
-      x: outerRadius * Math.cos(outerAngle), 
-      y: outerRadius * Math.sin(outerAngle) 
+    const outerAngle = startAngle + i * ((2 * Math.PI) / 5);
+    verts.push({
+      x: outerRadius * Math.cos(outerAngle),
+      y: outerRadius * Math.sin(outerAngle),
     });
-    
+
     // Add inner point (between star tips)
-    const innerAngle = startAngle + i * (2 * Math.PI / 5) + Math.PI / 5;
-    verts.push({ 
-      x: innerRadius * Math.cos(innerAngle), 
-      y: innerRadius * Math.sin(innerAngle) 
+    const innerAngle = startAngle + i * ((2 * Math.PI) / 5) + Math.PI / 5;
+    verts.push({
+      x: innerRadius * Math.cos(innerAngle),
+      y: innerRadius * Math.sin(innerAngle),
     });
   }
-  
+
   return verts;
 }
 
-function edgeMidpoint(a: Point, b: Point): Point { 
-  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; 
+function edgeMidpoint(a: Point, b: Point): Point {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
 function outwardNormal(a: Point, b: Point): Point {
-  const dx = b.x - a.x; 
+  const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy) || 1;
   return { x: dy / len, y: -dx / len };
@@ -81,7 +81,11 @@ function outwardNormal(a: Point, b: Point): Point {
 // Removed unused quadratic Bézier helpers and path generator
 
 // Helper: compute arc center on the outward side of edge a->b for a given radius.
-function computeArcCenterOutward(a: Point, b: Point, radius: number): { c: Point | null; largeArcFlag: number; sweepFlag: number } {
+function computeArcCenterOutward(
+  a: Point,
+  b: Point,
+  radius: number,
+): { c: Point | null; largeArcFlag: number; sweepFlag: number } {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const d = Math.hypot(dx, dy);
@@ -99,7 +103,7 @@ function computeArcCenterOutward(a: Point, b: Point, radius: number): { c: Point
   // Heuristic: polygon is centered at origin in our geometry; outward center is farther from origin
   const rPlus = Math.hypot(cPlus.x, cPlus.y);
   const rMinus = Math.hypot(cMinus.x, cMinus.y);
-  const c = (rPlus >= rMinus) ? cPlus : cMinus;
+  const c = rPlus >= rMinus ? cPlus : cMinus;
 
   // For circular arcs (rx=ry) with rotation=0, choosing largeArcFlag=0 (minor arc)
   // and sweepFlag=1 selects the center on the +normal side (outward) per SVG's
@@ -121,9 +125,10 @@ export function getInsetArcParams(
   a: Point,
   b: Point,
   baseRadius: number,
-  seamOffset: number
+  seamOffset: number,
 ): { valid: boolean; c: Point; r: number; angA: number; dAng: number } {
-  const dx = b.x - a.x, dy = b.y - a.y;
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
   const chord = Math.hypot(dx, dy);
   if (!isValidRadiusForChord(baseRadius, chord)) {
     return { valid: false, c: { x: 0, y: 0 }, r: 0, angA: 0, dAng: 0 };
@@ -155,9 +160,10 @@ export function getSvgCircularArcParams(
   b: Point,
   r: number,
   largeArcFlag: 0 | 1,
-  sweepFlag: 0 | 1
+  sweepFlag: 0 | 1,
 ): { valid: boolean; c: Point; r: number; angA: number; dAng: number } {
-  const dx = b.x - a.x, dy = b.y - a.y;
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
   const d = Math.hypot(dx, dy);
   if (!isValidRadiusForChord(r, d)) {
     return { valid: false, c: { x: 0, y: 0 }, r: 0, angA: 0, dAng: 0 };
@@ -182,20 +188,20 @@ export function getSvgCircularArcParams(
   const pick = (pp: { ang0: number; dPos: number }) => {
     if (sweepFlag === 1) {
       const isMinor = pp.dPos <= Math.PI + 1e-9;
-      return (largeArcFlag === 0) ? isMinor : !isMinor;
+      return largeArcFlag === 0 ? isMinor : !isMinor;
     } else {
-      const isMinorCW = (2 * Math.PI - pp.dPos) <= Math.PI + 1e-9; // CW minor iff CCW is major
-      return (largeArcFlag === 0) ? isMinorCW : !isMinorCW;
+      const isMinorCW = 2 * Math.PI - pp.dPos <= Math.PI + 1e-9; // CW minor iff CCW is major
+      return largeArcFlag === 0 ? isMinorCW : !isMinorCW;
     }
   };
   const use0 = pick(p0);
   const chosen = use0 ? p0 : p1;
   let dAng: number;
   if (sweepFlag === 1) {
-    dAng = (largeArcFlag === 0) ? chosen.dPos : chosen.dPos - 2 * Math.PI; // CCW
+    dAng = largeArcFlag === 0 ? chosen.dPos : chosen.dPos - 2 * Math.PI; // CCW
   } else {
     const cw = 2 * Math.PI - chosen.dPos;
-    dAng = (largeArcFlag === 0) ? -cw : -(2 * Math.PI - cw); // CW negative
+    dAng = largeArcFlag === 0 ? -cw : -(2 * Math.PI - cw); // CW negative
   }
   return { valid: true, c: chosen.c, r, angA: chosen.ang0, dAng };
 }
@@ -203,8 +209,13 @@ export function getSvgCircularArcParams(
 // Compute a tight bounding box for the single edge between a and b, assuming
 // a circular arc of radius r bulging outward (minor CCW arc). If r is invalid
 // for the chord, falls back to the straight segment [a,b].
-function getArcEdgeBoundingBox(a: Point, b: Point, r: number): { minX: number; minY: number; maxX: number; maxY: number } {
-  const dx = b.x - a.x, dy = b.y - a.y;
+function getArcEdgeBoundingBox(
+  a: Point,
+  b: Point,
+  r: number,
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
   const d = Math.hypot(dx, dy);
   if (!isValidRadiusForChord(r, d)) {
     const minX = Math.min(a.x, b.x);
@@ -245,14 +256,16 @@ function getArcEdgeBoundingBox(a: Point, b: Point, r: number): { minX: number; m
   let minY = Math.min(a.y, b.y);
   let maxY = Math.max(a.y, b.y);
   // Check cardinal directions relative to center
-  const cardinals = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
+  const cardinals = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
   for (const th of cardinals) {
     const thRel = th; // angles are absolute around center
     if (isThetaOnArc(thRel)) {
       const px = c.x + r * Math.cos(thRel);
       const py = c.y + r * Math.sin(thRel);
-      if (px < minX) minX = px; if (px > maxX) maxX = px;
-      if (py < minY) minY = py; if (py > maxY) maxY = py;
+      if (px < minX) minX = px;
+      if (px > maxX) maxX = px;
+      if (py < minY) minY = py;
+      if (py > maxY) maxY = py;
     }
   }
   // Include also end angle explicitly to be safe
@@ -260,14 +273,16 @@ function getArcEdgeBoundingBox(a: Point, b: Point, r: number): { minX: number; m
   for (const th of endPts) {
     const px = c.x + r * Math.cos(th);
     const py = c.y + r * Math.sin(th);
-    if (px < minX) minX = px; if (px > maxX) maxX = px;
-    if (py < minY) minY = py; if (py > maxY) maxY = py;
+    if (px < minX) minX = px;
+    if (px > maxX) maxX = px;
+    if (py < minY) minY = py;
+    if (py > maxY) maxY = py;
   }
   return { minX, minY, maxX, maxY };
 }
 
 function circularArcPath(verts: Point[], radius: number): string {
-  const n = verts.length; 
+  const n = verts.length;
   if (n < 3) return '';
   let dstr = '';
   for (let i = 0; i < n; i++) {
@@ -278,7 +293,7 @@ function circularArcPath(verts: Point[], radius: number): string {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const chord = Math.hypot(dx, dy);
-  if (!isValidRadiusForChord(radius, chord)) {
+    if (!isValidRadiusForChord(radius, chord)) {
       // Straight fallback if radius invalid for this chord
       dstr += `L ${b.x.toFixed(3)} ${b.y.toFixed(3)} `;
       continue;
@@ -293,7 +308,12 @@ function circularArcPath(verts: Point[], radius: number): string {
 
 // Removed unused quadratic sampling helper
 
-function approxArcEdgeSamples(a: Point, b: Point, radius: number, samples: number = SAMPLING.CURVE_SAMPLES_DEFAULT): EdgeSample[] {
+function approxArcEdgeSamples(
+  a: Point,
+  b: Point,
+  radius: number,
+  samples: number = SAMPLING.CURVE_SAMPLES_DEFAULT,
+): EdgeSample[] {
   const pts: EdgeSample[] = [];
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -307,7 +327,7 @@ function approxArcEdgeSamples(a: Point, b: Point, radius: number, samples: numbe
       // For seam offset, normal should point inward (toward polygon center)
       // For a polygon centered at origin, inward means toward (0,0)
       const len = Math.hypot(dx, dy) || 1;
-      const nx = -dy / len;  // Left-hand normal (inward for clockwise polygon)
+      const nx = -dy / len; // Left-hand normal (inward for clockwise polygon)
       const ny = dx / len;
       pts.push({ p: { x, y }, t, n: { x: nx, y: ny } });
     }
@@ -353,25 +373,27 @@ function approxArcEdgeSamples(a: Point, b: Point, radius: number, samples: numbe
 }
 
 function centerVertices(verts: Point[]): Point[] {
-  let cx = 0, cy = 0; 
-  for (const v of verts) { 
-    cx += v.x; 
-    cy += v.y; 
+  let cx = 0,
+    cy = 0;
+  for (const v of verts) {
+    cx += v.x;
+    cy += v.y;
   }
-  cx /= verts.length; 
+  cx /= verts.length;
   cy /= verts.length;
-  return verts.map(v => ({ x: v.x - cx, y: v.y - cy }));
+  return verts.map((v) => ({ x: v.x - cx, y: v.y - cy }));
 }
 
 function truncatedHexagonVertices(longSide: number, shortSide: number): Point[] {
   const dirs = [0, 60, 120, 180, 240, 300].map(deg2rad);
   const lens = [longSide, shortSide, longSide, shortSide, longSide, shortSide];
-  let x = 0, y = 0; 
+  let x = 0,
+    y = 0;
   const verts: Point[] = [{ x, y }];
-  for (let i = 0; i < 5; i++) { 
-    x += lens[i] * Math.cos(dirs[i]); 
-    y += lens[i] * Math.sin(dirs[i]); 
-    verts.push({ x, y }); 
+  for (let i = 0; i < 5; i++) {
+    x += lens[i] * Math.cos(dirs[i]);
+    y += lens[i] * Math.sin(dirs[i]);
+    verts.push({ x, y });
   }
   return centerVertices(verts);
 }
@@ -392,6 +414,3 @@ export const geometry = {
   getSvgCircularArcParams,
   getArcEdgeBoundingBox,
 };
-
-window.FB = window.FB || {};
-window.FB.geometry = geometry;

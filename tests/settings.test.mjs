@@ -9,14 +9,16 @@ globalThis.document = window.document;
 const { state } = await import('../src/lib/state.ts');
 const { ui } = await import('../src/lib/ui.ts');
 const { resetPanelSettings } = await import('../src/lib/events.ts');
-const { createMainElements, getLayoutElements, createPageElements } = await import('../src/lib/dom.ts');
-const fb = window.FB;
+const { createMainElements, getLayoutElements, createPageElements } =
+  await import('../src/lib/dom.ts');
 
 function freshControls() {
   globalThis.window = new JSDOM(html).window;
   globalThis.document = window.document;
-  window.FB = fb;
-  return { el: createMainElements(), layout: { ...getLayoutElements(), pageEl: createPageElements() } };
+  return {
+    el: createMainElements(),
+    layout: { ...getLayoutElements(), pageEl: createPageElements() },
+  };
 }
 
 test('11- and 12-row/column layouts survive settings round trips', () => {
@@ -42,8 +44,10 @@ test('panel Reset restores all design controls and visibility to fresh-page defa
   const { el, layout } = freshControls();
   const section = document.querySelector('[aria-label="Panel Settings"]');
   const controls = [...section.querySelectorAll('input, select'), el.showGrid];
-  const defaults = controls.map(control => ({
-    control, value: control.value, checked: control.checked
+  const defaults = controls.map((control) => ({
+    control,
+    value: control.value,
+    checked: control.checked,
   }));
   const saved = state.collect(el, layout);
   el.exportScale.value = '125';
@@ -64,7 +68,11 @@ test('panel Reset restores all design controls and visibility to fresh-page defa
     assert.equal(control.value, value, control.id);
     assert.equal(control.checked, checked, control.id);
     if (control.type === 'range') {
-      assert.equal(document.getElementById(`${control.id}Number`).value, value, `${control.id} display`);
+      assert.equal(
+        document.getElementById(`${control.id}Number`).value,
+        value,
+        `${control.id} display`,
+      );
     }
   }
   const restored = state.collect(el, layout);
@@ -90,7 +98,10 @@ test('repeated Reset adds no listeners and preserves the original input bindings
   let registrations = 0;
   for (const control of document.querySelectorAll('input, select')) {
     const original = control.addEventListener.bind(control);
-    control.addEventListener = (...args) => { registrations++; return original(...args); };
+    control.addEventListener = (...args) => {
+      registrations++;
+      return original(...args);
+    };
   }
   let changes = 0;
   ui.syncPair(el.side, el.sideNumber, () => changes++);

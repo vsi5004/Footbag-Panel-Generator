@@ -1,4 +1,4 @@
-import type { DOMElements } from '../types';
+import type { PanelElements, PreviewElements } from '../types';
 
 /** Refresh a paired display without attaching event listeners. */
 export function syncPairDisplay(range: HTMLInputElement | null, number: HTMLElement | null): void {
@@ -10,29 +10,39 @@ export function syncPairDisplay(range: HTMLInputElement | null, number: HTMLElem
   }
 }
 
-function syncPair(range: HTMLInputElement | null, number: HTMLElement | null, onChange?: () => void): void {
+function syncPair(
+  range: HTMLInputElement | null,
+  number: HTMLElement | null,
+  onChange?: () => void,
+): void {
   if (!range || !number) return;
-  
+
   const sync = () => syncPairDisplay(range, number);
-  
-  const syncBack = () => { 
+
+  const syncBack = () => {
     if ('value' in number) {
       range.value = (number as HTMLInputElement).value;
     } else {
       range.value = number.textContent || '';
     }
   };
-  
-  range.addEventListener('input', () => { sync(); onChange && onChange(); });
-  
+
+  range.addEventListener('input', () => {
+    sync();
+    onChange?.();
+  });
+
   if ('addEventListener' in number) {
-    number.addEventListener('input', () => { syncBack(); onChange && onChange(); });
+    number.addEventListener('input', () => {
+      syncBack();
+      onChange?.();
+    });
   }
-  
+
   sync();
 }
 
-function updateVisibility(el: DOMElements): void {
+function updateVisibility(el: PanelElements): void {
   const shapeValue = parseInt(el.shape?.value || '5', 10);
   const isHex = shapeValue === 6;
   const isStar = shapeValue === 10;
@@ -49,7 +59,8 @@ function updateVisibility(el: DOMElements): void {
   if (el.curveRadiusRow) el.curveRadiusRow.classList.toggle('hidden', !curvedOn);
 
   const cornerStitchSpacingOn = !!(el.cornerStitchSpacing && el.cornerStitchSpacing.checked);
-  if (el.cornerStitchSpacingRow) el.cornerStitchSpacingRow.classList.toggle('hidden', !cornerStitchSpacingOn);
+  if (el.cornerStitchSpacingRow)
+    el.cornerStitchSpacingRow.classList.toggle('hidden', !cornerStitchSpacingOn);
 
   // Show/hide hole-related settings based on showHoles toggle
   const showHoles = el.showHoles?.checked ?? true;
@@ -70,33 +81,33 @@ function updateVisibility(el: DOMElements): void {
 function fixUiTextArtifacts(): void {
   const zoomOutBtn = document.getElementById('zoomOut');
   if (zoomOutBtn) zoomOutBtn.textContent = '-';
-  
+
   const hexRatioLabel = document.querySelector('label[for="hexRatio"]');
   if (hexRatioLabel) hexRatioLabel.textContent = 'Short side ratio (S = r × long)';
 }
 
 // Zoom helpers that operate on the shared `el` map
-function getZoomPct(el: DOMElements): number {
+function getZoomPct(el: PreviewElements): number {
   const v = el.zoom ? parseInt(el.zoom.value, 10) : 100;
   return Math.max(20, Math.min(300, isNaN(v) ? 100 : v));
 }
 
-function setZoomPct(el: DOMElements, pct: number): void {
+function setZoomPct(el: PreviewElements, pct: number): void {
   const v = Math.max(20, Math.min(300, Math.round(pct)));
   if (el.zoom) el.zoom.value = String(v);
   updateZoomDisplay(el);
   applyZoom(el);
 }
 
-function adjustBy(el: DOMElements, delta: number): void { 
-  setZoomPct(el, getZoomPct(el) + delta); 
+function adjustBy(el: PreviewElements, delta: number): void {
+  setZoomPct(el, getZoomPct(el) + delta);
 }
 
-function updateZoomDisplay(el: DOMElements): void { 
-  if (el.zoomLabel && el.zoom) el.zoomLabel.textContent = `${getZoomPct(el)}%`; 
+function updateZoomDisplay(el: PreviewElements): void {
+  if (el.zoomLabel && el.zoom) el.zoomLabel.textContent = `${getZoomPct(el)}%`;
 }
 
-function applyZoom(el: DOMElements): void {
+function applyZoom(el: PreviewElements): void {
   const wrap = el.svgHost && el.svgHost.querySelector('.svg-wrap');
   if (!wrap) return;
   const scale = getZoomPct(el) / 100;
@@ -112,10 +123,6 @@ export const ui = {
     setPct: setZoomPct,
     adjustBy,
     updateDisplay: updateZoomDisplay,
-    apply: applyZoom
-  }
+    apply: applyZoom,
+  },
 };
-
-// For backward compatibility with global window.FB
-window.FB = window.FB || {};
-window.FB.ui = ui;

@@ -144,8 +144,8 @@
         },
         "vSpace": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 50
+          "minimum": -20,
+          "maximum": 60
         },
         "invert": {
           "type": "boolean"

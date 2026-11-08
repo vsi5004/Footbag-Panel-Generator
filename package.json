@@ -8,13 +8,24 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
-    "test": "node --import ./tests/register.mjs --test tests/*.test.mjs"
+    "test": "node --import ./tests/register.mjs --test tests/*.test.mjs",
+    "lint": "eslint src --max-warnings 0",
+    "format": "prettier --write src tests scripts *.ts *.mjs",
+    "format:check": "prettier --check src tests scripts *.ts *.mjs",
+    "settings:sync": "node scripts/sync-settings.mjs",
+    "settings:check": "node scripts/sync-settings.mjs --check",
+    "test:browser": "playwright test",
+    "check": "npm run settings:check && npm run lint && npm run format:check && npm test && npm run build"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@types/node": "^20.11.0",
     "ajv": "^8.20.0",
+    "eslint": "^9.39.5",
     "jsdom": "^26.1.0",
+    "prettier": "^3.9.10",
     "typescript": "^4.9.5",
+    "typescript-eslint": "^8.72.1",
     "vite": "^4.5.0"
   },
   "engines": {

@@ -30,12 +30,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Type check
-        run: npm run type-check
-        
-      - name: Build
-        run: npm run build
-        
+      - name: Verify and build
+        run: npm run check
+
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser regressions
+        run: npm run test:browser
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
         

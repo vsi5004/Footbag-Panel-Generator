@@ -1,259 +1,242 @@
-import type { Panel, DOMElements, PanelConfig } from './types';
+import type { Panel, PanelElements, PageElements, PanelConfig } from './types';
 import { normalizeExportScale } from './lib/export';
-import { createMainElements, createPageElements, getLayoutElements, validateCriticalElements } from './lib/dom';
+import {
+  createMainElements,
+  createPageElements,
+  getLayoutElements,
+  validateCriticalElements,
+} from './lib/dom';
 import { renderLayout, updatePageOverflow, createMainRenderFunction } from './lib/renderer';
-import { 
-  resetPanelSettings, 
-  resetLayoutSettings, 
+import {
+  resetPanelSettings,
+  resetLayoutSettings,
   downloadSvg,
-  createPanelFilename, 
-  createLayoutFilename, 
-  exportSettings, 
+  createPanelFilename,
+  createLayoutFilename,
+  exportSettings,
   setupImportSettings,
-  setupHorizontalSpacingSync 
 } from './lib/events';
 
-import './lib/utils.js';
-import './lib/constants.js';
-import './lib/geometry.js';
-import './lib/stitches.js';
-import './lib/svg.js';
-import './lib/state.js';
-import './lib/ui.js';
-import './lib/tooltips.js';
+import { CONSTANTS } from './lib/constants';
+import { ui as UI } from './lib/ui';
+import { panelControlPairs, layoutControlPairs } from './lib/controls';
+import { initializeTooltips } from './lib/tooltips';
 
-// Wait for FB modules to load
-function waitForFB(): Promise<void> {
-  return new Promise((resolve) => {
-    if (window.FB && window.FB.CONSTANTS) {
-      resolve();
-    } else {
-      const checkFB = () => {
-        if (window.FB && window.FB.CONSTANTS) {
-          resolve();
+function initializeApp(): void {
+  const { PERFORMANCE } = CONSTANTS;
+
+  const el: PanelElements = createMainElements();
+  const pageEl: PageElements = createPageElements();
+  const layoutElements = getLayoutElements();
+
+  if (!validateCriticalElements(el)) {
+    console.error('Critical DOM elements missing');
+    return;
+  }
+
+  // Keep the most recent single-panel result for the layout preview
+  let lastPanel: Panel | null = null;
+  let lastDotSize: number = 1;
+  let lastPanelConfig: PanelConfig | null = null;
+  const layoutState = {
+    lastLayoutWpx: 0,
+    lastLayoutHpx: 0,
+    isFirstLayoutRender: true,
+  };
+
+  function createLayoutRenderFunction() {
+    return (panel: Panel | null, dotSize: number, config?: PanelConfig) => {
+      lastPanel = panel;
+      lastDotSize = dotSize;
+      if (config) lastPanelConfig = config;
+      renderLayout(panel, dotSize, pageEl, layoutElements, layoutState, lastPanelConfig);
+      requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState));
+    };
+  }
+
+  const renderLayoutFn = createLayoutRenderFunction();
+  const render = createMainRenderFunction(el, renderLayoutFn);
+
+  function debounce(fn: () => void, ms: number): () => void {
+    let timeoutHandle: ReturnType<typeof setTimeout>;
+    return () => {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = setTimeout(fn, ms);
+    };
+  }
+
+  const debouncedRender = debounce(render, PERFORMANCE.DEBOUNCE_MS);
+
+  function bindPanelControls(): void {
+    el.resetPanelSettings?.addEventListener('click', () => {
+      resetPanelSettings(el, UI, debouncedRender);
+    });
+
+    for (const [range, display] of panelControlPairs(el)) {
+      UI.syncPair(range, display, debouncedRender);
+    }
+
+    const onShapeOrHexTypeChange = (): void => {
+      UI.updateVisibility(el);
+      debouncedRender();
+    };
+
+    el.shape?.addEventListener('change', onShapeOrHexTypeChange);
+    el.curved?.addEventListener('change', () => {
+      UI.updateVisibility(el);
+      debouncedRender();
+    });
+    el.showHoles?.addEventListener('change', () => {
+      UI.updateVisibility(el);
+      debouncedRender();
+    });
+    el.cornerStitchSpacing?.addEventListener('change', () => {
+      UI.updateVisibility(el);
+      debouncedRender();
+    });
+    el.stitches?.addEventListener('input', () => {
+      UI.updateVisibility(el);
+      debouncedRender();
+    });
+
+    el.hexType?.addEventListener('change', onShapeOrHexTypeChange);
+  }
+
+  function bindPanelPreview(): void {
+    const zoomControls = UI.zoom;
+    el.zoom?.addEventListener('input', () => {
+      zoomControls.updateDisplay(el);
+      zoomControls.apply(el);
+    });
+    el.zoomIn?.addEventListener('click', () => zoomControls.adjustBy(el, 10));
+    el.zoomOut?.addEventListener('click', () => zoomControls.adjustBy(el, -10));
+    el.zoomReset?.addEventListener('click', () => zoomControls.setPct(el, 200));
+
+    el.showGrid?.addEventListener('change', () => {
+      render();
+    });
+  }
+
+  function bindExportControls(): void {
+    const readExportScale = (): number => {
+      const scale = normalizeExportScale(el.exportScale?.value);
+      if (el.exportScale) el.exportScale.value = String(scale);
+      return scale;
+    };
+    el.exportScale?.addEventListener('change', readExportScale);
+
+    el.downloadSvg?.addEventListener('click', () => {
+      const svg = el.svgHost?.querySelector('svg');
+      if (!svg) return;
+      downloadSvg(svg, createPanelFilename(el), readExportScale());
+    });
+
+    if (el.exportSettings) {
+      el.exportSettings.addEventListener('click', () =>
+        exportSettings(el, { ...layoutElements, pageEl }),
+      );
+    }
+
+    setupImportSettings(
+      el,
+      UI,
+      debouncedRender,
+      { ...layoutElements, pageEl, layoutState },
+      renderLayoutFn,
+    );
+
+    pageEl.downloadSvg?.addEventListener('click', () => {
+      const svg = pageEl.svgHost?.querySelector('svg');
+      if (svg) downloadSvg(svg, createLayoutFilename(layoutElements), readExportScale());
+    });
+  }
+
+  function bindLayoutControls(): void {
+    const { pageInvert, nestingOffsetRow } = layoutElements;
+    const refreshLayout = () =>
+      renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined);
+    for (const [range, display] of layoutControlPairs(layoutElements)) {
+      UI.syncPair(range, display, refreshLayout);
+    }
+    pageInvert?.addEventListener('change', () => {
+      const isInverted = pageInvert.checked;
+      if (nestingOffsetRow) {
+        if (isInverted) {
+          nestingOffsetRow.classList.remove('hidden');
         } else {
-          setTimeout(checkFB, 10);
+          nestingOffsetRow.classList.add('hidden');
         }
-      };
-      checkFB();
+      }
+      renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined);
+    });
+
+    if (pageInvert) {
+      const isInverted = pageInvert.checked;
+      if (nestingOffsetRow) {
+        if (isInverted) {
+          nestingOffsetRow.classList.remove('hidden');
+        } else {
+          nestingOffsetRow.classList.add('hidden');
+        }
+      }
     }
-  });
-}
 
-async function initializeApp() {
-  await waitForFB();
+    pageEl.showGrid?.addEventListener('change', () =>
+      renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined),
+    );
 
-const { PERFORMANCE } = window.FB.CONSTANTS;
+    const pageZoomCtl = UI.zoom;
+    pageEl.zoom?.addEventListener('input', () => {
+      pageZoomCtl.updateDisplay(pageEl);
+      pageZoomCtl.apply(pageEl);
+      requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState));
+    });
+    pageEl.zoomIn?.addEventListener('click', () => pageZoomCtl.adjustBy(pageEl, 10));
+    pageEl.zoomOut?.addEventListener('click', () => pageZoomCtl.adjustBy(pageEl, -10));
+    pageEl.zoomReset?.addEventListener('click', () => {
+      pageZoomCtl.setPct(pageEl, 100);
+      requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState));
+    });
 
-const el: DOMElements = createMainElements();
-const pageEl: DOMElements = createPageElements();
-const layoutElements = getLayoutElements();
+    // Reset layout settings button
+    pageEl.resetLayoutSettings?.addEventListener('click', () => {
+      resetLayoutSettings(
+        { ...layoutElements, pageEl },
+        renderLayoutFn,
+        lastPanel,
+        lastDotSize,
+        lastPanelConfig || undefined,
+      );
+    });
 
-if (!validateCriticalElements(el)) {
-  console.error('Critical DOM elements missing');
-  return;
-}
+    // Re-check overflow on plus/minus buttons which change zoom via CSS transform
+    pageEl.zoomIn?.addEventListener('click', () =>
+      requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState)),
+    );
+    pageEl.zoomOut?.addEventListener('click', () =>
+      requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState)),
+    );
 
-// Keep the most recent single-panel result for the layout preview
-let lastPanel: Panel | null = null;
-let lastDotSize: number = 1;
-let lastPanelConfig: PanelConfig | null = null;
-let layoutState = {
-  lastLayoutWpx: 0,
-  lastLayoutHpx: 0,
-  isFirstLayoutRender: true
-};
+    // Recompute on window resize
+    window.addEventListener('resize', () =>
+      requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState)),
+    );
+  }
 
-function createLayoutRenderFunction() {
-  return (panel: Panel | null, dotSize: number, config?: PanelConfig) => {
-    lastPanel = panel;
-    lastDotSize = dotSize;
-    if (config) lastPanelConfig = config;
-    renderLayout(panel, dotSize, pageEl, layoutElements, layoutState, lastPanelConfig);
-    requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState));
-  };
-}
+  UI.fixUiTextArtifacts();
+  bindPanelControls();
+  bindPanelPreview();
+  bindExportControls();
+  bindLayoutControls();
+  UI.updateVisibility(el);
 
-const renderLayoutFn = createLayoutRenderFunction();
-const render = createMainRenderFunction(el, renderLayoutFn);
-
-function debounce<T extends (...args: any[]) => any>(fn: T, ms: number): (...args: Parameters<T>) => void {
-  let timeoutHandle: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => { 
-    clearTimeout(timeoutHandle); 
-    timeoutHandle = setTimeout(() => fn(...args), ms); 
-  };
-}
-
-const debouncedRender = debounce(render, PERFORMANCE.DEBOUNCE_MS);
-
-function bindUI(): void {
-  const UI = window.FB.ui;
-  if (!UI) return;
-  
-  UI.syncPair(el.side, el.sideNumber, debouncedRender);
-  UI.syncPair(el.seam, el.seamNumber, debouncedRender);
-  UI.syncPair(el.dotSize, el.dotSizeNumber, debouncedRender);
-  
-  if (el.cornerMargin && el.cornerMarginNumber) UI.syncPair(el.cornerMargin, el.cornerMarginNumber, debouncedRender);
-  if (el.curveRadius && el.curveRadiusNumber) UI.syncPair(el.curveRadius, el.curveRadiusNumber, debouncedRender);
-  if (el.stitches && el.stitchesNumber) UI.syncPair(el.stitches, el.stitchesNumber, debouncedRender);
-  if (el.holeSpacing && el.holeSpacingNumber) UI.syncPair(el.holeSpacing, el.holeSpacingNumber, debouncedRender);
-  if (el.holeBunching && el.holeBunchingNumber) UI.syncPair(el.holeBunching, el.holeBunchingNumber, debouncedRender);
-  if (el.cornerStitchDistance && el.cornerStitchDistanceNumber) UI.syncPair(el.cornerStitchDistance, el.cornerStitchDistanceNumber, debouncedRender);
-  if (el.starRootOffset && el.starRootOffsetNumber) UI.syncPair(el.starRootOffset, el.starRootOffsetNumber, debouncedRender);
-  if (el.starRootAngle && el.starRootAngleNumber) UI.syncPair(el.starRootAngle, el.starRootAngleNumber, debouncedRender);
-  if (el.hexLong && el.hexLongNumber) UI.syncPair(el.hexLong, el.hexLongNumber, debouncedRender);
-  if (el.hexRatio && el.hexRatioNumber) UI.syncPair(el.hexRatio, el.hexRatioNumber, debouncedRender);
-
-  const onShapeOrHexTypeChange = (): void => {
-    UI.updateVisibility(el);
-    debouncedRender();
-  };
-  
-  el.shape?.addEventListener('change', onShapeOrHexTypeChange);
-  el.curved?.addEventListener('change', () => {
-    UI.updateVisibility(el);
-    debouncedRender();
-  });
-  el.showHoles?.addEventListener('change', () => {
-    UI.updateVisibility(el);
-    debouncedRender();
-  });
-  el.cornerStitchSpacing?.addEventListener('change', () => {
-    UI.updateVisibility(el);
-    debouncedRender();
-  });
-  el.stitches?.addEventListener('input', () => {
-    UI.updateVisibility(el);
-    debouncedRender();
-  });
-  
-  el.cornerMargin?.addEventListener('input', debouncedRender);
-  el.holeSpacing?.addEventListener('input', debouncedRender);
-  el.hexType?.addEventListener('change', onShapeOrHexTypeChange);
-  el.side?.addEventListener('input', debouncedRender);
-  el.hexLong?.addEventListener('input', debouncedRender);
-  
   const zoomControls = UI.zoom;
-  el.zoom?.addEventListener('input', () => {
-    zoomControls.updateDisplay(el);
-    zoomControls.apply(el);
-  });
-  el.zoomIn?.addEventListener('click', () => zoomControls.adjustBy(el, 10));
-  el.zoomOut?.addEventListener('click', () => zoomControls.adjustBy(el, -10));
-  el.zoomReset?.addEventListener('click', () => zoomControls.setPct(el, 200));
+  zoomControls.setPct(el, 200);
+  UI.zoom.setPct(pageEl, 100);
 
-  el.showGrid?.addEventListener('change', () => {
-    render();
-  });
-    
-  const readExportScale = (): number => {
-    const scale = normalizeExportScale(el.exportScale?.value);
-    if (el.exportScale) el.exportScale.value = String(scale);
-    return scale;
-  };
-  el.exportScale?.addEventListener('change', readExportScale);
+  render();
 
-  el.downloadSvg?.addEventListener('click', () => {
-    const svg = el.svgHost?.querySelector('svg');
-    if (!svg) return;
-    downloadSvg(svg, createPanelFilename(el), readExportScale());
-  });
-
-
-  if (el.exportSettings) {
-    el.exportSettings.addEventListener('click', () => exportSettings(el, { ...layoutElements, pageEl }));
-  }
-  
-  setupImportSettings(el, UI, debouncedRender, { ...layoutElements, pageEl, layoutState }, renderLayoutFn);
-
-  el.resetPanelSettings?.addEventListener('click', () => {
-    resetPanelSettings(el, UI, debouncedRender);
-  });
-
-  const { pagePadding, pagePaddingNumber, pageRows, pageRowsNumber, pageCols, pageColsNumber, pageHSpace, pageHSpaceNumber,
-          pageVSpace, pageVSpaceNumber, pageInvert, nestingOffset, nestingOffsetNumber,
-          nestingOffsetRow } = layoutElements;
-
-  if (pagePadding && pagePaddingNumber) UI.syncPair(pagePadding, pagePaddingNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
-  if (pageRows && pageRowsNumber) UI.syncPair(pageRows, pageRowsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
-  if (pageCols && pageColsNumber) UI.syncPair(pageCols, pageColsNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
-  
-  setupHorizontalSpacingSync({ pageHSpace, pageHSpaceNumber }, renderLayoutFn, () => lastPanel, () => lastDotSize, UI);
-  
-  if (pageVSpace && pageVSpaceNumber) UI.syncPair(pageVSpace, pageVSpaceNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
-  pageInvert?.addEventListener('change', () => {
-    const isInverted = pageInvert.checked;
-    if (nestingOffsetRow) {
-      if (isInverted) {
-        nestingOffsetRow.classList.remove('hidden');
-      } else {
-        nestingOffsetRow.classList.add('hidden');
-      }
-    }
-    renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined);
-  });
-  
-  if (pageInvert) {
-    const isInverted = pageInvert.checked;
-    if (nestingOffsetRow) {
-      if (isInverted) {
-        nestingOffsetRow.classList.remove('hidden');
-      } else {
-        nestingOffsetRow.classList.add('hidden');
-      }
-    }
-  }
-  
-  if (nestingOffset && nestingOffsetNumber) UI.syncPair(nestingOffset, nestingOffsetNumber, () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
-
-  pageEl.showGrid?.addEventListener('change', () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined));
-
-  const pageZoomCtl = UI.zoom;
-  pageEl.zoom?.addEventListener('input', () => { 
-    pageZoomCtl.updateDisplay(pageEl); 
-    pageZoomCtl.apply(pageEl); 
-    requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState)); 
-  });
-  pageEl.zoomIn?.addEventListener('click', () => pageZoomCtl.adjustBy(pageEl, 10));
-  pageEl.zoomOut?.addEventListener('click', () => pageZoomCtl.adjustBy(pageEl, -10));
-  pageEl.zoomReset?.addEventListener('click', () => { 
-    pageZoomCtl.setPct(pageEl, 100); 
-    requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState)); 
-  });
-
-  pageEl.downloadSvg?.addEventListener('click', () => {
-    const svg = pageEl.svgHost?.querySelector('svg');
-    if (!svg) return;
-    downloadSvg(svg, createLayoutFilename(layoutElements), readExportScale());
-  });
-
-  // Reset layout settings button
-  pageEl.resetLayoutSettings?.addEventListener('click', () => {
-    resetLayoutSettings({ ...layoutElements, pageEl }, renderLayoutFn, lastPanel, lastDotSize, lastPanelConfig || undefined);
-  });
-
-  // Re-check overflow on plus/minus buttons which change zoom via CSS transform
-  pageEl.zoomIn?.addEventListener('click', () => requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState)));
-  pageEl.zoomOut?.addEventListener('click', () => requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState)));
-
-  // Recompute on window resize
-  window.addEventListener('resize', () => requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState)));
-}
-
-window.FB.ui.fixUiTextArtifacts();
-bindUI();
-window.FB.ui.updateVisibility(el);
-
-const zoomControls = window.FB.ui.zoom;
-zoomControls.setPct(el, 200);
-window.FB.ui.zoom.setPct(pageEl, 100);
-
-render();
-
-(window.FB as any).tooltips.initializeTooltips();
-
+  initializeTooltips();
 } // End of initializeApp
 
 initializeApp();

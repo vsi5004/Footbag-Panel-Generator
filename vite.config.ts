@@ -7,15 +7,11 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: {
-        main: './index.html'
-      }
-    }
+        main: './index.html',
+      },
+    },
   },
   server: {
-    open: true
+    open: true,
   },
-  // Copy the JS lib files since they're loaded as non-module scripts
-  define: {
-    __COPY_LIB_FILES__: 'true'
-  }
 });

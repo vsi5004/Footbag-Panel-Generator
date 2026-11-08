@@ -6,13 +6,13 @@ export const CONSTANTS: Constants = {
     seam: '#808080',
   },
   STROKES: {
-  cut: 0.17,
+    cut: 0.17,
   },
   SAMPLING: {
     EDGE_SAMPLES_DEFAULT: 120,
     EDGE_SAMPLES_HIGH_PRECISION: 160,
     CURVE_SAMPLES_DEFAULT: 40,
-  BOUNDS_SAMPLES: 20,
+    BOUNDS_SAMPLES: 20,
   },
   LAYOUT: {
     MARGIN_MM: 10,
@@ -22,7 +22,3 @@ export const CONSTANTS: Constants = {
     DEBOUNCE_MS: 50,
   },
 };
-
-// For backward compatibility with global window.FB
-window.FB = window.FB || {};
-window.FB.CONSTANTS = CONSTANTS;

@@ -73,11 +73,30 @@ npm install
 npm run dev        # Start development server
 npm run build      # Build for production
 npm run type-check # TypeScript type checking
-npm test           # Export scaling and settings/schema regression tests
+npm test           # Unit, compatibility and deployed-output regression tests
+npm run check      # Settings consistency, lint, format, tests and production build
+npx playwright install chromium
+npm run test:browser # Real-browser tests against the production build
+npm run format     # Format TypeScript and test/helper sources
+npm run settings:sync # Update HTML/schema after changing schema/controls.json
 ```
 
+### Settings and controls
+
+`schema/controls.json` defines numeric control defaults, bounds and schema paths. Runtime validators/imports use it directly. After editing it, run `npm run settings:sync` to update HTML attributes and the JSON schema. `npm run settings:check` and consistency tests prevent these from drifting apart. The broader historical stitch-count schema bounds remain explicit for compatibility; geometry still determines dynamic spacing/margin limits.
+
+`src/lib/controls.ts` lists each range/number pair once for binding, import display updates and reset. Panel, sheet and preview elements have separate types in `src/types.ts`. Modules use direct imports; there is no global registration or startup polling.
+
+### Regression coverage
+
+`tests/fixtures/deployed-baseline.json` records 36 cases captured from main at `a9ced1f5a55791f736a9dd6bbd3f2bdad5a4b201`, before the maintenance refactor. They cover all shapes, straight/curved edges, no-hole and custom/bunched-hole modes, inverted sheets, SVG exports at 75/100/125%, constraints and material utilization. Exact hashes detect changes to geometry and serialized SVG output. Do not regenerate this fixture just to make a refactor pass; investigate differences and document any intentional behavior change.
+
+Playwright tests use the built app to exercise startup, shape/visibility changes, paired controls, resets, zoom, grids, downloads, file imports, legacy settings, 12×12 layouts, spacing extrema and a mobile viewport. They run in Chromium in CI. On Windows, an installed Edge can be used with `$env:PLAYWRIGHT_CHANNEL='msedge'; npm run test:browser` after `npm run build`.
+
+The existing star constraint approximation and material-utilization definition are preserved. They are documented beside the shared calculations so future numerical changes can be reviewed separately.
+
 ### Deployment
-The app is automatically deployed to GitHub Pages via GitHub Actions when pushing to the main branch.
+The app is automatically deployed to GitHub Pages via GitHub Actions when pushing to the main branch. Settings, lint, formatting, regression tests, the production build and browser tests must pass before the deployment workflow uploads the site. Pull requests run the same checks without deploying.
 
 ## Project Structure
 
@@ -86,25 +105,28 @@ The app is automatically deployed to GitHub Pages via GitHub Actions when pushin
 - `src/main.ts`: TypeScript app orchestration — streamlined with modular architecture
 - `src/types.ts`: Comprehensive type definitions for the entire application
 - `src/lib/dom.ts`: DOM element management and validation utilities
+- `src/lib/settings.ts`: Shared numeric normalization from the settings definitions
+- `src/lib/controls.ts`: Shared panel/layout range and number pair registry
+- `src/lib/shape-geometry.ts`: Shared polygon construction and orientation
 - `src/lib/validation.ts`: Input validation, configuration collection, and geometry computation  
 - `src/lib/layout.ts`: Multi-panel layout system with material utilization calculations
 - `src/lib/events.ts`: Event handling, reset functionality, and import/export logic
 - `src/lib/renderer.ts`: Rendering pipeline, SVG generation, and error handling
-- `src/lib/utils.js`: Shared helpers (`clamp`, `deg2rad`). Exposes `window.FB.utils`
-- `src/lib/constants.js`: Colors, stroke widths, default curvature factors. Exposes `window.FB.CONSTANTS`
-- `src/lib/geometry.js`: Geometry primitives (regular polygons, curves, sampling, truncated hex). Exposes `window.FB.geometry`
-- `src/lib/stitches.js`: Hole spacing, centering, allowable spacing calculations. Exposes `window.FB.stitches`
-- `src/lib/svg.js`: SVG assembly (outline, marks, light grid). Exposes `window.FB.svg`
-- `src/lib/state.js`: Import/export helpers (`collect`, `apply`). Exposes `window.FB.state`
-- `src/lib/ui.js`: UI helpers (`syncPair`, `updateVisibility`, `fixUiTextArtifacts`) and zoom helpers. Exposes `window.FB.ui`
-- `src/lib/tooltips.js`: Comprehensive tooltip system for enhanced user experience
+- `src/lib/utils.ts`: Shared helpers (`clamp`, `deg2rad`)
+- `src/lib/constants.ts`: Colors, stroke widths, default curvature factors
+- `src/lib/geometry.ts`: Geometry primitives (regular polygons, curves, sampling, truncated hex)
+- `src/lib/stitches.ts`: Hole spacing, centering, allowable spacing calculations
+- `src/lib/svg.ts`: SVG assembly (outline, marks, light grid)
+- `src/lib/state.ts`: Import/export helpers (`collect`, `apply`)
+- `src/lib/ui.ts`: UI helpers (`syncPair`, `updateVisibility`, `fixUiTextArtifacts`) and zoom helpers
+- `src/lib/tooltips.ts`: Comprehensive tooltip system for enhanced user experience
 - `public/favicon.svg`: Custom pentagon-themed favicon for professional presentation
 
 ## Build System
 
 - **TypeScript** with Vite for modern development experience with modular architecture
 - **Type Safety**: Comprehensive type definitions for geometric calculations and UI interactions
-- **Automated Deployment**: GitHub Actions builds and deploys to GitHub Pages
+- **Automated Deployment**: GitHub Actions checks and browser tests gate deployment to GitHub Pages
 - **Development Server**: Hot reload with `npm run dev`
 - **Asset Management**: Public directory serving for favicon and static assets
 
