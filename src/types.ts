@@ -1,3 +1,5 @@
+import type { NestingState } from './lib/nesting-types';
+
 // TypeScript definitions for the Footbag Panel Generator
 
 export interface Point {
@@ -169,6 +171,9 @@ export interface PageElements extends PreviewElements {
 }
 
 export interface LayoutElements {
+  nesting?: NestingState;
+  nestingGap?: HTMLInputElement | null;
+  nestingQuarterTurn?: HTMLInputElement | null;
   pagePadding: HTMLInputElement | null;
   pagePaddingNumber: HTMLInputElement | null;
   pageRows: HTMLInputElement | null;

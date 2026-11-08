@@ -21,6 +21,7 @@ import { geometry } from './geometry';
 import { stitches as stitchHelpers } from './stitches';
 import { CONSTANTS } from './constants';
 import { svg as svgHelpers } from './svg';
+import { validPlan } from './nesting-validation';
 import { ui } from './ui';
 
 /**
@@ -222,6 +223,18 @@ export function renderLayout(
   const nestingVerticalOffset = nestingOffset ? parseFloat(nestingOffset.value || '0') : 0;
   const padding = pagePadding ? Math.max(0, parseFloat(pagePadding.value || '10')) : 10;
 
+  let optimized = layoutElements.nesting?.active;
+  if (optimized && (!config || !validPlan(optimized, panel, config, dotDiameter, rows * cols))) {
+    if (layoutElements.nesting) layoutElements.nesting.active = undefined;
+    optimized = undefined;
+    const status = document.getElementById('nestingStatus');
+    if (status)
+      status.textContent =
+        'The saved arrangement no longer matches this design or its clearance. Manual layout restored.';
+  }
+  const manualButton = document.getElementById('manualLayout') as HTMLButtonElement | null;
+  if (manualButton) manualButton.disabled = !optimized;
+
   // Compute if we need to auto-fit to the host viewport
   const MM_TO_PX = 96 / 25.4;
   const { width: layoutWmm, height: layoutHmm } = measureLayoutSvg(panel, {
@@ -234,6 +247,7 @@ export function renderLayout(
     invertOdd,
     nestingVerticalOffset,
     padding,
+    optimized,
   });
   const layoutWpx = layoutWmm * MM_TO_PX;
   const layoutHpx = layoutHmm * MM_TO_PX;
@@ -263,6 +277,7 @@ export function renderLayout(
       nestingVerticalOffset,
       dotDiameter,
       padding,
+      optimized,
       showGrid,
     },
     config || undefined,
@@ -303,6 +318,7 @@ export function renderLayout(
     invertOdd,
     nestingVerticalOffset,
     padding,
+    optimized,
   });
   const wrap = document.createElement('div');
   wrap.className = 'svg-wrap';
@@ -369,6 +385,8 @@ export function createMainRenderFunction(
   el: PanelElements,
   renderLayoutFn: (panel: Panel | null, dotSize: number, config?: PanelConfig) => void,
 ) {
+  let previousKey = '';
+  let previousPanel: Panel | undefined;
   return function render(): void {
     try {
       const config = collectInputValues(el);
@@ -393,7 +411,11 @@ export function createMainRenderFunction(
         holeBunching,
       });
 
-      const panel = computePanel(panelConfig);
+      const key = JSON.stringify(panelConfig);
+      const panel =
+        key === previousKey && previousPanel ? previousPanel : computePanel(panelConfig);
+      previousKey = key;
+      previousPanel = panel;
 
       renderSVGToDOM(panel, config.dotSize, el, panelConfig);
 

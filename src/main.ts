@@ -20,6 +20,7 @@ import {
 import { CONSTANTS } from './lib/constants';
 import { ui as UI } from './lib/ui';
 import { panelControlPairs, layoutControlPairs } from './lib/controls';
+import { initializeNesting } from './lib/nesting-ui';
 import { initializeTooltips } from './lib/tooltips';
 
 function initializeApp(): void {
@@ -157,12 +158,15 @@ function initializeApp(): void {
 
   function bindLayoutControls(): void {
     const { pageInvert, nestingOffsetRow } = layoutElements;
-    const refreshLayout = () =>
+    const refreshLayout = () => {
+      if (layoutElements.nesting) layoutElements.nesting.active = undefined;
       renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined);
+    };
     for (const [range, display] of layoutControlPairs(layoutElements)) {
       UI.syncPair(range, display, refreshLayout);
     }
     pageInvert?.addEventListener('change', () => {
+      if (layoutElements.nesting) layoutElements.nesting.active = undefined;
       const isInverted = pageInvert.checked;
       if (nestingOffsetRow) {
         if (isInverted) {
@@ -175,6 +179,7 @@ function initializeApp(): void {
     });
 
     if (pageInvert) {
+      if (layoutElements.nesting) layoutElements.nesting.active = undefined;
       const isInverted = pageInvert.checked;
       if (nestingOffsetRow) {
         if (isInverted) {
@@ -240,6 +245,13 @@ function initializeApp(): void {
 
   render();
 
+  initializeNesting(
+    layoutElements,
+    pageEl,
+    () => ({ panel: lastPanel, config: lastPanelConfig, dot: lastDotSize }),
+    debouncedRender.flush,
+    () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined),
+  );
   initializeTooltips();
 } // End of initializeApp
 

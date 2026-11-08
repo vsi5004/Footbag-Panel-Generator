@@ -157,6 +157,67 @@
         },
         "showGrid": {
           "type": "boolean"
+        },
+        "optimized": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "const": 1
+            },
+            "source": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "gap": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20
+            },
+            "placements": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 144,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "minimum": -100000,
+                    "maximum": 100000
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": -100000,
+                    "maximum": 100000
+                  },
+                  "angle": {
+                    "enum": [
+                      0,
+                      90,
+                      180,
+                      270
+                    ]
+                  },
+                  "flipY": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "angle"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "version",
+            "source",
+            "gap",
+            "placements"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

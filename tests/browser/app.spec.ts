@@ -563,3 +563,171 @@ test('every help icon is an accessible button and supports keyboard dismissal', 
   await page.locator('h1').click();
   await expect(tip).toBeHidden();
 });
+
+test('optional nesting previews savings before applying, preserves exports and round trips settings', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, {
+    ...initial,
+    shape: 5,
+    curved: false,
+    layout: { ...initial.layout, hSpace: 10, vSpace: 10 },
+  });
+  const manual = await page.locator('#pageSvgHost svg').getAttribute('width');
+  const originalPath = await page.locator('#svgHost path').getAttribute('d');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await expect(page.locator('#nestingStatus')).toContainText('less');
+  await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
+  await page.locator('#applyNesting').click();
+  await expect(page.locator('#manualLayout')).toBeEnabled();
+  const optimized = await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML);
+  const saved = await settingsDownload(page);
+  expect(saved.layout.optimized.version).toBe(1);
+  expect(saved.layout.optimized.placements).toHaveLength(9);
+  await expect(page.locator('#pageSvgHost svg path')).toHaveCount(9);
+  for (const path of await page.locator('#pageSvgHost svg path').all())
+    await expect(path).toHaveAttribute('d', originalPath!);
+  await page.locator('#exportScale').fill('125');
+  const width = await page.locator('#pageSvgHost svg').getAttribute('width');
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  const download = await pending;
+  expect(download.suggestedFilename()).toBe('footbag-nested-9panels-125pct.svg');
+  const text = await readFile((await download.path())!, 'utf8');
+  expect(parseFloat(text.match(/\bwidth="([^"]+)"/)![1])).toBeCloseTo(parseFloat(width!) * 1.25, 8);
+  expect(text).not.toContain('<use');
+  await page.locator('#manualLayout').click();
+  await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
+  await importSettings(page, saved);
+  expect(await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML)).toBe(optimized);
+  // Old exports explicitly restore manual layout even after an optimized import.
+  delete saved.layout.optimized;
+  await importSettings(page, saved);
+  await expect(page.locator('#manualLayout')).toBeDisabled();
+  await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
+});
+
+test('design and manual layout edits invalidate optimization without changing panel geometry', async ({
+  page,
+}) => {
+  for (const selector of ['#sideNumber', '#pageHSpaceNumber']) {
+    await page.locator('#optimizeLayout').click();
+    await expect(page.locator('#applyNesting')).toBeEnabled();
+    await page.locator('#applyNesting').click();
+    await expect(page.locator('#manualLayout')).toBeEnabled();
+    await page.locator(selector).fill(selector === '#sideNumber' ? '40' : '5');
+    await expect(page.locator('#manualLayout')).toBeDisabled();
+    const saved = await settingsDownload(page);
+    expect(saved.layout.optimized).toBeUndefined();
+    await expect(page.locator('#pageSvgHost svg path')).toHaveCount(9);
+  }
+});
+
+test('clearance check detects overlap and safely checks an optimized curved star', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, {
+    ...initial,
+    shape: 4,
+    curved: false,
+    showHoles: false,
+    layout: { ...initial.layout, hSpace: -20, vSpace: -20 },
+  });
+  await page.locator('#checkClearance').click();
+  await expect(page.locator('#nestingStatus')).toContainText('overlap, touch, or are too close');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await importSettings(page, {
+    ...initial,
+    shape: 10,
+    curved: true,
+    starRootAngle: 128,
+    layout: { ...initial.layout, rows: 2, cols: 3 },
+  });
+  await page.locator('#nestingQuarterTurn').check();
+  await page.locator('#nestingGap').fill('2');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  await page.locator('#checkClearance').click();
+  await expect(page.locator('#nestingStatus')).toContainText('All cut outlines meet');
+  const saved = await settingsDownload(page);
+  expect(saved.layout.optimized.gap).toBe(2);
+  expect(saved.layout.optimized.placements).toHaveLength(6);
+});
+
+test('nesting worker cancellation and setting edits cannot apply stale results', async ({
+  page,
+}) => {
+  const before = await page.locator('#pageSvgHost svg').getAttribute('width');
+  // The worker cannot deliver a result before this same browser task cancels it.
+  await page.evaluate(() => {
+    document.getElementById('optimizeLayout')!.click();
+    document.getElementById('cancelNesting')!.click();
+  });
+  await expect(page.locator('#nestingStatus')).toContainText('cancelled');
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  await page.waitForTimeout(200);
+  await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', before!);
+  await page.evaluate(() => {
+    document.getElementById('optimizeLayout')!.click();
+    const input = document.querySelector<HTMLInputElement>('#sideNumber')!;
+    input.value = '42';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('#nestingStatus')).toContainText('Settings changed');
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  await expect(page.locator('#panelSideLengthValue')).toHaveText('42.0 mm');
+  await page.waitForTimeout(200);
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+});
+
+test('malformed optimized imports are atomic and unsafe arrangements fall back to manual', async ({
+  page,
+}) => {
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const saved = await settingsDownload(page);
+  const before = await page.locator('#pageSvgHost svg').getAttribute('width');
+  const dialog = page.waitForEvent('dialog');
+  await page.locator('#importFile').setInputFiles({
+    name: 'bad-nesting.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify({
+        ...saved,
+        side: 60,
+        layout: { ...saved.layout, optimized: { ...saved.layout.optimized, gap: -1 } },
+      }),
+    ),
+  });
+  await (await dialog).dismiss();
+  await expect(page.locator('#sideNumber')).toHaveValue('30');
+  await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', before!);
+  saved.layout.optimized.placements = saved.layout.optimized.placements.map(() => ({
+    x: 0,
+    y: 0,
+    angle: 0,
+  }));
+  await importSettings(page, saved);
+  await expect(page.locator('#manualLayout')).toBeDisabled();
+  await expect(page.locator('#nestingStatus')).toContainText('Manual layout restored');
+  await expect(page.locator('#pageSvgHost svg path')).toHaveCount(9);
+});
+
+test('nesting controls work at phone width and reset restores manual layout', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const applied = await settingsDownload(page);
+  expect(applied.layout.optimized.placements).toHaveLength(9);
+  await page.locator('#resetLayoutSettings').click();
+  await expect(page.locator('#manualLayout')).toBeDisabled();
+  expect((await settingsDownload(page)).layout.optimized).toBeUndefined();
+  const bounds = await page.locator('.nesting-tools').boundingBox();
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+});

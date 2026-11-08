@@ -337,3 +337,14 @@ details.advanced .advanced-content { margin-top: 8px; }
   opacity: 1;
   visibility: visible;
 }
+
+.nesting-tools { padding: 12px 16px; font-size: 0.85rem; }
+.nesting-tools p { color: var(--muted); }
+.nesting-tools input[type="number"] { width: 90px; margin: 6px; padding: 6px 8px; border: 1px solid #2a2f43; border-radius: 6px; background: var(--panel); color: var(--text); }
+.nesting-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+@media (max-width: 960px) {
+  .preview { min-width: 0; }
+  .preview-inner { grid-template-columns: minmax(0, 1fr); }
+  .preview-toolbar { flex-wrap: wrap; }
+}

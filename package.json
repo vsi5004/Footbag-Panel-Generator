@@ -15,7 +15,8 @@
     "settings:sync": "node scripts/sync-settings.mjs",
     "settings:check": "node scripts/sync-settings.mjs --check",
     "test:browser": "playwright test",
-    "check": "npm run settings:check && npm run lint && npm run format:check && npm test && npm run build"
+    "check": "npm run settings:check && npm run lint && npm run format:check && npm test && npm run build",
+    "benchmark": "node --import ./tests/register.mjs scripts/benchmark.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",

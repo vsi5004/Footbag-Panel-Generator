@@ -55,6 +55,10 @@ export function resetLayoutSettings(
   lastDotSize: number,
   config?: PanelConfig,
 ): void {
+  if (layoutEl.nesting) layoutEl.nesting.active = undefined;
+  if (layoutEl.nestingGap) layoutEl.nestingGap.value = layoutEl.nestingGap.defaultValue;
+  if (layoutEl.nestingQuarterTurn)
+    layoutEl.nestingQuarterTurn.checked = layoutEl.nestingQuarterTurn.defaultChecked;
   for (const [range, display] of layoutControlPairs(layoutEl)) {
     if (!range) continue;
     range.value = range.defaultValue;
@@ -107,9 +111,11 @@ export function createPanelFilename(el: PanelElements): string {
  * Creates filename for layout download
  */
 export function createLayoutFilename(
-  layoutEl: Pick<LayoutElements, 'pageRows' | 'pageCols'>,
+  layoutEl: Pick<LayoutElements, 'pageRows' | 'pageCols' | 'nesting'>,
 ): string {
   const { pageRows, pageCols } = layoutEl;
+  if (layoutEl.nesting?.active)
+    return 'footbag-nested-' + layoutEl.nesting.active.placements.length + 'panels.svg';
   return `footbag-layout-${pageRows?.value || '3'}x${pageCols?.value || '3'}.svg`;
 }
 
