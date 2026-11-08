@@ -10,7 +10,15 @@ export function initializeTooltips(): void {
     const icon = container.querySelector('.tooltip-icon');
     if (!icon) return;
 
+    icon.addEventListener('focus', () => container.classList.remove('tooltip-dismissed'));
+    container.addEventListener('mouseenter', () => container.classList.remove('tooltip-dismissed'));
+    icon.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key !== 'Escape') return;
+      container.classList.remove('tooltip-active');
+      container.classList.add('tooltip-dismissed');
+    });
     icon.addEventListener('click', (e) => {
+      container.classList.remove('tooltip-dismissed');
       e.preventDefault();
       e.stopPropagation();
 

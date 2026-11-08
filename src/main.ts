@@ -57,12 +57,19 @@ function initializeApp(): void {
   const renderLayoutFn = createLayoutRenderFunction();
   const render = createMainRenderFunction(el, renderLayoutFn);
 
-  function debounce(fn: () => void, ms: number): () => void {
-    let timeoutHandle: ReturnType<typeof setTimeout>;
-    return () => {
+  function debounce(fn: () => void, ms: number) {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const flush = () => {
+      if (timeoutHandle === undefined) return;
       clearTimeout(timeoutHandle);
-      timeoutHandle = setTimeout(fn, ms);
+      timeoutHandle = undefined;
+      fn();
     };
+    const schedule = () => {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = setTimeout(flush, ms);
+    };
+    return Object.assign(schedule, { flush });
   }
 
   const debouncedRender = debounce(render, PERFORMANCE.DEBOUNCE_MS);
@@ -126,20 +133,23 @@ function initializeApp(): void {
     el.exportScale?.addEventListener('change', readExportScale);
 
     el.downloadSvg?.addEventListener('click', () => {
+      debouncedRender.flush();
       const svg = el.svgHost?.querySelector('svg');
       if (!svg) return;
       downloadSvg(svg, createPanelFilename(el), readExportScale());
     });
 
     if (el.exportSettings) {
-      el.exportSettings.addEventListener('click', () =>
-        exportSettings(el, { ...layoutElements, pageEl }),
-      );
+      el.exportSettings.addEventListener('click', () => {
+        debouncedRender.flush();
+        exportSettings(el, { ...layoutElements, pageEl });
+      });
     }
 
     setupImportSettings(el, UI, render, { ...layoutElements, pageEl, layoutState });
 
     pageEl.downloadSvg?.addEventListener('click', () => {
+      debouncedRender.flush();
       const svg = pageEl.svgHost?.querySelector('svg');
       if (svg) downloadSvg(svg, createLayoutFilename(layoutElements), readExportScale());
     });

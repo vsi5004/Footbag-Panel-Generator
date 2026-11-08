@@ -8,14 +8,14 @@ async function settingsDownload(page: Page) {
   return JSON.parse(await readFile((await download.path())!, 'utf8'));
 }
 
-async function importSettings(page: Page, data: unknown) {
+async function importSettings(page: Page, data: unknown, validLayout = true) {
   await page.locator('#importFile').setInputFiles({
     name: 'settings.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(data)),
   });
   await expect(page.locator('#importFile')).toHaveValue('');
-  await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
+  await expect(page.locator('#pageSvgHost svg')).toHaveCount(validLayout ? 1 : 0);
 }
 
 async function setChecked(page: Page, selector: string, checked: boolean) {
@@ -384,12 +384,16 @@ test('overlap ratios and invalid sheet dimensions have explicit meanings', async
   await expect(page.locator('#utilizationHelp')).toContainText(
     'Overlapping panels are counted separately',
   );
-  await importSettings(page, {
-    ...overlapping,
-    side: 10,
-    showHoles: false,
-    layout: { ...overlapping.layout, rows: 3 },
-  });
+  await importSettings(
+    page,
+    {
+      ...overlapping,
+      side: 10,
+      showHoles: false,
+      layout: { ...overlapping.layout, rows: 3 },
+    },
+    false,
+  );
   await expect(page.locator('#utilizationValue')).toHaveText('—');
   await expect(page.locator('#utilizationValue')).toHaveAttribute(
     'title',
@@ -406,4 +410,156 @@ test('sheet-area explanation fits and works on a phone-sized viewport', async ({
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
   await page.getByRole('button', { name: 'About panel area utilization' }).click();
   await expect(page.locator('#utilizationHelp')).toBeVisible();
+});
+
+test('immediate exports flush pending panel edits before reading SVGs or settings', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  for (const [button, host, size] of [
+    ['downloadSvg', '#svgHost', 41],
+    ['downloadPageSvg', '#pageSvgHost', 52],
+  ] as const) {
+    const pending = page.waitForEvent('download');
+    // Edit and download in the same browser task: the debounce cannot fire first.
+    await page.evaluate(
+      ({ button, size }) => {
+        const input = document.querySelector<HTMLInputElement>('#sideNumber')!;
+        input.value = String(size);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        document.getElementById(button)!.click();
+      },
+      { button, size },
+    );
+    const download = await pending;
+    const exported = await readFile((await download.path())!, 'utf8');
+    await expect(page.locator('#panelSideLengthValue')).toHaveText(`${size.toFixed(1)} mm`);
+    const preview = await page.locator(`${host} svg`).evaluate((svg) => ({
+      width: svg.getAttribute('width'),
+      height: svg.getAttribute('height'),
+      path: svg.querySelector('path')!.getAttribute('d'),
+    }));
+    expect(exported).toContain(`width="${preview.width}"`);
+    expect(exported).toContain(`height="${preview.height}"`);
+    expect(exported).toContain(`d="${preview.path}"`);
+    // The queued render must not later overwrite the exported design.
+    await page.waitForTimeout(150);
+    await expect(page.locator(`${host} svg`)).toHaveAttribute('width', preview.width!);
+  }
+  const pending = page.waitForEvent('download');
+  await page.evaluate(() => {
+    const shape = document.querySelector<HTMLSelectElement>('#shape')!;
+    shape.value = '10';
+    shape.dispatchEvent(new Event('change', { bubbles: true }));
+    const spacing = document.querySelector<HTMLInputElement>('#holeSpacingNumber')!;
+    spacing.value = '20';
+    spacing.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('exportSettings')!.click();
+  });
+  const saved = JSON.parse(await readFile((await (await pending).path())!, 'utf8'));
+  expect(saved.shape).toBe(10);
+  expect(saved.holeSpacing).toBeLessThan(20);
+  expect(saved.holeSpacing).toBe(Number(await page.locator('#holeSpacing').inputValue()));
+  expect(errors).toEqual([]);
+});
+
+test('invalid sheets block layout exports and recover when spacing is corrected', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const initial = await settingsDownload(page);
+  for (const [hSpace, vSpace] of [
+    [-20, 0],
+    [0, -20],
+    [-20, -20],
+  ]) {
+    await importSettings(
+      page,
+      {
+        ...initial,
+        shape: 4,
+        side: 10,
+        curved: false,
+        showHoles: false,
+        layout: { ...initial.layout, rows: 3, cols: 3, padding: 0, hSpace, vSpace, invert: false },
+      },
+      false,
+    );
+    await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+    await expect(page.locator('#pageSvgHost [role=status]')).toContainText(
+      'Increase horizontal or vertical spacing',
+    );
+    await expect(page.locator('#downloadSvg')).toBeEnabled();
+  }
+  await page.locator('#pageHSpaceNumber').fill('0');
+  await page.locator('#pageVSpaceNumber').fill('0');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await expect(page.locator('#pageSvgHost [role=status]')).toHaveCount(0);
+  await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  const text = await readFile((await (await pending).path())!, 'utf8');
+  expect(parseFloat(text.match(/\bwidth="([^"]+)"/)![1])).toBeGreaterThan(0);
+  expect(parseFloat(text.match(/\bheight="([^"]+)"/)![1])).toBeGreaterThan(0);
+  // A pending panel edit may invalidate a previously downloadable layout.
+  await importSettings(page, {
+    ...initial,
+    shape: 4,
+    side: 30,
+    curved: false,
+    showHoles: false,
+    layout: {
+      ...initial.layout,
+      rows: 3,
+      cols: 3,
+      padding: 0,
+      hSpace: -20,
+      vSpace: -20,
+      invert: false,
+    },
+  });
+  let unexpectedDownloads = 0;
+  page.on('download', () => unexpectedDownloads++);
+  await page.evaluate(() => {
+    const input = document.querySelector<HTMLInputElement>('#sideNumber')!;
+    input.value = '10';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('downloadPageSvg')!.click();
+  });
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await expect(page.locator('#pageSvgHost svg')).toHaveCount(0);
+  await page.waitForTimeout(150);
+  expect(unexpectedDownloads).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('every help icon is an accessible button and supports keyboard dismissal', async ({
+  page,
+}) => {
+  const icons = page.locator('.tooltip-icon');
+  expect(await icons.count()).toBe(19);
+  for (const icon of await icons.all()) {
+    await expect(icon).toHaveAttribute('type', 'button');
+    await expect(icon).toHaveAttribute('aria-label', /^About .+/);
+    const id = await icon.getAttribute('aria-describedby');
+    expect(id).toBeTruthy();
+    await expect(page.locator(`#${id}`)).toHaveAttribute('role', 'tooltip');
+  }
+  const icon = page.getByRole('button', { name: 'About Edge style', exact: true });
+  const tip = page.locator(`#${await icon.getAttribute('aria-describedby')}`);
+  await icon.focus();
+  await expect(tip).toBeVisible();
+  await icon.press('Escape');
+  await expect(tip).toBeHidden();
+  await expect(icon).toBeFocused();
+  await icon.press('Enter');
+  await expect(tip).toBeVisible();
+  await icon.press('Escape');
+  await expect(tip).toBeHidden();
+  await icon.press('Space');
+  await expect(tip).toBeVisible();
+  await page.locator('h1').click();
+  await expect(tip).toBeHidden();
 });
