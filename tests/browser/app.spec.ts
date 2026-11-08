@@ -635,6 +635,44 @@ test('optional nesting previews savings before applying, preserves exports and r
   await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
 });
 
+test('worker loading and startup failures explain the app error, preserve the layout and allow retry', async ({
+  page,
+}) => {
+  const original = await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.route('**/nesting-worker-*.js', (route) => route.abort());
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingStatus')).toContainText(
+    'could not load or run the background nesting worker',
+  );
+  await expect(page.locator('#optimizeLayout')).toBeEnabled();
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  expect(await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML)).toBe(original);
+  await page.unroute('**/nesting-worker-*.js');
+  await page.evaluate(() => {
+    const originalWorker = window.Worker;
+    window.Worker = class {
+      constructor() {
+        throw new Error('Blocked worker startup');
+      }
+    } as unknown as typeof Worker;
+    try {
+      document.getElementById('optimizeLayout')!.click();
+    } finally {
+      window.Worker = originalWorker;
+    }
+  });
+  await expect(page.locator('#nestingStatus')).toContainText(
+    'local previews require the server to stay running',
+  );
+  await expect(page.locator('#optimizeLayout')).toBeEnabled();
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  expect(await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML)).toBe(original);
+  expect(errors).toEqual([]);
+});
+
 test('green candidate overlays are transient, rejectable and excluded from current-layout downloads', async ({
   page,
 }) => {

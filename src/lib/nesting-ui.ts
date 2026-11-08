@@ -90,10 +90,21 @@ export function initializeNesting(
     status.textContent = checkOnly
       ? 'Checking clearance...'
       : 'Searching aligned, alternating and staggered layouts...';
-    worker = new Worker(new URL('./nesting-worker.ts', import.meta.url), { type: 'module' });
-    worker.onerror = () => {
+    const workerFailed = (error: unknown) => {
       stop();
-      status.textContent = 'Unable to run the nesting search. Manual layout remains available.';
+      console.error('Nesting worker failed:', error);
+      status.textContent =
+        'The app could not load or run the background nesting worker. Your current layout is unchanged. Reload the page and retry; local previews require the server to stay running.';
+    };
+    try {
+      worker = new Worker(new URL('./nesting-worker.ts', import.meta.url), { type: 'module' });
+    } catch (error) {
+      workerFailed(error);
+      return;
+    }
+    worker.onerror = (event) => {
+      event.preventDefault();
+      workerFailed(event.message || 'Worker script could not be loaded.');
     };
     worker.onmessage = (
       event: MessageEvent<{ plan?: NestingPlan; safe?: boolean; error?: string }>,
