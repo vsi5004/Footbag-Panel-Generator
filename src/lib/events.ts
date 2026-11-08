@@ -3,6 +3,7 @@
 
 import type { DOMElements, Panel, PanelConfig } from '../types';
 import { createExportSvg, normalizeExportScale } from './export';
+import { syncPairDisplay } from './ui';
 
 export interface EventHandlers {
   render: () => void;
@@ -15,38 +16,41 @@ export interface EventHandlers {
  * Resets panel settings to default values
  */
 export function resetPanelSettings(el: DOMElements, ui: any, render: () => void): void {
-  // Reset all panel controls to their default values
-  if (el.shape) el.shape.value = '5'; // Pentagon
-  if (el.curved) el.curved.checked = false; // Straight edges
-  if (el.side) el.side.value = '30'; // 30mm side length
-  if (el.seam) el.seam.value = '5'; // default seam allowance (can be negative)
-  if (el.stitches) el.stitches.value = '10'; // 10 stitch holes per side
-  if (el.cornerMargin) el.cornerMargin.value = '6'; // 6mm corner margin
-  if (el.holeSpacing) el.holeSpacing.value = '3'; // 3mm hole spacing
-  if (el.dotSize) el.dotSize.value = '1'; // 1mm dot size
-  if (el.curveRadius) el.curveRadius.value = '60'; // Default curve radius (mm)
-  if (el.hexType) el.hexType.value = 'truncated'; // Truncated triangle
-  if (el.hexLong) el.hexLong.value = '30'; // 30mm long side
-  if (el.hexRatio) el.hexRatio.value = '0.5'; // 0.5 ratio
-  
-  // Update UI visibility and sync number displays
+  // Use the defaults declared by the controls so Reset matches a fresh page.
+  for (const select of [el.shape, el.hexType]) {
+    if (select) select.selectedIndex = Math.max(0, Array.from(select.options).findIndex(option => option.defaultSelected));
+  }
+  for (const checkbox of [el.curved, el.showHoles, el.cornerStitchSpacing, el.showGrid]) {
+    if (checkbox) checkbox.checked = checkbox.defaultChecked;
+  }
+
+  const pairs: [HTMLInputElement | null, HTMLElement | null][] = [
+    [el.side, el.sideNumber],
+    [el.seam, el.seamNumber],
+    [el.stitches, el.stitchesNumber],
+    [el.cornerMargin, el.cornerMarginNumber],
+    [el.holeSpacing, el.holeSpacingNumber],
+    [el.holeBunching, el.holeBunchingNumber],
+    [el.dotSize, el.dotSizeNumber],
+    [el.curveRadius, el.curveRadiusNumber],
+    [el.hexLong, el.hexLongNumber],
+    [el.hexRatio, el.hexRatioNumber],
+    [el.starRootOffset, el.starRootOffsetNumber],
+    [el.starRootAngle, el.starRootAngleNumber],
+    [el.cornerStitchDistance, el.cornerStitchDistanceNumber],
+  ];
+  for (const [range, display] of pairs) {
+    if (!range) continue;
+    // Constraints from the previous design must not clamp the reset value.
+    // The next render recomputes dynamic bounds for the default design.
+    const value = Number(range.defaultValue);
+    if (range.min !== '' && Number(range.min) > value) range.min = String(value);
+    if (range.max !== '' && Number(range.max) < value) range.max = String(value);
+    range.value = range.defaultValue;
+    syncPairDisplay(range, display);
+  }
   ui.updateVisibility(el);
-  ui.syncPair(el.side!, el.sideNumber!, () => {});
-  ui.syncPair(el.seam!, el.seamNumber!, () => {});
-  ui.syncPair(el.stitches!, el.stitchesNumber!, () => {});
-  ui.syncPair(el.cornerMargin!, el.cornerMarginNumber!, () => {});
-  ui.syncPair(el.holeSpacing!, el.holeSpacingNumber!, () => {});
-  ui.syncPair(el.dotSize!, el.dotSizeNumber!, () => {});
-  if (el.curveRadius && el.curveRadiusNumber) {
-    ui.syncPair(el.curveRadius, el.curveRadiusNumber, () => {});
-  }
-  if (el.hexLong && el.hexLongNumber) {
-    ui.syncPair(el.hexLong, el.hexLongNumber, () => {});
-  }
-  if (el.hexRatio && el.hexRatioNumber) {
-    ui.syncPair(el.hexRatio, el.hexRatioNumber, () => {});
-  }
-  
+
   // Re-render the panel with default values
   render();
 }
@@ -162,16 +166,6 @@ export function setupImportSettings(el: DOMElements, ui: any, render: () => void
         
         // Manually trigger sync for all range/number pairs
         // This ensures number displays match the imported range values
-        const syncPairDisplay = (range: HTMLInputElement | null, display: HTMLElement | null) => {
-          if (range && display) {
-            if ('value' in display) {
-              (display as HTMLInputElement).value = range.value;
-            } else {
-              display.textContent = range.value;
-            }
-          }
-        };
-        
         // Sync all main panel pairs
         syncPairDisplay(el.side, el.sideNumber);
         syncPairDisplay(el.seam, el.seamNumber);
