@@ -15,7 +15,9 @@ import {
   updateDynamicConstraints,
   createPanelConfig,
 } from './validation';
-import { createLayoutSvg, calculateMaterialUtilization, measureLayoutSvg } from './layout';
+import { calculateMaterialUtilization, measureLayoutSvg } from './layout';
+import { updateLayoutPreview } from './layout-preview';
+import { updateSvgGrid } from './svg-grid';
 import { createPolygonGeometry, getStitchCornerMargin } from './shape-geometry';
 import { geometry } from './geometry';
 import { stitches as stitchHelpers } from './stitches';
@@ -142,6 +144,10 @@ export function computePanel(params: PanelConfig): Panel {
 /**
  * Renders the SVG to the DOM
  */
+const panelPreviews = new WeakMap<
+  HTMLElement,
+  { panel: Panel; dot: number; svg: SVGElement; showGrid: boolean }
+>();
 export function renderSVGToDOM(
   panel: Panel,
   dotDiameter: number,
@@ -153,18 +159,26 @@ export function renderSVGToDOM(
     return;
   }
 
-  el.svgHost.innerHTML = '';
-
   const showGrid = !!(el.showGrid && el.showGrid.checked);
-  const svg = svgHelpers.createSvg(panel, { dotDiameter, showGrid });
-
-  svg.style.maxWidth = '100%';
-  svg.style.height = 'auto';
-
-  const wrap = document.createElement('div');
-  wrap.className = 'svg-wrap';
-  wrap.appendChild(svg);
-  el.svgHost.appendChild(wrap);
+  const previous = panelPreviews.get(el.svgHost);
+  if (
+    previous &&
+    previous.panel === panel &&
+    previous.dot === dotDiameter &&
+    previous.svg.parentElement?.parentElement === el.svgHost
+  ) {
+    if (previous.showGrid !== showGrid) updateSvgGrid(previous.svg, panel.bounds, showGrid);
+    previous.showGrid = showGrid;
+  } else {
+    const svg = svgHelpers.createSvg(panel, { dotDiameter, showGrid });
+    svg.style.maxWidth = '100%';
+    svg.style.height = 'auto';
+    const wrap = document.createElement('div');
+    wrap.className = 'svg-wrap';
+    wrap.appendChild(svg);
+    el.svgHost.replaceChildren(wrap);
+    panelPreviews.set(el.svgHost, { panel, dot: dotDiameter, svg, showGrid });
+  }
 
   // Update panel info if elements exist and config is provided
   if (config && el.panelInfoContainer && el.panelSideLengthValue && el.panelStitchedLengthValue) {
@@ -259,7 +273,6 @@ export function renderLayout(
   const rawFitPct = Math.min(hostW / layoutWpx, hostH / layoutHpx) * 100;
   const fitPct = Math.max(20, Math.min(300, Math.floor(rawFitPct) - 1));
 
-  pageEl.svgHost.innerHTML = '';
   // Calculate and display material dimensions
   if (pageEl.dimensionsValue) {
     pageEl.dimensionsValue.textContent = `${layoutWmm.toFixed(1)} × ${layoutHmm.toFixed(1)}`;
@@ -299,6 +312,7 @@ export function renderLayout(
     Number.isFinite(layoutWmm) && Number.isFinite(layoutHmm) && layoutWmm > 0 && layoutHmm > 0;
   if (pageEl.downloadSvg) pageEl.downloadSvg.disabled = !validDimensions;
   if (!validDimensions) {
+    pageEl.svgHost.replaceChildren();
     state.lastLayoutWpx = 0;
     state.lastLayoutHpx = 0;
     const message = document.createElement('p');
@@ -308,22 +322,29 @@ export function renderLayout(
     pageEl.svgHost.appendChild(message);
     return;
   }
-  const svg = createLayoutSvg(panel, {
-    rows,
-    cols,
-    hSpace,
-    vSpace,
-    dotDiameter,
-    showGrid,
-    invertOdd,
-    nestingVerticalOffset,
-    padding,
-    optimized,
-  });
-  const wrap = document.createElement('div');
-  wrap.className = 'svg-wrap';
-  wrap.appendChild(svg);
-  pageEl.svgHost.appendChild(wrap);
+  const existing = pageEl.svgHost.querySelector('svg');
+  const svg = updateLayoutPreview(
+    panel,
+    {
+      rows,
+      cols,
+      hSpace,
+      vSpace,
+      dotDiameter,
+      showGrid,
+      invertOdd,
+      nestingVerticalOffset,
+      padding,
+      optimized,
+    },
+    existing,
+  );
+  if (svg !== existing) {
+    const wrap = document.createElement('div');
+    wrap.className = 'svg-wrap';
+    wrap.appendChild(svg);
+    pageEl.svgHost.replaceChildren(wrap);
+  }
   const currentPct = ui?.zoom?.getPct(pageEl) || 100;
   if (state.isFirstLayoutRender) {
     // Keep user's/default 100% on first load; no auto-shrink

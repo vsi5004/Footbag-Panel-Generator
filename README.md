@@ -78,6 +78,7 @@ npm run check      # Settings consistency, lint, format, tests and production bu
 npx playwright install chromium firefox webkit
 npm run test:browser # Real-browser tests against the production build
 npm run benchmark    # Advisory warmed Node/jsdom timing measurements
+npm run benchmark:browser # Advisory interaction measurements against the built app
 npm run format     # Format TypeScript and test/helper sources
 npm run settings:sync # Update HTML/schema after changing schema/controls.json
 ```
@@ -144,6 +145,26 @@ Constraint validation and stitch placement share a bounded cache of sampled edge
 | 12×12 star SVG, 28,800 hole circles | 287.936 | 236.526 |
 
 All 36 outputs captured from merged main before this change match exactly after optimization, including utilization. The historical deployed-baseline fixture is unchanged. Additional tests cover cache eviction/input changes, concave containment, touching outlines, curve approximation, independently finer clearance checks, all shape variants, deterministic searches, 144 panels, scaled exports, settings compatibility, stale workers and mobile controls.
+
+### Incremental preview updates
+
+Layout changes are coalesced into one animation frame and read the latest controls. When the panel geometry, dot diameter, panel count and manual/optimized SVG structure are unchanged, the sheet retains its paths and hole circles. Spacing, padding, inversion and nesting-offset edits update transforms, dimensions, viewBox and grid as needed. Geometry/dot/count changes and transitions between manual and optimized layouts rebuild through the existing SVG factory. Invalid dimensions still clear the preview and disable sheet export.
+
+The panel grid updates only the single-panel grid layer. Sheet grid toggles replace only that grid layer; unchanged grids and attributes are retained. Downloads, settings export and nesting actions synchronously flush both pending panel edits and queued layout frames before reading state. This prevents immediate exports or clearance checks from using a previous frame.
+
+`npm run benchmark:browser -- --runs=5 --out=work/browser-timings.json` measures the current production build in Chromium at 1280×900; run `npm run build` first and create the output directory if specifying one. The script starts/stops its own local preview on port 4322 and supports `--browser=firefox` or `--browser=webkit` when installed. Each workload has a warm-up and reports median handler time, time over two animation frames, sheet replacements and retained-node identity. Frame timing includes scheduling/rendering opportunities and is not a direct paint timestamp. Measurements are advisory, with no CI timing thresholds.
+
+On the same Windows desktop in Chromium 158.0.8127.18, five-run medians for the 12×12 star sheet (28,800 hole circles) were:
+
+| Interaction | Before: two-frame time (ms) | After: two-frame time (ms) |
+| --- | ---: | ---: |
+| Horizontal spacing edit | 75.0 | 31.6 |
+| Padding edit | 69.2 | 32.8 |
+| Sheet grid toggle | 123.8 | 73.4 |
+| Panel grid toggle | 161.0 | 63.2 |
+| Synthetic burst of 24 spacing inputs in one task | 2051.9 | 98.9 |
+
+The burst previously replaced the sheet 24 times; it now performs one layout commit while retaining the existing SVG and hole circles. These are desktop browser measurements, not phone performance guarantees. Browser regression tests assert node retention, one-frame coalescing and latest-value downloads without timing thresholds. Unit tests compare incremental SVG serialization and 75/100/125% exports exactly against fresh SVGs across every shape, straight/curved edges, holes on/off, inversion, same-count row/column changes and optimized placements.
 
 ### Deployment
 The app is automatically deployed to GitHub Pages via GitHub Actions when pushing to the main branch. Settings, lint, formatting, regression tests, the production build and browser tests must pass before the deployment workflow uploads the site. Pull requests run the same checks without deploying.
