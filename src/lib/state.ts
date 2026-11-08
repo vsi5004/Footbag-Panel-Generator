@@ -10,6 +10,7 @@ import { normalizeExportScale } from './export';
 import { normalizeSetting } from './settings';
 import { readImportedSettings } from './import-settings';
 import { panelControlPairs } from './controls';
+import type { NestingPlan } from './nesting-types';
 import { syncPairDisplay } from './ui';
 
 const { clamp } = utils;
@@ -40,6 +41,7 @@ export interface SettingsData {
   };
   export?: { scalePercent?: number };
   layout: {
+    optimized?: NestingPlan;
     padding: number;
     rows: number;
     cols: number;
@@ -84,6 +86,7 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
     },
     export: { scalePercent: normalizeExportScale(el.exportScale?.value) },
     layout: {
+      ...(layoutEl?.nesting?.active ? { optimized: layoutEl.nesting.active } : {}),
       padding: parseFloat(layoutEl?.pagePadding?.value || '10'),
       rows: parseInt(layoutEl?.pageRows?.value || '3', 10),
       cols: parseInt(layoutEl?.pageCols?.value || '3', 10),
@@ -98,6 +101,17 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
 
 function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElements): void {
   const s = readImportedSettings(data);
+  // Older files always restore the manual layout, never a previous optimization.
+  if (layoutEl?.nesting) layoutEl.nesting.active = s.layout?.optimized;
+  if (layoutEl?.nestingGap)
+    layoutEl.nestingGap.value = String(
+      s.layout?.optimized?.gap ?? layoutEl.nestingGap.defaultValue,
+    );
+
+  if (layoutEl?.nestingQuarterTurn)
+    layoutEl.nestingQuarterTurn.checked =
+      s.layout?.optimized?.placements.some((at) => at.angle === 90 || at.angle === 270) ??
+      layoutEl.nestingQuarterTurn.defaultChecked;
 
   const set = (input: HTMLInputElement | null, value: unknown) => {
     if (input == null || typeof value !== 'number' || !Number.isFinite(value)) return;

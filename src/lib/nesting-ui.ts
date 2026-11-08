@@ -1,0 +1,179 @@
+import type { Panel, PanelConfig, PageElements, LayoutElements } from '../types';
+import { manualPlacements, measureLayoutSvg, type LayoutSvgOptions } from './layout';
+import { designKey, measurePlaced, type NestingPlan } from './nesting-types';
+
+export function initializeNesting(
+  layout: LayoutElements,
+  page: PageElements,
+  getPanel: () => { panel: Panel | null; config: PanelConfig | null; dot: number },
+  flush: () => void,
+  refresh: () => void,
+): void {
+  const optimize = document.getElementById('optimizeLayout') as HTMLButtonElement;
+  const check = document.getElementById('checkClearance') as HTMLButtonElement;
+  const apply = document.getElementById('applyNesting') as HTMLButtonElement;
+  const manual = document.getElementById('manualLayout') as HTMLButtonElement;
+  const cancel = document.getElementById('cancelNesting') as HTMLButtonElement;
+  const gapInput = document.getElementById('nestingGap') as HTMLInputElement;
+  const quarter = document.getElementById('nestingQuarterTurn') as HTMLInputElement;
+  const status = document.getElementById('nestingStatus')!;
+  let worker: Worker | undefined, candidate: NestingPlan | undefined;
+  const stop = () => {
+    worker?.terminate();
+    worker = undefined;
+    candidate = undefined;
+    optimize.disabled = false;
+    check.disabled = false;
+    cancel.disabled = true;
+    apply.disabled = true;
+  };
+  const options = (): LayoutSvgOptions => ({
+    rows: Number(layout.pageRows?.value ?? 3),
+    cols: Number(layout.pageCols?.value ?? 3),
+    hSpace: Number(layout.pageHSpaceNumber?.value ?? 0),
+    vSpace: Number(layout.pageVSpace?.value ?? 1),
+    invertOdd: !!layout.pageInvert?.checked,
+    nestingVerticalOffset: Number(layout.nestingOffset?.value ?? 0),
+    dotDiameter: getPanel().dot,
+    padding: Number(layout.pagePadding?.value ?? 10),
+    showGrid: !!page.showGrid?.checked,
+    optimized: layout.nesting?.active,
+  });
+  const start = (checkOnly: boolean) => {
+    stop();
+    flush();
+    const { panel, config, dot } = getPanel();
+    if (!panel || !config) return;
+    const gap = Number(gapInput.value);
+    if (gapInput.value.trim() === '' || !Number.isFinite(gap) || gap < 0 || gap > 20) {
+      status.textContent = 'Enter a minimum gap from 0 to 20 mm.';
+      return;
+    }
+    const opts = options(),
+      count = opts.rows * opts.cols,
+      source = designKey(config, dot, count);
+    const current = measureLayoutSvg(panel, opts);
+    optimize.disabled = true;
+    check.disabled = true;
+    cancel.disabled = false;
+    status.textContent = checkOnly
+      ? 'Checking clearance...'
+      : 'Searching aligned, alternating and staggered layouts...';
+    worker = new Worker(new URL('./nesting-worker.ts', import.meta.url), { type: 'module' });
+    worker.onerror = () => {
+      stop();
+      status.textContent = 'Unable to run the nesting search. Manual layout remains available.';
+    };
+    worker.onmessage = (
+      event: MessageEvent<{ plan?: NestingPlan; safe?: boolean; error?: string }>,
+    ) => {
+      worker?.terminate();
+      worker = undefined;
+      optimize.disabled = false;
+      check.disabled = false;
+      cancel.disabled = true;
+      const latest = getPanel(),
+        now = options();
+      if (!latest.config || designKey(latest.config, latest.dot, now.rows * now.cols) !== source) {
+        stop();
+        status.textContent = 'Design changed. Run the search again.';
+        return;
+      }
+      if (event.data.error) {
+        status.textContent = event.data.error;
+        return;
+      }
+      if (checkOnly) {
+        status.textContent = event.data.safe
+          ? 'All cut outlines meet the requested gap, including a conservative curve allowance.'
+          : 'Some cut outlines overlap, touch, or are too close for the requested gap (including the curve allowance). Manual export is still available.';
+        return;
+      }
+      candidate = event.data.plan;
+      if (!candidate) return;
+      const size = measurePlaced(panel, candidate.placements, dot, opts.padding ?? 10);
+      const percent = (1 - (size.width * size.height) / (current.width * current.height)) * 100;
+      const comparison =
+        Number.isFinite(percent) && current.width > 0 && current.height > 0
+          ? ' (' +
+            Math.abs(percent).toFixed(1) +
+            '% ' +
+            (percent >= 0 ? 'less' : 'more') +
+            ' sheet area than the current layout)'
+          : '';
+      status.textContent =
+        'Candidate: ' +
+        size.width.toFixed(1) +
+        ' × ' +
+        size.height.toFixed(1) +
+        ' mm' +
+        comparison +
+        '. ' +
+        count +
+        ' panels, minimum gap ' +
+        gap +
+        ' mm at 100% export. Apply to use this arrangement.';
+      apply.disabled = false;
+    };
+    worker.postMessage({
+      panel,
+      count,
+      gap,
+      quarterTurn: quarter.checked,
+      source,
+      padding: opts.padding ?? 10,
+      dot,
+      cols: opts.cols,
+      ...(checkOnly
+        ? { placements: opts.optimized?.placements ?? manualPlacements(panel, opts) }
+        : {}),
+    });
+  };
+  optimize.addEventListener('click', () => start(false));
+  check.addEventListener('click', () => start(true));
+  apply.addEventListener('click', () => {
+    flush();
+    const { config, dot } = getPanel(),
+      opts = options();
+    if (
+      !candidate ||
+      !config ||
+      candidate.source !== designKey(config, dot, opts.rows * opts.cols)
+    ) {
+      stop();
+      return;
+    }
+    if (layout.nesting) layout.nesting.active = candidate;
+    const gap = candidate.gap;
+    stop();
+    refresh();
+    status.textContent =
+      'Optimized layout applied. Minimum gap ' +
+      gap +
+      ' mm at 100% export. Design or manual layout edits restore the manual arrangement.';
+  });
+  manual.addEventListener('click', () => {
+    stop();
+    if (layout.nesting) layout.nesting.active = undefined;
+    refresh();
+    status.textContent = 'Manual layout restored.';
+  });
+  cancel.addEventListener('click', () => {
+    stop();
+    status.textContent = 'Search cancelled. Current layout unchanged.';
+  });
+  for (const id of ['resetPanelSettings', 'resetLayoutSettings'])
+    document.getElementById(id)?.addEventListener('click', () => {
+      if (worker || candidate) {
+        stop();
+        status.textContent = 'Settings reset. Run the search again.';
+      }
+    });
+  for (const event of ['input', 'change'])
+    document.addEventListener(event, () => {
+      if (worker || candidate) {
+        stop();
+        status.textContent = 'Settings changed. Run the search or clearance check again.';
+      }
+    });
+}

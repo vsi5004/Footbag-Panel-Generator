@@ -2,6 +2,7 @@ import type { Point, EdgeSample } from '../types';
 import { utils } from './utils';
 import { geometry } from './geometry';
 import { CONSTANTS } from './constants';
+import { getEdgeMetrics } from './edge-metrics';
 
 const { clamp } = utils;
 const G = geometry;
@@ -12,8 +13,8 @@ const { SAMPLING } = CONSTANTS;
  */
 function placeStitchAtPosition(
   target: number,
-  cumulativeDistances: number[],
-  edgeSamples: EdgeSample[],
+  cumulativeDistances: readonly number[],
+  edgeSamples: readonly EdgeSample[],
   seamOffset: number,
   stitchPoints: Point[],
 ): void {
@@ -65,6 +66,7 @@ function stitchPositionsByEdge(
   cornerStitchDistance: number = 3,
   holeBunching: number = 0,
 ): Point[][] {
+  if (stitchesPerSide <= 0) return vertices.map(() => []);
   const vertexCount = vertices.length;
   const stitchesByEdge: Point[][] = [];
 
@@ -80,20 +82,11 @@ function stitchPositionsByEdge(
 
     const startVertex = vertices[i];
     const endVertex = vertices[(i + 1) % vertexCount];
-    const edgeSamples = G.approxArcEdgeSamples(startVertex, endVertex, curveRadius, samplesPerEdge);
-    const cumulativeDistances = [0];
-    let totalEdgeLength = 0;
+    const metrics = getEdgeMetrics(startVertex, endVertex, curveRadius, samplesPerEdge);
+    const edgeSamples = metrics.samples;
+    const cumulativeDistances = metrics.distances;
+    const totalEdgeLength = metrics.length;
     const currentEdgePoints: Point[] = [];
-
-    for (let j = 1; j < edgeSamples.length; j++) {
-      const previousPoint = edgeSamples[j - 1].p;
-      const currentPoint = edgeSamples[j].p;
-      totalEdgeLength += Math.hypot(
-        currentPoint.x - previousPoint.x,
-        currentPoint.y - previousPoint.y,
-      );
-      cumulativeDistances.push(totalEdgeLength);
-    }
 
     // Detect if we can treat this edge as a true circular arc
     const dx = endVertex.x - startVertex.x;
@@ -436,14 +429,7 @@ function computeAllowableSpacing(
 
     const a = vertices[i];
     const b = vertices[(i + 1) % vertexCount];
-    const edgeSamples = G.approxArcEdgeSamples(a, b, curveRadius, samplesPerEdge);
-    let edgeLen = 0;
-
-    for (let j = 1; j < edgeSamples.length; j++) {
-      const p0 = edgeSamples[j - 1].p,
-        p1 = edgeSamples[j].p;
-      edgeLen += Math.hypot(p1.x - p0.x, p1.y - p0.y);
-    }
+    let edgeLen = getEdgeMetrics(a, b, curveRadius, samplesPerEdge).length;
 
     // If arc is curved, use inset-arc length rather than base samples
     const dx = b.x - a.x,

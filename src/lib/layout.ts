@@ -4,6 +4,8 @@
 import type { Panel, Point, PanelConfig } from '../types';
 import { utils } from './utils';
 import { CONSTANTS } from './constants';
+import { createNestedSvg } from './nested-svg';
+import { measurePlaced, type NestingPlan, type Placement } from './nesting-types';
 import { createPolygonGeometry } from './shape-geometry';
 
 export interface LayoutArrangement {
@@ -16,6 +18,7 @@ export interface LayoutArrangement {
 }
 
 export interface LayoutSvgOptions extends LayoutArrangement {
+  optimized?: NestingPlan;
   dotDiameter: number;
   showGrid: boolean;
   padding?: number;
@@ -35,6 +38,14 @@ function measureLayout(panel: Panel, opts: LayoutArrangement, renderPad: number,
 /** Physical sheet bounds shared by SVG generation and preview sizing. */
 export function measureLayoutSvg(panel: Panel, opts: LayoutSvgOptions) {
   const renderPad = Math.max((CONSTANTS.STROKES.cut || 0) / 2, Math.max(0, opts.dotDiameter / 2));
+  if (opts.optimized) {
+    return {
+      cellW: 0,
+      cellH: 0,
+      ...measurePlaced(panel, opts.optimized.placements, opts.dotDiameter, opts.padding ?? 10),
+      renderPad,
+    };
+  }
   return { ...measureLayout(panel, opts, renderPad, opts.padding ?? 10), renderPad };
 }
 
@@ -42,6 +53,14 @@ export function measureLayoutSvg(panel: Panel, opts: LayoutSvgOptions) {
  * Creates a layout SVG with multiple copies of the panel
  */
 export function createLayoutSvg(panel: Panel, opts: LayoutSvgOptions): SVGElement {
+  if (opts.optimized)
+    return createNestedSvg(
+      panel,
+      opts.optimized,
+      opts.dotDiameter,
+      opts.padding ?? 10,
+      opts.showGrid,
+    );
   const {
     rows,
     cols,
@@ -89,6 +108,28 @@ export function createLayoutSvg(panel: Panel, opts: LayoutSvgOptions): SVGElemen
   const dy0 = -(panel.bounds.viewMinY + margin);
   const r = Math.max(0.1, dotDiameter / 2);
 
+  // Clone identical panel markup; preserve ordinary paths/circles in exports
+  // for compatibility with cutting software that does not expand SVG <use>.
+  const template = document.createElementNS(svg.namespaceURI, 'g');
+  const path = document.createElementNS(svg.namespaceURI, 'path');
+  path.setAttribute('d', panel.outlinePath);
+  path.setAttribute('stroke', COLORS.cut);
+  path.setAttribute('stroke-width', `${STROKES.cut}mm`);
+  path.setAttribute('fill', 'none');
+  template.appendChild(path);
+
+  const marks = document.createElementNS(svg.namespaceURI, 'g');
+  marks.setAttribute('fill', COLORS.seam);
+  for (const p of panel.stitches) {
+    const c = document.createElementNS(svg.namespaceURI, 'circle');
+    c.setAttribute('cx', p.x.toFixed(3));
+    c.setAttribute('cy', p.y.toFixed(3));
+    c.setAttribute('r', r.toFixed(3));
+    c.setAttribute('fill', COLORS.seam);
+    marks.appendChild(c);
+  }
+  template.appendChild(marks);
+
   for (let ri = 0; ri < rows; ri++) {
     for (let ci = 0; ci < cols; ci++) {
       // Nudge content inward by renderPad so visual extents stay within the cell
@@ -98,7 +139,7 @@ export function createLayoutSvg(panel: Panel, opts: LayoutSvgOptions): SVGElemen
       const gCell = document.createElementNS(svg.namespaceURI, 'g');
       gCell.setAttribute('transform', `translate(${offX.toFixed(3)} ${offY.toFixed(3)})`);
       // Inner group for optional flip within the cell box
-      const g = document.createElementNS(svg.namespaceURI, 'g');
+      const g = template.cloneNode(true) as SVGGElement;
       if (invertOdd && ci % 2 === 1) {
         // Flip vertically within the panel's own coordinate space
         // The panel spans from viewMinY to viewMinY + height
@@ -111,24 +152,6 @@ export function createLayoutSvg(panel: Panel, opts: LayoutSvgOptions): SVGElemen
         g.setAttribute('transform', `matrix(1 0 0 -1 0 ${flipAndOffset.toFixed(3)})`);
       }
 
-      const path = document.createElementNS(svg.namespaceURI, 'path');
-      path.setAttribute('d', panel.outlinePath);
-      path.setAttribute('stroke', COLORS.cut);
-      path.setAttribute('stroke-width', `${STROKES.cut}mm`);
-      path.setAttribute('fill', 'none');
-      g.appendChild(path);
-
-      const marks = document.createElementNS(svg.namespaceURI, 'g');
-      marks.setAttribute('fill', COLORS.seam);
-      for (const p of panel.stitches) {
-        const c = document.createElementNS(svg.namespaceURI, 'circle');
-        c.setAttribute('cx', p.x.toFixed(3));
-        c.setAttribute('cy', p.y.toFixed(3));
-        c.setAttribute('r', r.toFixed(3));
-        c.setAttribute('fill', COLORS.seam);
-        marks.appendChild(c);
-      }
-      g.appendChild(marks);
       gCell.appendChild(g);
       svg.appendChild(gCell);
     }
@@ -248,4 +271,26 @@ function calculatePolygonArea(vertices: Point[]): number {
   }
 
   return Math.abs(area) / 2;
+}
+
+// Exact transforms used by the existing manual grid, for clearance checks.
+export function manualPlacements(panel: Panel, opts: LayoutSvgOptions): Placement[] {
+  const { cellW, cellH, renderPad } = measureLayoutSvg(panel, { ...opts, optimized: undefined });
+  const dx = -(panel.bounds.viewMinX + CONSTANTS.LAYOUT.MARGIN_MM) + renderPad;
+  const dy = -(panel.bounds.viewMinY + CONSTANTS.LAYOUT.MARGIN_MM) + renderPad;
+  const result: Placement[] = [];
+  for (let row = 0; row < opts.rows; row++)
+    for (let col = 0; col < opts.cols; col++) {
+      const flip = opts.invertOdd && col % 2 === 1;
+      result.push({
+        x: col * (cellW + opts.hSpace) + dx,
+        y:
+          row * (cellH + opts.vSpace) +
+          dy +
+          (flip ? 2 * panel.bounds.viewMinY + panel.bounds.height + opts.nestingVerticalOffset : 0),
+        angle: 0,
+        ...(flip ? { flipY: true } : {}),
+      });
+    }
+  return result;
 }

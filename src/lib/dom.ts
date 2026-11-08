@@ -106,6 +106,9 @@ export function createPageElements(): PageElements {
  */
 export function getLayoutElements(): LayoutElements {
   return {
+    nesting: {},
+    nestingGap: document.getElementById('nestingGap') as HTMLInputElement | null,
+    nestingQuarterTurn: document.getElementById('nestingQuarterTurn') as HTMLInputElement | null,
     pagePadding: document.getElementById('pagePadding') as HTMLInputElement | null,
     pagePaddingNumber: document.getElementById('pagePaddingNumber') as HTMLInputElement | null,
     pageRows: document.getElementById('pageRows') as HTMLInputElement | null,

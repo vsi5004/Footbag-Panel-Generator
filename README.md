@@ -77,6 +77,7 @@ npm test           # Unit, compatibility and deployed-output regression tests
 npm run check      # Settings consistency, lint, format, tests and production build
 npx playwright install chromium firefox webkit
 npm run test:browser # Real-browser tests against the production build
+npm run benchmark    # Advisory warmed Node/jsdom timing measurements
 npm run format     # Format TypeScript and test/helper sources
 npm run settings:sync # Update HTML/schema after changing schema/controls.json
 ```
@@ -118,6 +119,32 @@ For six 30 mm squares, 4 mm horizontal spacing, 5 mm vertical spacing, 10 mm pad
 
 Panels that overlap are counted separately. A ratio over 100% remains visible and does not represent unique occupied area. Non-positive or non-finite sheet dimensions display an unavailable value (`—`). Global export scaling multiplies both areas by the same factor squared, so the percentage stays unchanged. Panel shapes, stitch positions and SVG dimensions are unchanged by this metric correction. Layouts with non-positive or non-finite sheet dimensions show an explanation instead of an invalid preview and disable layout download. Increase horizontal/vertical spacing or padding to restore it; individual panel export remains available.
 
+### Optional nesting and clearance checks
+
+Manual layouts keep their existing behavior. **Check clearance** examines the current placement of cut outlines at the requested gap, including alternating-column reflections and nesting offsets. It warns about overlap, contact or insufficient gap; it does not block manual exports. Hole marks are not included in clearance checks.
+
+**Optimize layout** searches aligned grids, alternating 180° rows/columns and staggered rows/columns, using several column counts around the current arrangement, square layouts and wider/taller layouts. Optional 90° rotations are off by default so users can account for fabric grain. Panel count stays fixed. A deterministic bounded search reduces horizontal and vertical pitches, then compares full sheet areas including padding and render allowances. This is a heuristic for repeated copies of one shape, not a guarantee of the best possible packing or a fixed-stock-width solver.
+
+The search runs in a cancellable Web Worker. Its result is a proposal: dimensions and area difference are shown before **Apply candidate** changes the preview/export. A safe arrangement may need more area than an overlapping manual layout. **Return to manual**, layout reset or manual layout edits restore the original grid controls. Panel/dot changes invalidate the arrangement; grid visibility, zoom and export scaling preserve it.
+
+The minimum gap is in millimeters at 100% export and scales with the template. Circular arcs are flattened from the actual rounded SVG outline with at most 0.02 mm chord error; clearance includes an additional 0.045 mm for both outlines and coordinate rounding. Bounding boxes reject distant pairs; segment distance/intersection and containment tests handle convex and concave panels. Self-crossing outlines are rejected by automatic nesting. Exports retain their original circular paths and ordinary hole circles; the approximation is used only for placement checks.
+
+Settings version 1 gains an optional `layout.optimized` containing a source-design key, gap and explicit panel positions/rotations. Imports validate numeric types, counts, coordinates and rotations before applying controls. An imported arrangement is rechecked against the resolved panel design and clearance before use. Stale, wrong-count or overlapping arrangements fall back to manual with an explanation. Old files without the extension restore manual layouts. Applied settings reproduce placements without rerunning the search. Older app versions ignore this extension and use their manual layout controls.
+
+### Geometry performance
+
+Constraint validation and stitch placement share a bounded cache of sampled edge metrics keyed by endpoints, radius and sample count. Sampling and distance accumulation retain the same operation order. Panels with no stitch holes skip hole sampling; UI renders reuse the latest computed panel when its resolved configuration is unchanged. Repeated sheet panels clone ordinary SVG markup, avoiding repeated attribute construction while preserving compatibility with cutting software.
+
+`npm run benchmark` reports median warmed timings from five trials in Node/jsdom; these are advisory measurements, not CI thresholds or phone benchmarks. On the same Windows host with Node 22.22.2, before/after results were:
+
+| Workload | Before (ms) | After (ms) |
+| --- | ---: | ---: |
+| Mixed panel calculation | 0.065 | 0.015 |
+| Panel calculation with no holes | 0.062 | 0.005 |
+| 12×12 star SVG, 28,800 hole circles | 287.936 | 236.526 |
+
+All 36 outputs captured from merged main before this change match exactly after optimization, including utilization. The historical deployed-baseline fixture is unchanged. Additional tests cover cache eviction/input changes, concave containment, touching outlines, curve approximation, independently finer clearance checks, all shape variants, deterministic searches, 144 panels, scaled exports, settings compatibility, stale workers and mobile controls.
+
 ### Deployment
 The app is automatically deployed to GitHub Pages via GitHub Actions when pushing to the main branch. Settings, lint, formatting, regression tests, the production build and browser tests must pass before the deployment workflow uploads the site. Pull requests run the same checks without deploying.
 
@@ -157,7 +184,7 @@ The app is automatically deployed to GitHub Pages via GitHub Actions when pushin
 ## Future Enhancements
 - Preset polyhedron patterns (e.g., 32‑panel soccer ball configurations)
 - PDF export option
-- Automatic nesting algorithms for irregular shapes?
+- General nesting of different shapes into fixed stock dimensions
 - Bag size estimator?
 
 ## Contributing

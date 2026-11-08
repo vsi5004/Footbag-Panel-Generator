@@ -66,5 +66,42 @@ export function readImportedSettings(value: unknown): ImportedSettings {
         throw new Error(`Invalid layout.${key}`);
     }
   }
+  if (isObject(layout) && 'optimized' in layout) {
+    const plan = layout.optimized;
+    if (
+      !isObject(plan) ||
+      plan.version !== 1 ||
+      typeof plan.source !== 'string' ||
+      plan.source.length > 2048 ||
+      typeof plan.gap !== 'number' ||
+      !Number.isFinite(plan.gap) ||
+      plan.gap < 0 ||
+      plan.gap > 20 ||
+      !Array.isArray(plan.placements) ||
+      plan.placements.length < 1 ||
+      plan.placements.length > 144
+    )
+      throw new Error('Invalid optimized layout');
+    for (const at of plan.placements) {
+      if (
+        !isObject(at) ||
+        typeof at.x !== 'number' ||
+        typeof at.y !== 'number' ||
+        !Number.isFinite(at.x) ||
+        !Number.isFinite(at.y) ||
+        Math.abs(at.x) > 100000 ||
+        Math.abs(at.y) > 100000 ||
+        ![0, 90, 180, 270].includes(at.angle as number) ||
+        ('flipY' in at && typeof at.flipY !== 'boolean')
+      )
+        throw new Error('Invalid panel placement');
+    }
+    layout.optimized = {
+      version: 1,
+      source: plan.source,
+      gap: plan.gap,
+      placements: plan.placements.map((at) => ({ ...at })),
+    };
+  }
   return result as ImportedSettings;
 }
