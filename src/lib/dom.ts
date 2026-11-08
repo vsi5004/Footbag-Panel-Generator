@@ -1,11 +1,11 @@
 // Centralizes DOM element selection and setup
 
-import type { DOMElements } from '../types';
+import type { PanelElements, PageElements, LayoutElements } from '../types';
 
 /**
- * Creates a DOMElements object for the main panel controls
+ * Selects the controls and preview owned by the panel designer
  */
-export function createMainElements(): DOMElements {
+export function createMainElements(): PanelElements {
   return {
     shape: document.getElementById('shape') as HTMLSelectElement,
     side: document.getElementById('side') as HTMLInputElement,
@@ -18,120 +18,73 @@ export function createMainElements(): DOMElements {
     dotSize: document.getElementById('dotSize') as HTMLInputElement,
     svgHost: document.getElementById('svgHost'),
     downloadSvg: document.getElementById('downloadSvg') as HTMLButtonElement,
-    
-    sideNumber: document.getElementById('sideNumber') as HTMLSpanElement,
+
+    sideNumber: document.getElementById('sideNumber') as HTMLInputElement,
     sideRow: document.getElementById('sideRow'),
-    seamNumber: document.getElementById('seamNumber') as HTMLSpanElement,
+    seamNumber: document.getElementById('seamNumber') as HTMLInputElement,
     curveRadiusRow: document.getElementById('curveRadiusRow'),
     curveRadius: document.getElementById('curveRadius') as HTMLInputElement,
-    curveRadiusNumber: document.getElementById('curveRadiusNumber') as HTMLSpanElement,
-    stitchesNumber: document.getElementById('stitchesNumber') as HTMLSpanElement,
+    curveRadiusNumber: document.getElementById('curveRadiusNumber') as HTMLInputElement,
+    stitchesNumber: document.getElementById('stitchesNumber') as HTMLInputElement,
     cornerMargin: document.getElementById('cornerMargin') as HTMLInputElement,
-    cornerMarginNumber: document.getElementById('cornerMarginNumber') as HTMLSpanElement,
+    cornerMarginNumber: document.getElementById('cornerMarginNumber') as HTMLInputElement,
     starRootOffsetRow: document.getElementById('starRootOffsetRow') as HTMLElement,
     starRootOffset: document.getElementById('starRootOffset') as HTMLInputElement,
-    starRootOffsetNumber: document.getElementById('starRootOffsetNumber') as HTMLSpanElement,
+    starRootOffsetNumber: document.getElementById('starRootOffsetNumber') as HTMLInputElement,
     starRootAngleRow: document.getElementById('starRootAngleRow') as HTMLElement,
     starRootAngle: document.getElementById('starRootAngle') as HTMLInputElement,
-    starRootAngleNumber: document.getElementById('starRootAngleNumber') as HTMLSpanElement,
+    starRootAngleNumber: document.getElementById('starRootAngleNumber') as HTMLInputElement,
     holeSpacing: document.getElementById('holeSpacing') as HTMLInputElement,
-    holeSpacingNumber: document.getElementById('holeSpacingNumber') as HTMLSpanElement,
+    holeSpacingNumber: document.getElementById('holeSpacingNumber') as HTMLInputElement,
     holeBunching: document.getElementById('holeBunching') as HTMLInputElement,
-    holeBunchingNumber: document.getElementById('holeBunchingNumber') as HTMLSpanElement,
+    holeBunchingNumber: document.getElementById('holeBunchingNumber') as HTMLInputElement,
     cornerStitchSpacing: document.getElementById('cornerStitchSpacing') as HTMLInputElement,
     cornerStitchSpacingRow: document.getElementById('cornerStitchSpacingRow') as HTMLElement,
     cornerStitchDistance: document.getElementById('cornerStitchDistance') as HTMLInputElement,
-    cornerStitchDistanceNumber: document.getElementById('cornerStitchDistanceNumber') as HTMLSpanElement,
-    dotSizeNumber: document.getElementById('dotSizeNumber') as HTMLSpanElement,
-    
+    cornerStitchDistanceNumber: document.getElementById(
+      'cornerStitchDistanceNumber',
+    ) as HTMLInputElement,
+    dotSizeNumber: document.getElementById('dotSizeNumber') as HTMLInputElement,
+
     hexTypeRow: document.getElementById('hexTypeRow'),
     hexLongRow: document.getElementById('hexLongRow'),
     hexRatioRow: document.getElementById('hexRatioRow'),
     hexType: document.getElementById('hexType') as HTMLSelectElement,
     hexLong: document.getElementById('hexLong') as HTMLInputElement,
-    hexLongNumber: document.getElementById('hexLongNumber') as HTMLSpanElement,
+    hexLongNumber: document.getElementById('hexLongNumber') as HTMLInputElement,
     hexRatio: document.getElementById('hexRatio') as HTMLInputElement,
-    hexRatioNumber: document.getElementById('hexRatioNumber') as HTMLSpanElement,
-    
+    hexRatioNumber: document.getElementById('hexRatioNumber') as HTMLInputElement,
+
     exportScale: document.getElementById('exportScale') as HTMLInputElement,
     exportSettings: document.getElementById('exportSettings') as HTMLButtonElement,
     importSettings: document.getElementById('importSettings') as HTMLButtonElement,
     importFile: document.getElementById('importFile') as HTMLInputElement,
-    
+
     zoom: document.getElementById('zoom') as HTMLInputElement,
     zoomIn: document.getElementById('zoomIn') as HTMLButtonElement,
     zoomOut: document.getElementById('zoomOut') as HTMLButtonElement,
     zoomReset: document.getElementById('zoomReset') as HTMLButtonElement,
     zoomLabel: document.getElementById('zoomLabel') as HTMLSpanElement,
     showGrid: document.getElementById('showGrid') as HTMLInputElement,
-    materialInfoContainer: null, // Only exists in page layout
-    materialDimensions: null, // Only exists in page layout
-    dimensionsValue: null, // Only exists in page layout
-    materialUtilization: null, // Only exists in page layout
-    utilizationValue: null, // Only exists in page layout
-    resetLayoutSettings: null, // Only exists in page layout
     resetPanelSettings: document.getElementById('resetPanelSettings') as HTMLButtonElement,
     // Panel info elements
     panelInfoContainer: document.getElementById('panelInfoContainer') as HTMLElement,
     panelSideLength: document.getElementById('panelSideLength') as HTMLElement,
     panelSideLengthValue: document.getElementById('panelSideLengthValue') as HTMLSpanElement,
     panelStitchedLength: document.getElementById('panelStitchedLength') as HTMLElement,
-  panelStitchedLengthValue: document.getElementById('panelStitchedLengthValue') as HTMLSpanElement,
+    panelStitchedLengthValue: document.getElementById(
+      'panelStitchedLengthValue',
+    ) as HTMLSpanElement,
   };
 }
 
 /**
- * Creates a DOMElements object for the layout/page controls
+ * Selects the controls and preview owned by the sheet layout
  */
-export function createPageElements(): DOMElements {
+export function createPageElements(): PageElements {
   return {
-    shape: null,
-    side: null,
-    showHoles: null,
-    stitchesRow: null,
-    seamRow: null,
-    seam: null,
-    curved: null,
-    stitches: null,
-    dotSize: null,
     svgHost: document.getElementById('pageSvgHost'),
     downloadSvg: document.getElementById('downloadPageSvg') as HTMLButtonElement,
-    sideNumber: null,
-    sideRow: null,
-    seamNumber: null,
-    curveRadiusRow: null,
-    curveRadius: null,
-    curveRadiusNumber: null,
-    stitchesNumber: null,
-    cornerMargin: null,
-    cornerMarginNumber: null,
-    starRootOffsetRow: null,
-    starRootOffset: null,
-    starRootOffsetNumber: null,
-    starRootAngleRow: null,
-    starRootAngle: null,
-    starRootAngleNumber: null,
-    holeSpacing: null,
-    holeSpacingNumber: null,
-    holeBunching: null,
-    holeBunchingNumber: null,
-    cornerStitchSpacing: null,
-    cornerStitchSpacingRow: null,
-    cornerStitchDistance: null,
-    cornerStitchDistanceNumber: null,
-    dotSizeNumber: null,
-    hexTypeRow: null,
-    hexLongRow: null,
-    hexRatioRow: null,
-    hexType: null,
-    hexLong: null,
-    hexLongNumber: null,
-    hexRatio: null,
-    hexRatioNumber: null,
-    exportScale: null,
-    exportSettings: null,
-    importSettings: null,
-    importFile: null,
     zoom: document.getElementById('pageZoom') as HTMLInputElement,
     zoomIn: document.getElementById('pageZoomIn') as HTMLButtonElement,
     zoomOut: document.getElementById('pageZoomOut') as HTMLButtonElement,
@@ -144,20 +97,14 @@ export function createPageElements(): DOMElements {
     materialUtilization: document.getElementById('materialUtilization') as HTMLElement,
     utilizationValue: document.getElementById('utilizationValue') as HTMLSpanElement,
     resetLayoutSettings: document.getElementById('resetLayoutSettings') as HTMLButtonElement,
-    resetPanelSettings: null, // This doesn't exist in the page layout section
     // Panel info elements (only exist in main panel preview)
-    panelInfoContainer: null,
-    panelSideLength: null,
-    panelSideLengthValue: null,
-  panelStitchedLength: null,
-  panelStitchedLengthValue: null,
   };
 }
 
 /**
  * Gets layout-specific DOM elements
  */
-export function getLayoutElements() {
+export function getLayoutElements(): LayoutElements {
   return {
     pagePadding: document.getElementById('pagePadding') as HTMLInputElement | null,
     pagePaddingNumber: document.getElementById('pagePaddingNumber') as HTMLInputElement | null,
@@ -179,14 +126,14 @@ export function getLayoutElements() {
 /**
  * Validates that critical DOM elements exist
  */
-export function validateCriticalElements(el: DOMElements): boolean {
+export function validateCriticalElements(el: PanelElements): boolean {
   const critical = [el.shape, el.side, el.seam, el.curved, el.stitches, el.dotSize, el.svgHost];
-  const missing = critical.filter(element => !element);
-  
+  const missing = critical.filter((element) => !element);
+
   if (missing.length > 0) {
     console.error('Critical DOM elements missing:', missing);
     return false;
   }
-  
+
   return true;
 }

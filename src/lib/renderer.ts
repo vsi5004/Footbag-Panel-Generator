@@ -1,69 +1,86 @@
 // Rendering system for the footbag panel generator
 // Handles SVG rendering to DOM and render pipeline coordination
 
-import type { Panel, PanelConfig } from '../types';
-import { collectInputValues, computeGeometry, updateDynamicConstraints, createPanelConfig } from './validation';
-import { createLayoutSvg, calculateMaterialUtilization } from './layout';
-import { utils } from './utils';
-
-// (old hole-to-hole estimate removed; we compute seam length analytically per side)
+import type {
+  Panel,
+  PanelConfig,
+  PanelElements,
+  PageElements,
+  LayoutElements,
+  LayoutRenderState,
+} from '../types';
+import {
+  collectInputValues,
+  computeGeometry,
+  updateDynamicConstraints,
+  createPanelConfig,
+} from './validation';
+import { createLayoutSvg, calculateMaterialUtilization, measureLayoutSvg } from './layout';
+import { createPolygonGeometry } from './shape-geometry';
+import { geometry } from './geometry';
+import { stitches as stitchHelpers } from './stitches';
+import { CONSTANTS } from './constants';
+import { svg as svgHelpers } from './svg';
+import { ui } from './ui';
 
 /**
  * Computes a panel from the given configuration
  */
 export function computePanel(params: PanelConfig): Panel {
-  const { nSides, sideLen, seamOffset, stitchCount, curvedEdges, hexType = 'regular', hexLong = 30, hexRatio = 0.5, curveRadius, holeSpacing, holeBunching = 0, cornerMargin, starRootOffset, starRootAngle, cornerStitchSpacing = false, cornerStitchDistance = 2.0 } = params;
-  const { geometry, stitches: stitchHelpers } = window.FB;
-  const { SAMPLING, LAYOUT } = window.FB.CONSTANTS;
+  const {
+    nSides,
+    sideLen,
+    seamOffset,
+    stitchCount,
+    curvedEdges,
+    hexType = 'regular',
+    hexLong = 30,
+    hexRatio = 0.5,
+    curveRadius,
+    holeSpacing,
+    holeBunching = 0,
+    cornerMargin,
+    starRootOffset,
+    starRootAngle,
+    cornerStitchSpacing = false,
+    cornerStitchDistance = 2.0,
+  } = params;
+  const { SAMPLING, LAYOUT } = CONSTANTS;
   // Apply negative seam internally for curved edges
   const appliedSeam = curvedEdges ? -Math.abs(seamOffset) : seamOffset;
-  
-  let verts: any[];
-  let edgeInclude: ((i: number) => boolean) | null = null;
 
-  if (nSides === 6 && hexType === 'truncated') {
-    const longSideLength = hexLong;
-    const shortSideLength = hexRatio * longSideLength;
-    verts = geometry.truncatedHexagonVertices(longSideLength, shortSideLength);
-    edgeInclude = (i: number) => i % 2 === 0;
-  } else if (nSides === 10) {
-    // Star shape - use sideLen as the outer radius
-    verts = geometry.starVertices(sideLen, starRootAngle);
-    // For stars, we want to avoid stitching at the sharp points
-    // Use edgeInclude to only stitch certain edges, and increase corner margin
-    edgeInclude = null; // Include all edges for now
-  } else {
-    const circumRadius = sideLen / (2 * Math.sin(Math.PI / nSides));
-    verts = geometry.regularPolygonVertices(nSides, circumRadius);
-    
-    // Apply shape-specific rotations for better orientation
-    if (nSides === 4) {
-      // Rotate squares by 45 degrees to display as proper squares instead of diamonds
-      verts = utils.rotateSquareVertices(verts);
-    } else if (nSides === 6) {
-      // Rotate regular hexagons by 90 degrees to have flat sides horizontal
-      verts = utils.rotateHexagonVertices(verts);
-    }
-  }
+  const { verts, edgeInclude } =
+    nSides === 10
+      ? { verts: geometry.starVertices(sideLen, starRootAngle), edgeInclude: null }
+      : createPolygonGeometry({ nSides, side: sideLen, hexType, hexLong, hexRatio });
 
   const radius = curvedEdges ? (Number.isFinite(curveRadius) ? curveRadius : 0) : 0;
   const outlinePath = geometry.circularArcPath(verts, radius);
   // We'll compute stitched side length from actual hole spacing after placing holes
   let stitchedSideLength = 0;
-  // Debug inset path rendering removed as unused
-  
+
   // For stars, use larger corner margin to avoid stitching too close to sharp points
   const effectiveCornerMargin = nSides === 10 ? Math.max(cornerMargin, 3.0) : cornerMargin;
-  
+
   // Get stitches grouped by edge
-  const stitchesByEdge: any[][] = (stitchHelpers as any).stitchPositionsByEdge(
-    verts, radius, stitchCount, appliedSeam, holeSpacing, effectiveCornerMargin,
-    SAMPLING.EDGE_SAMPLES_HIGH_PRECISION, edgeInclude, starRootOffset, cornerStitchSpacing, cornerStitchDistance, holeBunching
+  const stitchesByEdge = stitchHelpers.stitchPositionsByEdge(
+    verts,
+    radius,
+    stitchCount,
+    appliedSeam,
+    holeSpacing,
+    effectiveCornerMargin,
+    SAMPLING.EDGE_SAMPLES_HIGH_PRECISION,
+    edgeInclude,
+    starRootOffset,
+    cornerStitchSpacing,
+    cornerStitchDistance,
+    holeBunching,
   );
   // Flatten for rendering
-  const stitches = ([] as any[]).concat(...stitchesByEdge);
+  const stitches = stitchesByEdge.flat();
   // Sum hole-to-hole distances for the first non-empty side's stitches (1..n)
-  const firstSide = stitchesByEdge.find((arr: any[]) => arr && arr.length >= 2);
+  const firstSide = stitchesByEdge.find((arr) => arr && arr.length >= 2);
   if (firstSide) {
     for (let i = 0; i < firstSide.length - 1; i++) {
       const a = firstSide[i];
@@ -72,98 +89,121 @@ export function computePanel(params: PanelConfig): Panel {
     }
   }
   // Tight bounds: use exact arc edge bbox instead of sampled points
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (let i = 0; i < verts.length; i++) {
     const a = verts[i];
     const b = verts[(i + 1) % verts.length];
-    const box = (window.FB.geometry as any).getArcEdgeBoundingBox
-      ? (window.FB.geometry as any).getArcEdgeBoundingBox(a, b, radius)
+    const box = geometry.getArcEdgeBoundingBox
+      ? geometry.getArcEdgeBoundingBox(a, b, radius)
       : null;
     if (box) {
-      if (box.minX < minX) minX = box.minX; if (box.maxX > maxX) maxX = box.maxX;
-      if (box.minY < minY) minY = box.minY; if (box.maxY > maxY) maxY = box.maxY;
+      if (box.minX < minX) minX = box.minX;
+      if (box.maxX > maxX) maxX = box.maxX;
+      if (box.minY < minY) minY = box.minY;
+      if (box.maxY > maxY) maxY = box.maxY;
     } else {
       // Fallback to sampled bounds if helper not available
       const seg = geometry.approxArcEdgeSamples(a, b, radius, SAMPLING.BOUNDS_SAMPLES);
       for (const s of seg) {
-        if (s.p.x < minX) minX = s.p.x; if (s.p.x > maxX) maxX = s.p.x;
-        if (s.p.y < minY) minY = s.p.y; if (s.p.y > maxY) maxY = s.p.y;
+        if (s.p.x < minX) minX = s.p.x;
+        if (s.p.x > maxX) maxX = s.p.x;
+        if (s.p.y < minY) minY = s.p.y;
+        if (s.p.y > maxY) maxY = s.p.y;
       }
     }
   }
   for (const p of stitches) {
-    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
   }
   const margin = LAYOUT.MARGIN_MM;
-  const width = (maxX - minX) + margin * 2;
-  const height = (maxY - minY) + margin * 2;
+  const width = maxX - minX + margin * 2;
+  const height = maxY - minY + margin * 2;
   const viewMinX = minX - margin;
   const viewMinY = minY - margin;
-  return { outlinePath, stitches, bounds: { viewMinX, viewMinY, width, height }, stitchedSideLength };
+  return {
+    outlinePath,
+    stitches,
+    bounds: { viewMinX, viewMinY, width, height },
+    stitchedSideLength,
+  };
 }
 
 /**
  * Renders the SVG to the DOM
  */
-export function renderSVGToDOM(panel: Panel, dotDiameter: number, el: any, config?: PanelConfig): void {
+export function renderSVGToDOM(
+  panel: Panel,
+  dotDiameter: number,
+  el: PanelElements,
+  config?: PanelConfig,
+): void {
   if (!el.svgHost) {
     console.error('SVG host element not available');
     return;
   }
-  
+
   el.svgHost.innerHTML = '';
-  
+
   const showGrid = !!(el.showGrid && el.showGrid.checked);
-  const svg = window.FB.svg.createSvg(panel, { dotDiameter, showGrid });
-  
+  const svg = svgHelpers.createSvg(panel, { dotDiameter, showGrid });
+
   svg.style.maxWidth = '100%';
   svg.style.height = 'auto';
-  
+
   const wrap = document.createElement('div');
   wrap.className = 'svg-wrap';
   wrap.appendChild(svg);
   el.svgHost.appendChild(wrap);
-  
+
   // Update panel info if elements exist and config is provided
   if (config && el.panelInfoContainer && el.panelSideLengthValue && el.panelStitchedLengthValue) {
     // Display the panel side length (from user input)
     el.panelSideLengthValue.textContent = `${config.sideLen.toFixed(1)} mm`;
-    
-  // Calculate and display the stitched side length from seam path
-  const stitchedLength = panel.stitchedSideLength ?? 0;
-  el.panelStitchedLengthValue.textContent = `${stitchedLength.toFixed(1)} mm`;
-    
-  // Panel side radius element removed from UI
-    
+
+    // Calculate and display the stitched side length from seam path
+    const stitchedLength = panel.stitchedSideLength ?? 0;
+    el.panelStitchedLengthValue.textContent = `${stitchedLength.toFixed(1)} mm`;
+
     // Show the panel info container
     el.panelInfoContainer.style.display = 'flex';
   }
-  
-  window.FB.ui?.zoom?.apply(el);
+
+  ui?.zoom?.apply(el);
 }
 
 /**
  * Renders the layout preview
  */
 export function renderLayout(
-  panel: Panel | null, 
-  dotDiameter: number, 
-  pageEl: any, 
-  layoutElements: any,
-  state: { lastLayoutWpx: number; lastLayoutHpx: number; isFirstLayoutRender: boolean },
-  config?: PanelConfig | null
+  panel: Panel | null,
+  dotDiameter: number,
+  pageEl: PageElements,
+  layoutElements: LayoutElements,
+  state: LayoutRenderState,
+  config?: PanelConfig | null,
 ): void {
-  const { LAYOUT } = window.FB.CONSTANTS;
-  
   if (!pageEl.svgHost) return;
-  if (!panel) { 
-    pageEl.svgHost.innerHTML = ''; 
+  if (!panel) {
+    pageEl.svgHost.innerHTML = '';
     if (pageEl.materialInfoContainer) pageEl.materialInfoContainer.style.display = 'none';
-    return; 
+    return;
   }
 
-  const { pageRows, pageCols, pageVSpace, pageInvert, nestingOffset, pageHSpaceNumber, pagePadding } = layoutElements;
+  const {
+    pageRows,
+    pageCols,
+    pageVSpace,
+    pageInvert,
+    nestingOffset,
+    pageHSpaceNumber,
+    pagePadding,
+  } = layoutElements;
 
   const rows = pageRows ? Math.max(1, Math.min(50, parseInt(pageRows.value || '3', 10))) : 3;
   const cols = pageCols ? Math.max(1, Math.min(50, parseInt(pageCols.value || '3', 10))) : 3;
@@ -179,24 +219,17 @@ export function renderLayout(
 
   // Compute if we need to auto-fit to the host viewport
   const MM_TO_PX = 96 / 25.4;
-  const margin = LAYOUT.MARGIN_MM;
-  // Match layout.ts: include visual padding for stroke/holes so dimensions match SVG
-  const strokePad = ((window.FB.CONSTANTS?.STROKES?.cut) || 0) / 2;
-  const dotPad = Math.max(0, dotDiameter / 2);
-  const renderPad = Math.max(strokePad, dotPad);
-  const cellW = Math.max(0, panel.bounds.width - 2 * margin + 2 * renderPad);
-  const cellH = Math.max(0, panel.bounds.height - 2 * margin + 2 * renderPad);
-  const contentWmm = cols * cellW + (cols - 1) * hSpace;
-  let contentHmm = rows * cellH + (rows - 1) * vSpace;
-
-  // Add nesting vertical offset to height when applicable (same logic as in layout.ts)
-  if (invertOdd && nestingVerticalOffset !== 0) {
-    contentHmm += Math.abs(nestingVerticalOffset);
-  }
-
-  // Add padding to get total layout dimensions
-  const layoutWmm = contentWmm + 2 * padding;
-  const layoutHmm = contentHmm + 2 * padding;
+  const { width: layoutWmm, height: layoutHmm } = measureLayoutSvg(panel, {
+    rows,
+    cols,
+    hSpace,
+    vSpace,
+    dotDiameter,
+    showGrid,
+    invertOdd,
+    nestingVerticalOffset,
+    padding,
+  });
   const layoutWpx = layoutWmm * MM_TO_PX;
   const layoutHpx = layoutHmm * MM_TO_PX;
   state.lastLayoutWpx = layoutWpx;
@@ -208,63 +241,80 @@ export function renderLayout(
   const fitPct = Math.max(20, Math.min(300, Math.floor(rawFitPct) - 1));
 
   pageEl.svgHost.innerHTML = '';
-  const svg = createLayoutSvg(panel, { rows, cols, hSpace, vSpace, dotDiameter, showGrid, invertOdd, nestingVerticalOffset, padding });
-  
+  const svg = createLayoutSvg(panel, {
+    rows,
+    cols,
+    hSpace,
+    vSpace,
+    dotDiameter,
+    showGrid,
+    invertOdd,
+    nestingVerticalOffset,
+    padding,
+  });
+
   // Calculate and display material dimensions
   if (pageEl.dimensionsValue) {
     pageEl.dimensionsValue.textContent = `${layoutWmm.toFixed(1)} × ${layoutHmm.toFixed(1)}`;
   }
-  
+
   // Calculate and display material utilization
-  const utilization = calculateMaterialUtilization(panel, { rows, cols, hSpace, vSpace, invertOdd, nestingVerticalOffset }, config || undefined);
+  const utilization = calculateMaterialUtilization(
+    panel,
+    { rows, cols, hSpace, vSpace, invertOdd, nestingVerticalOffset },
+    config || undefined,
+  );
   if (pageEl.utilizationValue) {
     pageEl.utilizationValue.textContent = `${utilization.toFixed(1)}%`;
   }
-  
+
   // Show the container that holds both dimensions and utilization
   if (pageEl.materialInfoContainer) {
     pageEl.materialInfoContainer.style.display = 'flex';
   }
-  
+
   const wrap = document.createElement('div');
   wrap.className = 'svg-wrap';
   wrap.appendChild(svg);
   pageEl.svgHost.appendChild(wrap);
-  const currentPct = window.FB.ui?.zoom?.getPct(pageEl) || 100;
+  const currentPct = ui?.zoom?.getPct(pageEl) || 100;
   if (state.isFirstLayoutRender) {
     // Keep user's/default 100% on first load; no auto-shrink
-    window.FB.ui?.zoom?.apply(pageEl);
-    window.FB.ui?.zoom?.updateDisplay(pageEl);
+    ui?.zoom?.apply(pageEl);
+    ui?.zoom?.updateDisplay(pageEl);
     state.isFirstLayoutRender = false;
   } else if (needsFit && currentPct > fitPct) {
     // Only shrink if needed to fit
-    window.FB.ui?.zoom?.setPct(pageEl, fitPct);
+    ui?.zoom?.setPct(pageEl, fitPct);
   } else {
-    window.FB.ui?.zoom?.apply(pageEl);
-    window.FB.ui?.zoom?.updateDisplay(pageEl);
+    ui?.zoom?.apply(pageEl);
+    ui?.zoom?.updateDisplay(pageEl);
   }
 }
 
 /**
  * Updates page overflow styling
  */
-export function updatePageOverflow(pageEl: any, state: { lastLayoutWpx: number; lastLayoutHpx: number }): void {
+export function updatePageOverflow(
+  pageEl: PageElements,
+  state: Pick<LayoutRenderState, 'lastLayoutWpx' | 'lastLayoutHpx'>,
+): void {
   if (!pageEl.svgHost) return;
   const host = pageEl.svgHost as HTMLElement;
   const hostW = host.clientWidth || 1;
   const hostH = host.clientHeight || 1;
-  const scale = (window.FB.ui?.zoom?.getPct(pageEl) || 100) / 100;
+  const scale = (ui?.zoom?.getPct(pageEl) || 100) / 100;
   const visW = state.lastLayoutWpx * scale;
   const visH = state.lastLayoutHpx * scale;
   const tol = Math.max(10, Math.round(6 * (window.devicePixelRatio || 1))); // px
-  host.style.overflowX = (visW <= hostW + tol) ? 'hidden' : 'auto';
-  host.style.overflowY = (visH <= hostH + tol) ? 'hidden' : 'auto';
+  host.style.overflowX = visW <= hostW + tol ? 'hidden' : 'auto';
+  host.style.overflowY = visH <= hostH + tol ? 'hidden' : 'auto';
 }
 
 /**
  * Shows an error message in the SVG host
  */
-export function showErrorMessage(message: string, el: any): void {
+export function showErrorMessage(message: string, el: PanelElements): void {
   if (el.svgHost) {
     el.svgHost.innerHTML = `
       <div style="padding: 20px; text-align: center; color: #ff6b6b; background: #2a2a2a; border-radius: 8px; margin: 10px;">
@@ -274,7 +324,7 @@ export function showErrorMessage(message: string, el: any): void {
       </div>
     `;
   }
-  
+
   // Hide panel info container on error
   if (el.panelInfoContainer) {
     el.panelInfoContainer.style.display = 'none';
@@ -285,34 +335,36 @@ export function showErrorMessage(message: string, el: any): void {
  * Main render function - orchestrates the entire rendering pipeline
  */
 export function createMainRenderFunction(
-  el: any, 
-  renderLayoutFn: (panel: Panel | null, dotSize: number, config?: PanelConfig) => void
+  el: PanelElements,
+  renderLayoutFn: (panel: Panel | null, dotSize: number, config?: PanelConfig) => void,
 ) {
   return function render(): void {
     try {
       const config = collectInputValues(el);
-      
+
       const geometryResult = computeGeometry(config);
 
-      const { cornerMargin, holeSpacing, holeBunching } = updateDynamicConstraints(config, geometryResult, el);
+      const { cornerMargin, holeSpacing, holeBunching } = updateDynamicConstraints(
+        config,
+        geometryResult,
+        el,
+      );
 
-      const panelConfig: PanelConfig = createPanelConfig(config, { cornerMargin, holeSpacing, holeBunching });
-      
+      const panelConfig: PanelConfig = createPanelConfig(config, {
+        cornerMargin,
+        holeSpacing,
+        holeBunching,
+      });
+
       const panel = computePanel(panelConfig);
-      
+
       renderSVGToDOM(panel, config.dotSize, el, panelConfig);
-      
+
       // Update shared state for layout rendering
       renderLayoutFn(panel, config.dotSize, panelConfig);
-      
     } catch (error) {
       console.error('Render error:', error);
       showErrorMessage('Unable to generate footbag panel. Please refresh and try again.', el);
     }
   };
 }
-
-/**
- * Applies grid visibility to the main SVG
- */
-// Removed unused applyGridVisibility helper
