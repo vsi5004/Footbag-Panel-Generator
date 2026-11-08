@@ -195,6 +195,7 @@ export function renderLayout(
   if (!pageEl.svgHost) return;
   if (!panel) {
     pageEl.svgHost.innerHTML = '';
+    if (pageEl.downloadSvg) pageEl.downloadSvg.disabled = true;
     if (pageEl.materialInfoContainer) pageEl.materialInfoContainer.style.display = 'none';
     return;
   }
@@ -245,18 +246,6 @@ export function renderLayout(
   const fitPct = Math.max(20, Math.min(300, Math.floor(rawFitPct) - 1));
 
   pageEl.svgHost.innerHTML = '';
-  const svg = createLayoutSvg(panel, {
-    rows,
-    cols,
-    hSpace,
-    vSpace,
-    dotDiameter,
-    showGrid,
-    invertOdd,
-    nestingVerticalOffset,
-    padding,
-  });
-
   // Calculate and display material dimensions
   if (pageEl.dimensionsValue) {
     pageEl.dimensionsValue.textContent = `${layoutWmm.toFixed(1)} × ${layoutHmm.toFixed(1)}`;
@@ -291,6 +280,30 @@ export function renderLayout(
     pageEl.materialInfoContainer.style.display = 'flex';
   }
 
+  const validDimensions =
+    Number.isFinite(layoutWmm) && Number.isFinite(layoutHmm) && layoutWmm > 0 && layoutHmm > 0;
+  if (pageEl.downloadSvg) pageEl.downloadSvg.disabled = !validDimensions;
+  if (!validDimensions) {
+    state.lastLayoutWpx = 0;
+    state.lastLayoutHpx = 0;
+    const message = document.createElement('p');
+    message.setAttribute('role', 'status');
+    message.textContent =
+      'Sheet width and height must be positive. Increase horizontal or vertical spacing, or sheet padding, to preview and download this layout.';
+    pageEl.svgHost.appendChild(message);
+    return;
+  }
+  const svg = createLayoutSvg(panel, {
+    rows,
+    cols,
+    hSpace,
+    vSpace,
+    dotDiameter,
+    showGrid,
+    invertOdd,
+    nestingVerticalOffset,
+    padding,
+  });
   const wrap = document.createElement('div');
   wrap.className = 'svg-wrap';
   wrap.appendChild(svg);

@@ -117,3 +117,34 @@ test('repeated Reset adds no listeners and preserves the original input bindings
   assert.equal(el.side.value, '40');
   assert.equal(changes, 2);
 });
+
+test('layout reset follows declared defaults and preserves panel and export settings', async () => {
+  const { resetLayoutSettings } = await import('../src/lib/events.ts');
+  const { layoutControlPairs } = await import('../src/lib/controls.ts');
+  const { el, layout } = freshControls();
+  const before = state.collect(el, layout);
+  // A future definition change must propagate through HTML defaults to Reset.
+  layout.pageRows.defaultValue = '4';
+  layout.pageInvert.defaultChecked = true;
+  const pairs = layoutControlPairs(layout);
+  for (const [range, display] of pairs) {
+    range.value = range.max;
+    display.value = range.max;
+  }
+  layout.pageInvert.checked = false;
+  layout.pageEl.showGrid.checked = !layout.pageEl.showGrid.defaultChecked;
+  let renders = 0;
+  resetLayoutSettings(layout, () => renders++, null, 1);
+  assert.equal(renders, 1);
+  for (const [range, display] of pairs) {
+    assert.equal(range.value, range.defaultValue, range.id);
+    assert.equal(display.value, range.defaultValue, display.id);
+  }
+  assert.equal(layout.pageInvert.checked, true);
+  assert.equal(layout.nestingOffsetRow.classList.contains('hidden'), false);
+  assert.equal(layout.pageEl.showGrid.checked, layout.pageEl.showGrid.defaultChecked);
+  const after = state.collect(el, layout);
+  delete before.layout;
+  delete after.layout;
+  assert.deepEqual(after, before);
+});

@@ -55,42 +55,15 @@ export function resetLayoutSettings(
   lastDotSize: number,
   config?: PanelConfig,
 ): void {
-  const {
-    pagePadding,
-    pagePaddingNumber,
-    pageRows,
-    pageRowsNumber,
-    pageCols,
-    pageColsNumber,
-    pageHSpace,
-    pageHSpaceNumber,
-    pageVSpace,
-    pageVSpaceNumber,
-    pageInvert,
-    nestingOffset,
-    nestingOffsetNumber,
-    nestingOffsetRow,
-  } = layoutEl;
-  const { pageEl } = layoutEl;
-
-  // Reset all layout controls to their default values
-  if (pagePadding) pagePadding.value = '10';
-  if (pagePaddingNumber) pagePaddingNumber.value = '10';
-  if (pageRows) pageRows.value = '3';
-  if (pageRowsNumber) pageRowsNumber.value = '3';
-  if (pageCols) pageCols.value = '3';
-  if (pageColsNumber) pageColsNumber.value = '3';
-  if (pageHSpace) pageHSpace.value = '0';
-  if (pageHSpaceNumber) pageHSpaceNumber.value = '0';
-  if (pageVSpace) pageVSpace.value = '1';
-  if (pageVSpaceNumber) pageVSpaceNumber.value = '1';
-  if (pageInvert) pageInvert.checked = false;
-  if (nestingOffset) nestingOffset.value = '0';
-  if (nestingOffsetNumber) nestingOffsetNumber.value = '0';
-  if (pageEl?.showGrid) pageEl.showGrid.checked = true;
-
-  // Hide nesting controls since inverted nesting is now off
-  if (nestingOffsetRow) nestingOffsetRow.classList.add('hidden');
+  for (const [range, display] of layoutControlPairs(layoutEl)) {
+    if (!range) continue;
+    range.value = range.defaultValue;
+    syncPairDisplay(range, display);
+  }
+  for (const checkbox of [layoutEl.pageInvert, layoutEl.pageEl?.showGrid]) {
+    if (checkbox) checkbox.checked = checkbox.defaultChecked;
+  }
+  layoutEl.nestingOffsetRow?.classList.toggle('hidden', !layoutEl.pageInvert?.checked);
 
   // Re-render the layout with default values
   renderLayout(lastPanel, lastDotSize, config);
