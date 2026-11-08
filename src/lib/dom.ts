@@ -53,6 +53,7 @@ export function createMainElements(): DOMElements {
     hexRatio: document.getElementById('hexRatio') as HTMLInputElement,
     hexRatioNumber: document.getElementById('hexRatioNumber') as HTMLSpanElement,
     
+    exportScale: document.getElementById('exportScale') as HTMLInputElement,
     exportSettings: document.getElementById('exportSettings') as HTMLButtonElement,
     importSettings: document.getElementById('importSettings') as HTMLButtonElement,
     importFile: document.getElementById('importFile') as HTMLInputElement,
@@ -127,6 +128,7 @@ export function createPageElements(): DOMElements {
     hexLongNumber: null,
     hexRatio: null,
     hexRatioNumber: null,
+    exportScale: null,
     exportSettings: null,
     importSettings: null,
     importFile: null,

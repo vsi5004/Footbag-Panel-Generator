@@ -2,6 +2,7 @@
 // Centralizes all UI event binding and event handler logic
 
 import type { DOMElements, Panel, PanelConfig } from '../types';
+import { createExportSvg, normalizeExportScale } from './export';
 
 export interface EventHandlers {
   render: () => void;
@@ -85,9 +86,10 @@ export function resetLayoutSettings(layoutEl: any, renderLayout: (panel: Panel |
 /**
  * Creates a download link for SVG content
  */
-export function downloadSvg(svg: SVGElement, filename: string): void {
-  const clone = svg.cloneNode(true) as SVGElement;
-  clone.style.background = 'white';
+export function downloadSvg(svg: SVGElement, filename: string, scalePercent: number = 100): void {
+  scalePercent = normalizeExportScale(scalePercent);
+  const clone = createExportSvg(svg, scalePercent);
+  if (scalePercent !== 100) filename = filename.replace(/\.svg$/, `-${scalePercent}pct.svg`);
   const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const downloadLink = document.createElement('a');

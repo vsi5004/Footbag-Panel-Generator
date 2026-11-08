@@ -1,6 +1,7 @@
 import type { DOMElements } from '../types';
 import { utils } from './utils';
 import { INPUT_VALIDATORS } from './validation';
+import { normalizeExportScale } from './export';
 
 const { clamp } = utils;
 
@@ -28,6 +29,7 @@ export interface SettingsData {
     long?: number;
     ratio?: number;
   };
+  export?: { scalePercent?: number };
   layout: {
     padding: number;
     rows: number;
@@ -65,6 +67,7 @@ function collect(el: DOMElements, layoutEl?: any): SettingsData {
       long: el.hexLong ? clamp(parseFloat(el.hexLong.value), 10, 80) : undefined,
       ratio: el.hexRatio ? clamp(parseFloat(el.hexRatio.value), 0.1, 0.9) : undefined,
     },
+    export: { scalePercent: normalizeExportScale(el.exportScale?.value) },
     layout: {
       padding: parseFloat(layoutEl?.pagePadding?.value || '10'),
       rows: parseInt(layoutEl?.pageRows?.value || '3', 10),
@@ -88,6 +91,9 @@ function apply(el: DOMElements, s: Partial<SettingsData>, layoutEl?: any): void 
   const setChecked = (input: HTMLInputElement | null, value: any) => { 
     if (input != null && typeof value === 'boolean') input.checked = value; 
   };
+
+  // Missing export settings in older files must reset a previously selected scale.
+  set(el.exportScale, normalizeExportScale(s.export?.scalePercent));
 
   // Panel settings
   if (typeof s.shape === 'number' && el.shape) el.shape.value = String(s.shape);

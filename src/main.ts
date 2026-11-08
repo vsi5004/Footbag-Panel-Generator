@@ -1,4 +1,5 @@
 import type { Panel, DOMElements, PanelConfig } from './types';
+import { normalizeExportScale } from './lib/export';
 import { createMainElements, createPageElements, getLayoutElements, validateCriticalElements } from './lib/dom';
 import { renderLayout, updatePageOverflow, createMainRenderFunction } from './lib/renderer';
 import { 
@@ -147,10 +148,17 @@ function bindUI(): void {
     render();
   });
     
+  const readExportScale = (): number => {
+    const scale = normalizeExportScale(el.exportScale?.value);
+    if (el.exportScale) el.exportScale.value = String(scale);
+    return scale;
+  };
+  el.exportScale?.addEventListener('change', readExportScale);
+
   el.downloadSvg?.addEventListener('click', () => {
     const svg = el.svgHost?.querySelector('svg');
     if (!svg) return;
-    downloadSvg(svg, createPanelFilename(el));
+    downloadSvg(svg, createPanelFilename(el), readExportScale());
   });
 
 
@@ -218,7 +226,7 @@ function bindUI(): void {
   pageEl.downloadSvg?.addEventListener('click', () => {
     const svg = pageEl.svgHost?.querySelector('svg');
     if (!svg) return;
-    downloadSvg(svg, createLayoutFilename(layoutElements));
+    downloadSvg(svg, createLayoutFilename(layoutElements), readExportScale());
   });
 
   // Reset layout settings button

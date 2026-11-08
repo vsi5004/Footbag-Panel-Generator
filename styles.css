@@ -38,6 +38,11 @@ body {
   background: var(--hover);
 }
 
+.export-options { margin: 16px auto 0; max-width: 360px; }
+.export-options small { display: block; margin-top: 6px; color: var(--muted); }
+.export-options .tooltip-icon { padding: 0; }
+.tooltip-icon:focus-visible + .tooltip-content { opacity: 1; visibility: visible; }
+
 .app {
   display: grid;
   grid-template-columns: 360px 1fr;

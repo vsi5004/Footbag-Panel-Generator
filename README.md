@@ -21,6 +21,12 @@ Single‑page web app that generates printable SVG templates for footbag (hacky 
 - Monitor material utilization percentage to minimize waste
 - Export individual panels for single-piece cutting or full layouts for batch production
 
+### Export Scale
+- Set **Export scale (%)** to resize both panel and layout SVG downloads (1–1000%, default 100%).
+- This scales the whole template, including seam allowances, holes, padding, and layout spacing. Base measurements and previews stay unchanged.
+- Reference grid spacing remains 10 mm. Non-default scale is included in SVG filenames.
+- Settings JSON saves the export scale; importing older settings without it resets scale to 100%.
+
 ### Printing Notes
 - Ensure "Actual size" / 100% scaling when printing so millimeter units are accurate
 - Use the 10mm grid lines in exported SVGs to validate printer scaling
@@ -67,6 +73,7 @@ npm install
 npm run dev        # Start development server
 npm run build      # Build for production
 npm run type-check # TypeScript type checking
+npm test           # Export scaling and settings/schema regression tests
 ```
 
 ### Deployment

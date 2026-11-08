@@ -16,6 +16,17 @@
         <button id="importSettings" type="button" class="header-button">Import Settings</button>
         <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
       </div>
+      <div class="export-options control">
+        <div class="tooltip-container">
+          <label for="exportScale">Export scale (%)</label>
+          <button type="button" class="tooltip-icon" aria-label="About export scale" aria-describedby="exportScaleHelp">?</button>
+          <div id="exportScaleHelp" class="tooltip-content" role="tooltip">
+            Scales both SVG downloads, including seam allowances, holes, and layout spacing. Base design measurements and previews stay unchanged. The reference grid stays at 10 mm. 100% is original size.
+          </div>
+        </div>
+        <input id="exportScale" type="number" min="1" max="1000" step="any" value="100" aria-describedby="exportScaleNote" />
+        <small id="exportScaleNote">Applies to panel and layout SVG downloads only (1–1000%).</small>
+      </div>
     </header>
 
     <div class="app-wrapper">
