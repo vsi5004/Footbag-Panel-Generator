@@ -147,3 +147,72 @@ test('mobile viewport retains working controls and exports', async ({ page }) =>
   expect(settings.shape).toBe(4);
   expect(settings.side).toBe(35);
 });
+
+test('the same saved design imports identically after restrictive or large designs', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  const target = {
+    ...initial,
+    side: 60,
+    seam: 0,
+    stitches: 4,
+    curved: false,
+    curveRadius: 45,
+    holeSpacing: 10,
+    cornerMargin: 8,
+    holeBunching: 3,
+    layout: { ...initial.layout, invert: true, nestingOffset: -4 },
+  };
+  await importSettings(page, target);
+  const expected = await settingsDownload(page);
+  const outline = await page.locator('#svgHost svg path').getAttribute('d');
+  await importSettings(page, { ...initial, side: 10, seam: 0, stitches: 20, holeSpacing: 1 });
+  await expect.poll(() => page.locator('#holeSpacing').getAttribute('max')).not.toBe('20');
+  await importSettings(page, target);
+  await expect(page.locator('#holeSpacingNumber')).toHaveValue('10');
+  await expect(page.locator('#holeBunchingNumber')).toHaveValue('3');
+  await expect(page.locator('#cornerMarginNumber')).toHaveValue('8');
+  await expect(page.locator('#nestingOffsetRow')).toBeVisible();
+  expect(await settingsDownload(page)).toEqual(expected);
+  await expect(page.locator('#svgHost svg path')).toHaveAttribute('d', outline!);
+
+  await importSettings(page, { ...initial, side: 80, curved: true, curveRadius: 60 });
+  await expect(page.locator('#curveRadius')).toHaveAttribute('min', '40');
+  await importSettings(page, { ...initial, side: 30, curved: true, curveRadius: 20 });
+  await expect(page.locator('#curveRadiusNumber')).toHaveValue('20');
+  await importSettings(page, { ...initial, shape: 4, side: 80, curved: true, curveRadius: 10 });
+  await expect
+    .poll(async () => Number(await page.locator('#curveRadiusNumber').inputValue()))
+    .toBeCloseTo(40, 10);
+  await expect(page.locator('#svgHost svg path')).toHaveAttribute('d', /A/);
+});
+
+test('valid JSON with invalid settings leaves the design and previews untouched', async ({
+  page,
+}) => {
+  await page.locator('#exportScale').fill('125');
+  const before = await settingsDownload(page);
+  const panel = await page.locator('#svgHost').innerHTML();
+  const sheet = await page.locator('#pageSvgHost').innerHTML();
+  for (const invalid of [
+    null,
+    [],
+    {},
+    { ...before, side: 70, seam: 'wrong' },
+    { ...before, version: 2 },
+  ]) {
+    const pending = page.waitForEvent('dialog');
+    await page.locator('#importFile').setInputFiles({
+      name: 'invalid.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(invalid)),
+    });
+    const dialog = await pending;
+    expect(dialog.message()).toBe('Invalid settings file.');
+    await dialog.dismiss();
+    expect(await settingsDownload(page)).toEqual(before);
+    expect(await page.locator('#svgHost').innerHTML()).toBe(panel);
+    expect(await page.locator('#pageSvgHost').innerHTML()).toBe(sheet);
+  }
+});

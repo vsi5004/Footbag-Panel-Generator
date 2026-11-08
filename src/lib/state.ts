@@ -1,8 +1,14 @@
 import type { PanelElements, LayoutSettingsElements } from '../types';
 import { utils } from './utils';
-import { INPUT_VALIDATORS } from './validation';
+import {
+  INPUT_VALIDATORS,
+  collectInputValues,
+  computeGeometry,
+  updateDynamicConstraints,
+} from './validation';
 import { normalizeExportScale } from './export';
 import { normalizeSetting } from './settings';
+import { readImportedSettings } from './import-settings';
 import { panelControlPairs } from './controls';
 import { syncPairDisplay } from './ui';
 
@@ -51,10 +57,7 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
     version: 1,
     shape: INPUT_VALIDATORS.nSides(el.shape?.value || '5'),
     curved: !!el.curved?.checked,
-    curveRadius:
-      el.curved?.checked && el.curveRadius
-        ? INPUT_VALIDATORS.curveRadius(el.curveRadius.value)
-        : undefined,
+    curveRadius: el.curveRadius ? INPUT_VALIDATORS.curveRadius(el.curveRadius.value) : undefined,
     side: INPUT_VALIDATORS.side(el.side?.value || '30'),
     seam: INPUT_VALIDATORS.seam(el.seam?.value || '5'),
     showHoles: el.showHoles ? !!el.showHoles.checked : undefined,
@@ -93,15 +96,18 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
   };
 }
 
-function apply(
-  el: PanelElements,
-  s: Partial<SettingsData>,
-  layoutEl?: LayoutSettingsElements,
-): void {
-  if (!s || typeof s !== 'object') return;
+function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElements): void {
+  const s = readImportedSettings(data);
 
   const set = (input: HTMLInputElement | null, value: unknown) => {
-    if (input != null && value != null && !Number.isNaN(value)) input.value = String(value);
+    if (input == null || typeof value !== 'number' || !Number.isFinite(value)) return;
+    // Browser range inputs clamp immediately. Release bounds inherited from the
+    // previous design; rendering recomputes the bounds for the imported design.
+    if (['curveRadius', 'cornerMargin', 'holeSpacing', 'holeBunching'].includes(input.id)) {
+      if (input.min !== '' && Number(input.min) > value) input.min = String(value);
+      if (input.max !== '' && Number(input.max) < value) input.max = String(value);
+    }
+    input.value = String(value);
   };
 
   const setChecked = (input: HTMLInputElement | null, value: unknown) => {
@@ -113,19 +119,19 @@ function apply(
 
   // Panel settings
   if (typeof s.shape === 'number' && el.shape) el.shape.value = String(s.shape);
-  setChecked(el.curved, !!s.curved);
+  setChecked(el.curved, s.curved);
 
   if (s.hex && typeof s.hex === 'object') {
     if (el.hexType && s.hex.type) el.hexType.value = s.hex.type;
-    set(el.hexLong, s.hex.long ? normalizeSetting('hexLong', s.hex.long) : undefined);
-    set(el.hexRatio, s.hex.ratio ? normalizeSetting('hexRatio', s.hex.ratio) : undefined);
+    set(el.hexLong, s.hex.long != null ? normalizeSetting('hexLong', s.hex.long) : undefined);
+    set(el.hexRatio, s.hex.ratio != null ? normalizeSetting('hexRatio', s.hex.ratio) : undefined);
   }
 
-  set(el.side, s.side ? normalizeSetting('side', s.side) : undefined);
+  set(el.side, s.side != null ? normalizeSetting('side', s.side) : undefined);
 
   set(el.seam, s.seam != null ? normalizeSetting('seam', s.seam) : undefined);
 
-  if (el.curved?.checked && s.curveRadius != null) {
+  if (s.curveRadius != null) {
     set(el.curveRadius, normalizeSetting('curveRadius', s.curveRadius));
   }
 
@@ -140,15 +146,15 @@ function apply(
   }
 
   if (s.cornerMargin != null && el.cornerMargin) {
-    set(el.cornerMargin, Math.max(0, parseFloat(String(s.cornerMargin))));
+    set(el.cornerMargin, normalizeSetting('cornerMargin', s.cornerMargin, Infinity));
   }
 
   if (s.holeSpacing != null && el.holeSpacing) {
-    set(el.holeSpacing, Math.max(1, parseFloat(String(s.holeSpacing))));
+    set(el.holeSpacing, normalizeSetting('holeSpacing', s.holeSpacing, Infinity));
   }
 
   if (s.holeBunching != null && el.holeBunching) {
-    set(el.holeBunching, Math.max(0, parseFloat(String(s.holeBunching))));
+    set(el.holeBunching, normalizeSetting('holeBunching', s.holeBunching, Infinity));
   }
 
   if (s.cornerStitchSpacing != null && el.cornerStitchSpacing) {
@@ -171,36 +177,52 @@ function apply(
     set(el.starRootAngle, INPUT_VALIDATORS.starRootAngle(s.starRootAngle));
   }
 
-  for (const [range, display] of panelControlPairs(el)) syncPairDisplay(range, display);
+  // Establish the imported design's limits before the first render reads its
+  // configuration, including a feasible curve radius and stitch spacing.
+  const config = collectInputValues(el);
+  updateDynamicConstraints(config, computeGeometry(config), el);
+  for (const [range, display] of panelControlPairs(el)) {
+    if (range) {
+      // Explicitly enforce refreshed bounds before copying the displayed value.
+      range.value = String(clamp(Number(range.value), Number(range.min), Number(range.max)));
+    }
+    syncPairDisplay(range, display);
+  }
 
   // Layout settings
   if (s.layout && typeof s.layout === 'object' && layoutEl) {
     if (s.layout.padding != null) {
       set(layoutEl.pagePadding, normalizeSetting('pagePadding', s.layout.padding));
-      set(layoutEl.pagePaddingNumber, layoutEl.pagePadding?.value);
+      if (layoutEl.pagePadding && layoutEl.pagePaddingNumber)
+        layoutEl.pagePaddingNumber.value = layoutEl.pagePadding.value;
     }
     if (s.layout.rows != null) {
       set(layoutEl.pageRows, normalizeSetting('pageRows', s.layout.rows));
-      set(layoutEl.pageRowsNumber, layoutEl.pageRows?.value);
+      if (layoutEl.pageRows && layoutEl.pageRowsNumber)
+        layoutEl.pageRowsNumber.value = layoutEl.pageRows.value;
     }
     if (s.layout.cols != null) {
       set(layoutEl.pageCols, normalizeSetting('pageCols', s.layout.cols));
-      set(layoutEl.pageColsNumber, layoutEl.pageCols?.value);
+      if (layoutEl.pageCols && layoutEl.pageColsNumber)
+        layoutEl.pageColsNumber.value = layoutEl.pageCols.value;
     }
     if (s.layout.hSpace != null) {
       set(layoutEl.pageHSpace, normalizeSetting('pageHSpace', s.layout.hSpace));
-      set(layoutEl.pageHSpaceNumber, layoutEl.pageHSpace?.value);
+      if (layoutEl.pageHSpace && layoutEl.pageHSpaceNumber)
+        layoutEl.pageHSpaceNumber.value = layoutEl.pageHSpace.value;
     }
     if (s.layout.vSpace != null) {
       set(layoutEl.pageVSpace, normalizeSetting('pageVSpace', s.layout.vSpace));
-      set(layoutEl.pageVSpaceNumber, layoutEl.pageVSpace?.value);
+      if (layoutEl.pageVSpace && layoutEl.pageVSpaceNumber)
+        layoutEl.pageVSpaceNumber.value = layoutEl.pageVSpace.value;
     }
     if (s.layout.invert != null) {
       setChecked(layoutEl.pageInvert, s.layout.invert);
     }
     if (s.layout.nestingOffset != null) {
       set(layoutEl.nestingOffset, normalizeSetting('nestingOffset', s.layout.nestingOffset));
-      set(layoutEl.nestingOffsetNumber, layoutEl.nestingOffset?.value);
+      if (layoutEl.nestingOffset && layoutEl.nestingOffsetNumber)
+        layoutEl.nestingOffsetNumber.value = layoutEl.nestingOffset.value;
     }
     if (s.layout.showGrid != null && layoutEl.pageEl?.showGrid) {
       layoutEl.pageEl.showGrid.checked = !!s.layout.showGrid;

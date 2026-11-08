@@ -7,7 +7,6 @@ import type {
   PanelConfig,
   LayoutElements,
   LayoutSettingsElements,
-  RenderLayout,
 } from '../types';
 import { createExportSvg, normalizeExportScale } from './export';
 import { syncPairDisplay, ui as appUi } from './ui';
@@ -168,16 +167,19 @@ export function setupImportSettings(
   ui: typeof appUi,
   render: () => void,
   layoutEl?: LayoutSettingsElements,
-  renderLayout?: RenderLayout,
 ): void {
   if (!el.importSettings || !el.importFile) return;
+
+  let importGeneration = 0;
 
   el.importSettings.addEventListener('click', () => el.importFile?.click());
   el.importFile.addEventListener('change', () => {
     const file = el.importFile!.files?.[0];
     if (!file) return;
+    const generation = ++importGeneration;
     const reader = new FileReader();
     reader.onload = () => {
+      if (generation !== importGeneration) return;
       try {
         const data = JSON.parse(String(reader.result || '{}'));
         STATE.apply(el, data, layoutEl);
@@ -199,13 +201,16 @@ export function setupImportSettings(
         }
 
         ui.updateVisibility(el);
+        layoutEl?.nestingOffsetRow?.classList.toggle('hidden', !layoutEl.pageInvert?.checked);
         render();
-        if (renderLayout) {
-          renderLayout(null, parseFloat(el.dotSize?.value || '1'));
-        }
       } catch {
         alert('Invalid settings file.');
       }
+      el.importFile!.value = '';
+    };
+    reader.onerror = () => {
+      if (generation !== importGeneration) return;
+      alert('Unable to read settings file.');
       el.importFile!.value = '';
     };
     reader.readAsText(file);

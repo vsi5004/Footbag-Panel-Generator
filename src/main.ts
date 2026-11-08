@@ -137,13 +137,7 @@ function initializeApp(): void {
       );
     }
 
-    setupImportSettings(
-      el,
-      UI,
-      debouncedRender,
-      { ...layoutElements, pageEl, layoutState },
-      renderLayoutFn,
-    );
+    setupImportSettings(el, UI, render, { ...layoutElements, pageEl, layoutState });
 
     pageEl.downloadSvg?.addEventListener('click', () => {
       const svg = pageEl.svgHost?.querySelector('svg');
