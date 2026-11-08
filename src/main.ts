@@ -6,7 +6,13 @@ import {
   getLayoutElements,
   validateCriticalElements,
 } from './lib/dom';
-import { renderLayout, updatePageOverflow, createMainRenderFunction } from './lib/renderer';
+import {
+  renderLayout,
+  renderSVGToDOM,
+  updatePageOverflow,
+  createMainRenderFunction,
+} from './lib/renderer';
+import { createFrameScheduler } from './lib/frame-scheduler';
 import {
   resetPanelSettings,
   resetLayoutSettings,
@@ -45,13 +51,16 @@ function initializeApp(): void {
     isFirstLayoutRender: true,
   };
 
+  const layoutFrame = createFrameScheduler(() => {
+    renderLayout(lastPanel, lastDotSize, pageEl, layoutElements, layoutState, lastPanelConfig);
+    requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState));
+  });
   function createLayoutRenderFunction() {
     return (panel: Panel | null, dotSize: number, config?: PanelConfig) => {
       lastPanel = panel;
       lastDotSize = dotSize;
       if (config) lastPanelConfig = config;
-      renderLayout(panel, dotSize, pageEl, layoutElements, layoutState, lastPanelConfig);
-      requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState));
+      layoutFrame.schedule();
     };
   }
 
@@ -74,6 +83,10 @@ function initializeApp(): void {
   }
 
   const debouncedRender = debounce(render, PERFORMANCE.DEBOUNCE_MS);
+  const flushRenders = () => {
+    debouncedRender.flush();
+    layoutFrame.flush();
+  };
 
   function bindPanelControls(): void {
     el.resetPanelSettings?.addEventListener('click', () => {
@@ -121,7 +134,9 @@ function initializeApp(): void {
     el.zoomReset?.addEventListener('click', () => zoomControls.setPct(el, 200));
 
     el.showGrid?.addEventListener('change', () => {
-      render();
+      // Settle any real design edit; a grid-only change touches just this preview.
+      flushRenders();
+      if (lastPanel) renderSVGToDOM(lastPanel, lastDotSize, el, lastPanelConfig ?? undefined);
     });
   }
 
@@ -134,7 +149,7 @@ function initializeApp(): void {
     el.exportScale?.addEventListener('change', readExportScale);
 
     el.downloadSvg?.addEventListener('click', () => {
-      debouncedRender.flush();
+      flushRenders();
       const svg = el.svgHost?.querySelector('svg');
       if (!svg) return;
       downloadSvg(svg, createPanelFilename(el), readExportScale());
@@ -142,7 +157,7 @@ function initializeApp(): void {
 
     if (el.exportSettings) {
       el.exportSettings.addEventListener('click', () => {
-        debouncedRender.flush();
+        flushRenders();
         exportSettings(el, { ...layoutElements, pageEl });
       });
     }
@@ -150,7 +165,7 @@ function initializeApp(): void {
     setupImportSettings(el, UI, render, { ...layoutElements, pageEl, layoutState });
 
     pageEl.downloadSvg?.addEventListener('click', () => {
-      debouncedRender.flush();
+      flushRenders();
       const svg = pageEl.svgHost?.querySelector('svg');
       if (svg) downloadSvg(svg, createLayoutFilename(layoutElements), readExportScale());
     });
@@ -249,7 +264,7 @@ function initializeApp(): void {
     layoutElements,
     pageEl,
     () => ({ panel: lastPanel, config: lastPanelConfig, dot: lastDotSize }),
-    debouncedRender.flush,
+    flushRenders,
     () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined),
   );
   initializeTooltips();

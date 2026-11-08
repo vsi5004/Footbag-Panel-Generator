@@ -731,3 +731,184 @@ test('nesting controls work at phone width and reset restores manual layout', as
   const bounds = await page.locator('.nesting-tools').boundingBox();
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
 });
+
+test('large layout bursts reuse panel drawings and commit only the latest value once per frame', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, {
+    ...initial,
+    shape: 10,
+    curved: false,
+    stitches: 20,
+    layout: { ...initial.layout, rows: 12, cols: 12, hSpace: 0, vSpace: 1 },
+  });
+  await expect(page.locator('#pageSvgHost circle')).toHaveCount(28800);
+  const result = await page.evaluate(async () => {
+    const host = document.getElementById('pageSvgHost')!,
+      svg = host.querySelector('svg')!;
+    const path = svg.querySelector('path'),
+      circle = svg.querySelector('circle');
+    const beforeWidth = svg.getAttribute('width');
+    let widthWrites = 0,
+      replacements = 0;
+    const observer = new MutationObserver((records) => {
+      for (const r of records) {
+        if (r.type === 'attributes') widthWrites++;
+        else replacements += r.addedNodes.length;
+      }
+    });
+    observer.observe(svg, { attributes: true, attributeFilter: ['width'] });
+    observer.observe(host, { childList: true });
+    const input = document.querySelector<HTMLInputElement>('#pageHSpaceNumber')!;
+    for (let i = 1; i <= 24; i++) {
+      input.value = String(i);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const beforeFrame = svg.getAttribute('width');
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    observer.disconnect();
+    return {
+      beforeWidth,
+      beforeFrame,
+      widthWrites,
+      replacements,
+      sameSvg: svg === host.querySelector('svg'),
+      samePath: path === svg.querySelector('path'),
+      sameCircle: circle === svg.querySelector('circle'),
+      widthDelta: parseFloat(svg.getAttribute('width')!) - parseFloat(beforeWidth!),
+    };
+  });
+  expect(result.beforeFrame).toBe(result.beforeWidth);
+  expect(result.widthWrites).toBe(1);
+  expect(result.replacements).toBe(0);
+  expect(result.sameSvg && result.samePath && result.sameCircle).toBe(true);
+  expect(result.widthDelta).toBeCloseTo(11 * 24, 8);
+  expect((await settingsDownload(page)).layout.hSpace).toBe(24);
+});
+
+test('grid toggles retain drawings and panel grid leaves the sheet completely unchanged', async ({
+  page,
+}) => {
+  const result = await page.evaluate(async () => {
+    const panel = document.querySelector('#svgHost svg')!,
+      sheet = document.querySelector('#pageSvgHost svg')!;
+    const panelPath = panel.querySelector('path'),
+      panelCircle = panel.querySelector('circle');
+    const sheetPath = sheet.querySelector('path'),
+      sheetCircle = sheet.querySelector('circle');
+    const beforeSheet = sheet.outerHTML;
+    const toggle = (id: string) => {
+      const input = document.getElementById(id) as HTMLInputElement;
+      input.checked = !input.checked;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    toggle('showGrid');
+    const untouched =
+      sheet.outerHTML === beforeSheet && sheet === document.querySelector('#pageSvgHost svg');
+    const panelGridHidden = !panel.querySelector('#grid');
+    toggle('showGrid');
+    toggle('pageShowGrid');
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const sheetGridHidden = !sheet.querySelector('#grid');
+    toggle('pageShowGrid');
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return {
+      untouched,
+      panelGridHidden,
+      sheetGridHidden,
+      panelGridRestored: !!panel.querySelector('#grid'),
+      sheetGridRestored: !!sheet.querySelector('#grid'),
+      panelRetained:
+        panel === document.querySelector('#svgHost svg') &&
+        panelPath === panel.querySelector('path') &&
+        panelCircle === panel.querySelector('circle'),
+      sheetRetained:
+        sheet === document.querySelector('#pageSvgHost svg') &&
+        sheetPath === sheet.querySelector('path') &&
+        sheetCircle === sheet.querySelector('circle'),
+    };
+  });
+  expect(Object.values(result).every(Boolean)).toBe(true);
+});
+
+test('simultaneous pending panel and layout edits are flushed into both SVG and settings downloads', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  for (const button of ['downloadSvg', 'downloadPageSvg', 'exportSettings']) {
+    await importSettings(page, {
+      ...initial,
+      shape: 4,
+      side: 30,
+      curved: false,
+      showHoles: false,
+      layout: {
+        ...initial.layout,
+        rows: 2,
+        cols: 3,
+        hSpace: 0,
+        vSpace: 5,
+        padding: 10,
+        invert: false,
+        nestingOffset: 0,
+      },
+    });
+    await page.locator('#exportScale').fill('125');
+    const pending = page.waitForEvent('download');
+    await page.evaluate((button) => {
+      for (const [id, value] of [
+        ['sideNumber', '40'],
+        ['pageHSpaceNumber', '4'],
+      ]) {
+        const input = document.getElementById(id) as HTMLInputElement;
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      document.getElementById(button)!.click();
+    }, button);
+    const download = await pending;
+    const text = await readFile((await download.path())!, 'utf8');
+    if (button === 'exportSettings') {
+      const data = JSON.parse(text);
+      expect(data.side).toBe(40);
+      expect(data.layout.hSpace).toBe(4);
+      expect(data.export.scalePercent).toBe(125);
+    } else {
+      const width = parseFloat(text.match(/\bwidth="([^"]+)"/)![1]);
+      expect(width).toBeCloseTo((button === 'downloadSvg' ? 60 : 151) * 1.25, 8);
+    }
+    await expect(page.locator('#dimensionsValue')).toHaveText('151.0 × 107.0');
+    const settled = await page.locator('#pageSvgHost svg').getAttribute('width');
+    await page.waitForTimeout(150);
+    await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', settled!);
+  }
+});
+
+test('nesting checks flush pending layout changes and optimized grid updates preserve placements', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const input = document.querySelector<HTMLInputElement>('#pageHSpaceNumber')!;
+    input.value = '10';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('optimizeLayout')!.click();
+  });
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  await expect(page.locator('#manualLayout')).toBeEnabled();
+  const before = await settingsDownload(page);
+  const retained = await page.evaluate(async () => {
+    const svg = document.querySelector('#pageSvgHost svg')!,
+      circle = svg.querySelector('circle');
+    const input = document.querySelector<HTMLInputElement>('#pageShowGrid')!;
+    input.checked = !input.checked;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return (
+      svg === document.querySelector('#pageSvgHost svg') && circle === svg.querySelector('circle')
+    );
+  });
+  expect(retained).toBe(true);
+  expect((await settingsDownload(page)).layout.optimized).toEqual(before.layout.optimized);
+});
