@@ -10,6 +10,7 @@ import type {
 } from '../types';
 import { createExportSvg, normalizeExportScale } from './export';
 import { syncPairDisplay, ui as appUi } from './ui';
+import { applyNestingPreferences } from './nesting-preferences';
 import { state as STATE } from './state';
 import { panelControlPairs, layoutControlPairs } from './controls';
 
@@ -57,8 +58,7 @@ export function resetLayoutSettings(
 ): void {
   if (layoutEl.nesting) layoutEl.nesting.active = undefined;
   if (layoutEl.nestingGap) layoutEl.nestingGap.value = layoutEl.nestingGap.defaultValue;
-  if (layoutEl.nestingQuarterTurn)
-    layoutEl.nestingQuarterTurn.checked = layoutEl.nestingQuarterTurn.defaultChecked;
+  applyNestingPreferences(layoutEl);
   for (const [range, display] of layoutControlPairs(layoutEl)) {
     if (!range) continue;
     range.value = range.defaultValue;

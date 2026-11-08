@@ -209,6 +209,55 @@
                 ],
                 "additionalProperties": false
               }
+            },
+            "rotations": {
+              "enum": [
+                "none",
+                "half",
+                "quarter"
+              ]
+            },
+            "stock": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "enum": [
+                    "fit",
+                    "capacity"
+                  ]
+                },
+                "width": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 10000
+                },
+                "height": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 10000
+                }
+              },
+              "required": [
+                "mode",
+                "width"
+              ],
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "mode": {
+                        "const": "capacity"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "height"
+                    ]
+                  }
+                }
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -216,6 +265,40 @@
             "source",
             "gap",
             "placements"
+          ],
+          "additionalProperties": false
+        },
+        "nesting": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "enum": [
+                "free",
+                "fit",
+                "capacity"
+              ]
+            },
+            "rotations": {
+              "enum": [
+                "none",
+                "half",
+                "quarter"
+              ]
+            },
+            "width": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "height": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 10000
+            }
+          },
+          "required": [
+            "mode",
+            "rotations"
           ],
           "additionalProperties": false
         }

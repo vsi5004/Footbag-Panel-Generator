@@ -23,6 +23,8 @@ import { geometry } from './geometry';
 import { stitches as stitchHelpers } from './stitches';
 import { CONSTANTS } from './constants';
 import { svg as svgHelpers } from './svg';
+import { fitsStock } from './stock-nesting';
+import { normalizeExportScale } from './export';
 import { validPlan } from './nesting-validation';
 import { ui } from './ui';
 
@@ -308,8 +310,21 @@ export function renderLayout(
     pageEl.materialInfoContainer.style.display = 'flex';
   }
 
+  const stockFits =
+    !optimized ||
+    fitsStock(
+      panel,
+      optimized,
+      dotDiameter,
+      padding,
+      normalizeExportScale(layoutElements.exportScale?.value),
+    );
   const validDimensions =
-    Number.isFinite(layoutWmm) && Number.isFinite(layoutHmm) && layoutWmm > 0 && layoutHmm > 0;
+    stockFits &&
+    Number.isFinite(layoutWmm) &&
+    Number.isFinite(layoutHmm) &&
+    layoutWmm > 0 &&
+    layoutHmm > 0;
   if (pageEl.downloadSvg) pageEl.downloadSvg.disabled = !validDimensions;
   if (!validDimensions) {
     pageEl.svgHost.replaceChildren();
@@ -317,8 +332,9 @@ export function renderLayout(
     state.lastLayoutHpx = 0;
     const message = document.createElement('p');
     message.setAttribute('role', 'status');
-    message.textContent =
-      'Sheet width and height must be positive. Increase horizontal or vertical spacing, or sheet padding, to preview and download this layout.';
+    message.textContent = !stockFits
+      ? 'This arrangement exceeds the stock limits at the current export scale or padding. Reduce the export scale, search again, or return to manual before downloading.'
+      : 'Sheet width and height must be positive. Increase horizontal or vertical spacing, or sheet padding, to preview and download this layout.';
     pageEl.svgHost.appendChild(message);
     return;
   }

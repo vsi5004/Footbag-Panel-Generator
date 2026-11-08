@@ -458,11 +458,30 @@
             </div>
           </div>
           <div class="nesting-tools">
-            <p>Optional automatic nesting keeps the panel count and tries aligned, alternating and staggered arrangements. It does not change panel shapes.</p>
+            <p>Optional automatic nesting tries aligned, alternating and staggered arrangements. Choose to keep the panel count or find capacity within stock. Panel shapes stay the same.</p>
             <label for="nestingGap">Minimum cutting gap (mm at 100% export)</label>
             <input id="nestingGap" type="number" min="0" max="20" step="0.1" value="1" aria-describedby="nestingGapHelp" />
-            <p id="nestingGapHelp">Gap is between cut outlines, with an extra allowance for curve approximation. Export scaling also scales this gap. Hole marks are not checked. Rotations of 180° are allowed.</p>
-            <label><input id="nestingQuarterTurn" type="checkbox" /> Also allow 90° rotations (check your fabric grain)</label>
+            <p id="nestingGapHelp">Gap is between cut outlines, with an extra allowance for curve approximation. Export scaling also scales this gap. Hole marks are not checked. Choose permitted rotations for your fabric.</p>
+            <p>Options apply to the next search. The active arrangement keeps its saved limits until a new candidate is applied.</p>
+            <label for="nestingRotation">Allowed rotations (check fabric grain and nap)</label>
+            <select id="nestingRotation">
+              <option value="none">No rotation</option>
+              <option value="half" selected>0° and 180°</option>
+              <option value="quarter">90° increments</option>
+            </select>
+            <label for="nestingMode">Nesting goal</label>
+            <select id="nestingMode">
+              <option value="free" selected>Minimize area, current panel count</option>
+              <option value="fit">Fit current count within stock</option>
+              <option value="capacity">Find capacity within stock (up to 144)</option>
+            </select>
+            <div class="stock-dimensions">
+              <label for="nestingStockWidth">Stock width (actual mm)</label>
+              <input id="nestingStockWidth" type="number" min="1" max="10000" step="any" placeholder="Required for stock modes" aria-describedby="stockSizeHelp" />
+              <label for="nestingStockHeight">Maximum height (actual mm, optional for fit mode)</label>
+              <input id="nestingStockHeight" type="number" min="1" max="10000" step="any" placeholder="Required for capacity" aria-describedby="stockSizeHelp" />
+            </div>
+            <p id="stockSizeHelp">Stock limits include padding and drawing allowances at the current export scale. Exports are cropped to the arrangement within those limits. Capacity reports the best found count, capped at 144; it is not a proof of the maximum.</p>
             <div class="nesting-actions">
               <button id="checkClearance" type="button">Check clearance</button>
               <button id="optimizeLayout" type="button">Optimize layout</button>

@@ -10,6 +10,8 @@ import { normalizeExportScale } from './export';
 import { normalizeSetting } from './settings';
 import { readImportedSettings } from './import-settings';
 import { panelControlPairs } from './controls';
+import { collectNestingPreferences, applyNestingPreferences } from './nesting-preferences';
+import type { NestingPreferences } from './nesting-types';
 import type { NestingPlan } from './nesting-types';
 import { syncPairDisplay } from './ui';
 
@@ -42,6 +44,7 @@ export interface SettingsData {
   export?: { scalePercent?: number };
   layout: {
     optimized?: NestingPlan;
+    nesting?: NestingPreferences;
     padding: number;
     rows: number;
     cols: number;
@@ -54,6 +57,7 @@ export interface SettingsData {
 }
 
 function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): SettingsData {
+  const nesting = collectNestingPreferences(layoutEl);
   return {
     $schema: './schema/settings.schema.json',
     version: 1,
@@ -87,6 +91,7 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
     export: { scalePercent: normalizeExportScale(el.exportScale?.value) },
     layout: {
       ...(layoutEl?.nesting?.active ? { optimized: layoutEl.nesting.active } : {}),
+      ...(nesting ? { nesting } : {}),
       padding: parseFloat(layoutEl?.pagePadding?.value || '10'),
       rows: parseInt(layoutEl?.pageRows?.value || '3', 10),
       cols: parseInt(layoutEl?.pageCols?.value || '3', 10),
@@ -108,10 +113,7 @@ function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElemen
       s.layout?.optimized?.gap ?? layoutEl.nestingGap.defaultValue,
     );
 
-  if (layoutEl?.nestingQuarterTurn)
-    layoutEl.nestingQuarterTurn.checked =
-      s.layout?.optimized?.placements.some((at) => at.angle === 90 || at.angle === 270) ??
-      layoutEl.nestingQuarterTurn.defaultChecked;
+  if (layoutEl) applyNestingPreferences(layoutEl, s.layout?.nesting, s.layout?.optimized);
 
   const set = (input: HTMLInputElement | null, value: unknown) => {
     if (input == null || typeof value !== 'number' || !Number.isFinite(value)) return;

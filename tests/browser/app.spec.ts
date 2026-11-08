@@ -149,6 +149,30 @@ test('mobile viewport retains working controls and exports', async ({ page }) =>
   expect(settings.side).toBe(35);
 });
 
+test('advanced disclosure has a drawn marker and supports keyboard toggling', async ({ page }) => {
+  const summary = page.locator('#advanced summary');
+  const marker = () =>
+    summary.evaluate((element) => {
+      const css = getComputedStyle(element, '::after');
+      return {
+        content: css.content,
+        border: css.borderTopStyle,
+        width: css.borderTopWidth,
+        transform: css.transform,
+      };
+    });
+  const collapsed = await marker();
+  expect(collapsed.content).toBe('""');
+  expect(collapsed.border).toBe('solid');
+  expect(parseFloat(collapsed.width)).toBeGreaterThan(0);
+  await summary.focus();
+  await summary.press('Enter');
+  await expect(page.locator('#advanced')).toHaveAttribute('open', '');
+  await expect.poll(async () => (await marker()).transform).toBe('matrix(-1, 0, 0, -1, 0, 0)');
+  await summary.press('Space');
+  await expect(page.locator('#advanced')).not.toHaveAttribute('open');
+});
+
 test('the same saved design imports identically after restrictive or large designs', async ({
   page,
 }) => {
@@ -646,7 +670,7 @@ test('clearance check detects overlap and safely checks an optimized curved star
     starRootAngle: 128,
     layout: { ...initial.layout, rows: 2, cols: 3 },
   });
-  await page.locator('#nestingQuarterTurn').check();
+  await page.locator('#nestingRotation').selectOption('quarter');
   await page.locator('#nestingGap').fill('2');
   await page.locator('#optimizeLayout').click();
   await expect(page.locator('#applyNesting')).toBeEnabled();
@@ -730,6 +754,142 @@ test('nesting controls work at phone width and reset restores manual layout', as
   expect((await settingsDownload(page)).layout.optimized).toBeUndefined();
   const bounds = await page.locator('.nesting-tools').boundingBox();
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+});
+
+test('stock fitting accounts for export scale and blocks an outgrown arrangement until it fits again', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, { ...initial, shape: 4, curved: false, showHoles: false });
+  await page.locator('#nestingMode').selectOption('fit');
+  await page.locator('#nestingRotation').selectOption('none');
+  await page.locator('#nestingStockWidth').fill('120');
+  await page.locator('#nestingStockHeight').fill('120');
+  await page.locator('#exportScale').fill('125');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingStatus')).toContainText('No arrangement found');
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  await page.locator('#nestingStockWidth').fill('150');
+  await page.locator('#nestingStockHeight').fill('150');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await expect(page.locator('#nestingStatus')).toContainText('125% export');
+  await page.locator('#applyNesting').click();
+  const saved = await settingsDownload(page);
+  expect(saved.layout.optimized.stock).toEqual({ mode: 'fit', width: 150, height: 150 });
+  expect(
+    saved.layout.optimized.placements.every(
+      (p: { angle: number; flipY?: boolean }) => p.angle === 0 && !p.flipY,
+    ),
+  ).toBe(true);
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  const exported = await readFile((await (await pending).path())!, 'utf8');
+  expect(parseFloat(exported.match(/\bwidth="([^"]+)"/)![1])).toBeLessThanOrEqual(150);
+  expect(parseFloat(exported.match(/\bheight="([^"]+)"/)![1])).toBeLessThanOrEqual(150);
+  let unexpected = 0;
+  page.on('download', () => unexpected++);
+  await page.evaluate(() => {
+    const scale = document.querySelector<HTMLInputElement>('#exportScale')!;
+    scale.value = '200';
+    scale.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('downloadPageSvg')!.click();
+  });
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await expect(page.locator('#pageSvgHost')).toContainText('exceeds the stock limits');
+  await expect(page.locator('#manualLayout')).toBeEnabled();
+  await expect(page.locator('#pageSvgHost svg')).toHaveCount(0);
+  await page.waitForTimeout(150);
+  expect(unexpected).toBe(0);
+  await page.locator('#exportScale').fill('125');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+  expect((await settingsDownload(page)).layout.optimized).toEqual(saved.layout.optimized);
+  await importSettings(page, { ...saved, export: { scalePercent: 200 } }, false);
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await page.locator('#manualLayout').click();
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+});
+
+test('capacity uses actual panel count, round trips limits, and preserves the manual arrangement', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const initial = await settingsDownload(page);
+  await importSettings(page, { ...initial, shape: 4, curved: false, showHoles: false });
+  const manual = await page.locator('#pageSvgHost svg').getAttribute('width');
+  await page.locator('#nestingMode').selectOption('capacity');
+  await page.locator('#nestingRotation').selectOption('none');
+  await page.locator('#nestingStockWidth').fill('120');
+  await page.locator('#nestingStockHeight').fill('85');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await expect(page.locator('#nestingStatus')).toContainText('Best capacity found: 6 panels');
+  await expect(page.locator('#nestingStatus')).toContainText('not a proven maximum');
+  await page.locator('#applyNesting').click();
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(6);
+  await expect(page.locator('#pageRowsNumber')).toHaveValue('3');
+  await expect(page.locator('#pageColsNumber')).toHaveValue('3');
+  const saved = await settingsDownload(page);
+  expect(saved.layout.optimized.placements).toHaveLength(6);
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  expect((await pending).suggestedFilename()).toBe('footbag-nested-6panels.svg');
+  await page.locator('#nestingStockWidth').fill('10');
+  await expect(page.locator('#nestingStatus')).toContainText('keeps its saved limits');
+  expect((await settingsDownload(page)).layout.optimized.stock.width).toBe(120);
+  await page.locator('#manualLayout').click();
+  await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+  await importSettings(page, saved);
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(6);
+  await expect(page.locator('#nestingMode')).toHaveValue('capacity');
+  await expect(page.locator('#nestingStockWidth')).toHaveValue('120');
+  await page.locator('#resetLayoutSettings').click();
+  await expect(page.locator('#nestingMode')).toHaveValue('free');
+  await expect(page.locator('#nestingRotation')).toHaveValue('half');
+  await expect(page.locator('#nestingStockWidth')).toHaveValue('');
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+});
+
+test('stock search handles missing dimensions, no fit, quarter turns and stale candidates', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, {
+    ...initial,
+    shape: 3,
+    curved: false,
+    showHoles: false,
+    layout: { ...initial.layout, rows: 1, cols: 1 },
+  });
+  await page.locator('#nestingMode').selectOption('capacity');
+  await page.locator('#nestingStockWidth').fill('49');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingStatus')).toContainText('requires both');
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  await page.locator('#nestingMode').selectOption('fit');
+  await page.locator('#nestingRotation').selectOption('none');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingStatus')).toContainText('No arrangement found');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await page.locator('#nestingRotation').selectOption('quarter');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#exportScale').fill('125');
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  await page.locator('#exportScale').fill('100');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const saved = await settingsDownload(page);
+  expect([90, 270]).toContain(saved.layout.optimized.placements[0].angle);
+  delete saved.layout.nesting;
+  delete saved.layout.optimized.rotations;
+  delete saved.layout.optimized.stock;
+  await importSettings(page, saved);
+  await expect(page.locator('#nestingMode')).toHaveValue('free');
+  await expect(page.locator('#nestingRotation')).toHaveValue('quarter');
 });
 
 test('large layout bursts reuse panel drawings and commit only the latest value once per frame', async ({

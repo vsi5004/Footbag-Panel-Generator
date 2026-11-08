@@ -1,3 +1,4 @@
+import { readStock, readRotations, readNestingPreferences } from './stock-nesting';
 import schema from '../../schema/settings.schema.json';
 import { SETTINGS } from './settings';
 import type { SettingsData } from './state';
@@ -66,6 +67,8 @@ export function readImportedSettings(value: unknown): ImportedSettings {
         throw new Error(`Invalid layout.${key}`);
     }
   }
+  if (isObject(layout) && 'nesting' in layout)
+    layout.nesting = readNestingPreferences(layout.nesting);
   if (isObject(layout) && 'optimized' in layout) {
     const plan = layout.optimized;
     if (
@@ -101,6 +104,8 @@ export function readImportedSettings(value: unknown): ImportedSettings {
       source: plan.source,
       gap: plan.gap,
       placements: plan.placements.map((at) => ({ ...at })),
+      ...('rotations' in plan ? { rotations: readRotations(plan.rotations) } : {}),
+      ...('stock' in plan ? { stock: readStock(plan.stock) } : {}),
     };
   }
   return result as ImportedSettings;

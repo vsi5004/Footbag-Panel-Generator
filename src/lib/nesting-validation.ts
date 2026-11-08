@@ -11,7 +11,18 @@ export function validPlan(
   count: number,
 ): boolean {
   const key = designKey(config, dot, count);
-  if (plan.source !== key || plan.placements.length !== count) return false;
+  if (plan.source !== key || (plan.stock?.mode !== 'capacity' && plan.placements.length !== count))
+    return false;
+  if (
+    plan.rotations &&
+    plan.placements.some(
+      (at) =>
+        at.flipY ||
+        (plan.rotations === 'none' && at.angle !== 0) ||
+        (plan.rotations === 'half' && at.angle % 180 !== 0),
+    )
+  )
+    return false;
   if (verified.get(plan) === key) return true;
   const outline = flattenOutline(panel.outlinePath);
   if (

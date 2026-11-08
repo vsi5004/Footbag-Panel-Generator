@@ -85,6 +85,7 @@ function initializeApp(): void {
   const debouncedRender = debounce(render, PERFORMANCE.DEBOUNCE_MS);
   const flushRenders = () => {
     debouncedRender.flush();
+    if (layoutElements.nesting?.active?.stock) layoutFrame.schedule();
     layoutFrame.flush();
   };
 
@@ -146,7 +147,15 @@ function initializeApp(): void {
       if (el.exportScale) el.exportScale.value = String(scale);
       return scale;
     };
-    el.exportScale?.addEventListener('change', readExportScale);
+    el.exportScale?.addEventListener('input', () => {
+      if (layoutElements.nesting?.active?.stock)
+        renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
+    });
+    el.exportScale?.addEventListener('change', () => {
+      readExportScale();
+      if (layoutElements.nesting?.active?.stock)
+        renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
+    });
 
     el.downloadSvg?.addEventListener('click', () => {
       flushRenders();

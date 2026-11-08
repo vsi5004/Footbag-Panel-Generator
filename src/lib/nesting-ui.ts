@@ -1,5 +1,8 @@
 import type { Panel, PanelConfig, PageElements, LayoutElements } from '../types';
 import { manualPlacements, measureLayoutSvg, type LayoutSvgOptions } from './layout';
+import { normalizeExportScale } from './export';
+import { readStock, readRotations } from './stock-nesting';
+import type { StockConstraint } from './nesting-types';
 import { designKey, measurePlaced, type NestingPlan } from './nesting-types';
 
 export function initializeNesting(
@@ -15,7 +18,10 @@ export function initializeNesting(
   const manual = document.getElementById('manualLayout') as HTMLButtonElement;
   const cancel = document.getElementById('cancelNesting') as HTMLButtonElement;
   const gapInput = document.getElementById('nestingGap') as HTMLInputElement;
-  const quarter = document.getElementById('nestingQuarterTurn') as HTMLInputElement;
+  const rotation = document.getElementById('nestingRotation') as HTMLSelectElement;
+  const mode = document.getElementById('nestingMode') as HTMLSelectElement;
+  const stockWidth = document.getElementById('nestingStockWidth') as HTMLInputElement;
+  const stockHeight = document.getElementById('nestingStockHeight') as HTMLInputElement;
   const status = document.getElementById('nestingStatus')!;
   let worker: Worker | undefined, candidate: NestingPlan | undefined;
   const stop = () => {
@@ -49,6 +55,21 @@ export function initializeNesting(
       status.textContent = 'Enter a minimum gap from 0 to 20 mm.';
       return;
     }
+    let stock: StockConstraint | undefined;
+    if (!checkOnly && mode.value !== 'free') {
+      try {
+        stock = readStock({
+          mode: mode.value,
+          width: Number(stockWidth.value),
+          ...(stockHeight.value.trim() !== '' ? { height: Number(stockHeight.value) } : {}),
+        });
+      } catch {
+        status.textContent =
+          'Enter stock width from 1 to 10000 mm, and height in that range when supplied. Capacity mode requires both.';
+        return;
+      }
+    }
+    const scalePercent = normalizeExportScale(layout.exportScale?.value);
     const opts = options(),
       count = opts.rows * opts.cols,
       source = designKey(config, dot, count);
@@ -92,6 +113,27 @@ export function initializeNesting(
       candidate = event.data.plan;
       if (!candidate) return;
       const size = measurePlaced(panel, candidate.placements, dot, opts.padding ?? 10);
+      if (candidate.stock) {
+        const s = candidate.stock,
+          scale = scalePercent / 100;
+        status.textContent =
+          (s.mode === 'capacity' ? 'Best capacity found: ' : 'Candidate: ') +
+          candidate.placements.length +
+          ' panels, ' +
+          (size.width * scale).toFixed(1) +
+          ' × ' +
+          (size.height * scale).toFixed(1) +
+          ' mm at ' +
+          scalePercent +
+          '% export. Fits stock ' +
+          s.width +
+          ' mm wide' +
+          (s.height !== undefined ? ' × ' + s.height + ' mm high' : '') +
+          (s.mode === 'capacity' ? '. Search limit: 144 panels; not a proven maximum.' : '.') +
+          ' Apply to use this arrangement.';
+        apply.disabled = false;
+        return;
+      }
       const percent = (1 - (size.width * size.height) / (current.width * current.height)) * 100;
       const comparison =
         Number.isFinite(percent) && current.width > 0 && current.height > 0
@@ -109,7 +151,7 @@ export function initializeNesting(
         ' mm' +
         comparison +
         '. ' +
-        count +
+        candidate.placements.length +
         ' panels, minimum gap ' +
         gap +
         ' mm at 100% export. Apply to use this arrangement.';
@@ -119,7 +161,9 @@ export function initializeNesting(
       panel,
       count,
       gap,
-      quarterTurn: quarter.checked,
+      rotations: readRotations(rotation.value),
+      scalePercent,
+      ...(stock ? { stock } : {}),
       source,
       padding: opts.padding ?? 10,
       dot,
@@ -144,11 +188,22 @@ export function initializeNesting(
       return;
     }
     if (layout.nesting) layout.nesting.active = candidate;
-    const gap = candidate.gap;
+    const gap = candidate.gap,
+      stock = candidate.stock,
+      count = candidate.placements.length;
     stop();
     refresh();
     status.textContent =
-      'Optimized layout applied. Minimum gap ' +
+      (stock
+        ? (stock.mode === 'capacity' ? 'Capacity layout applied: ' : 'Stock layout applied: ') +
+          count +
+          ' panels, stock ' +
+          stock.width +
+          ' mm wide' +
+          (stock.height !== undefined ? ' × ' + stock.height + ' mm high' : '') +
+          '. '
+        : 'Optimized layout applied. ') +
+      'Minimum gap ' +
       gap +
       ' mm at 100% export. Design or manual layout edits restore the manual arrangement.';
   });
@@ -170,10 +225,16 @@ export function initializeNesting(
       }
     });
   for (const event of ['input', 'change'])
-    document.addEventListener(event, () => {
+    document.addEventListener(event, (e) => {
       if (worker || candidate) {
         stop();
         status.textContent = 'Settings changed. Run the search or clearance check again.';
+      } else if (
+        layout.nesting?.active &&
+        [rotation, mode, stockWidth, stockHeight, gapInput].includes(e.target as HTMLInputElement)
+      ) {
+        status.textContent =
+          'Search options changed. The active arrangement keeps its saved limits until you apply a new candidate.';
       }
     });
 }

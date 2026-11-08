@@ -173,7 +173,11 @@ export interface PageElements extends PreviewElements {
 export interface LayoutElements {
   nesting?: NestingState;
   nestingGap?: HTMLInputElement | null;
-  nestingQuarterTurn?: HTMLInputElement | null;
+  nestingRotation?: HTMLSelectElement | null;
+  nestingMode?: HTMLSelectElement | null;
+  nestingStockWidth?: HTMLInputElement | null;
+  nestingStockHeight?: HTMLInputElement | null;
+  exportScale?: HTMLInputElement | null;
   pagePadding: HTMLInputElement | null;
   pagePaddingNumber: HTMLInputElement | null;
   pageRows: HTMLInputElement | null;

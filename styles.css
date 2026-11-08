@@ -256,10 +256,14 @@ details.advanced summary {
 }
 details.advanced summary:hover { color: var(--text); }
 details.advanced summary::after {
-  content: "â–¼";
-  font-size: 10px;
+  content: "";
+  width: 0;
+  height: 0;
+  flex-shrink: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--accent);
   transition: transform 0.2s;
-  color: var(--accent);
 }
 details.advanced[open] summary { color: var(--text); }
 details.advanced[open] summary::after {
@@ -348,3 +352,7 @@ details.advanced .advanced-content { margin-top: 8px; }
   .preview-inner { grid-template-columns: minmax(0, 1fr); }
   .preview-toolbar { flex-wrap: wrap; }
 }
+
+.nesting-tools > label, .stock-dimensions label { display: block; margin-top: 10px; }
+.nesting-tools select { max-width: 100%; margin-top: 6px; padding: 6px 8px; background: var(--panel); color: var(--text); border: 1px solid #2a2f43; border-radius: 6px; }
+.stock-dimensions input[type="number"] { width: 180px; max-width: 100%; }
