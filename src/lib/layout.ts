@@ -171,7 +171,9 @@ export function calculateMaterialUtilization(
   const { width, height } = measureLayoutSvg(panel, opts);
   const totalSheetArea = width * height;
   if (width <= 0 || height <= 0 || !Number.isFinite(totalSheetArea)) return null;
-  const totalPanelArea = calculateActualPanelArea(panel, config) * opts.rows * opts.cols;
+  const totalPanelArea =
+    calculateActualPanelArea(panel, config) *
+    (opts.optimized?.placements.length ?? opts.rows * opts.cols);
   const percentage = (totalPanelArea / totalSheetArea) * 100;
   return Number.isFinite(percentage) ? percentage : null;
 }

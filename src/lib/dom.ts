@@ -107,8 +107,13 @@ export function createPageElements(): PageElements {
 export function getLayoutElements(): LayoutElements {
   return {
     nesting: {},
+    editable: {},
     nestingGap: document.getElementById('nestingGap') as HTMLInputElement | null,
-    nestingQuarterTurn: document.getElementById('nestingQuarterTurn') as HTMLInputElement | null,
+    nestingRotation: document.getElementById('nestingRotation') as HTMLSelectElement | null,
+    nestingMode: document.getElementById('nestingMode') as HTMLSelectElement | null,
+    nestingStockWidth: document.getElementById('nestingStockWidth') as HTMLInputElement | null,
+    nestingStockHeight: document.getElementById('nestingStockHeight') as HTMLInputElement | null,
+    exportScale: document.getElementById('exportScale') as HTMLInputElement | null,
     pagePadding: document.getElementById('pagePadding') as HTMLInputElement | null,
     pagePaddingNumber: document.getElementById('pagePaddingNumber') as HTMLInputElement | null,
     pageRows: document.getElementById('pageRows') as HTMLInputElement | null,

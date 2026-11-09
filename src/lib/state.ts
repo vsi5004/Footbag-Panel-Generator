@@ -1,3 +1,5 @@
+import { applyEditableLayout } from './editable-layout';
+import type { EditableLayout } from './lattice';
 import type { PanelElements, LayoutSettingsElements } from '../types';
 import { utils } from './utils';
 import {
@@ -10,6 +12,8 @@ import { normalizeExportScale } from './export';
 import { normalizeSetting } from './settings';
 import { readImportedSettings } from './import-settings';
 import { panelControlPairs } from './controls';
+import { collectNestingPreferences, applyNestingPreferences } from './nesting-preferences';
+import type { NestingPreferences } from './nesting-types';
 import type { NestingPlan } from './nesting-types';
 import { syncPairDisplay } from './ui';
 
@@ -41,7 +45,9 @@ export interface SettingsData {
   };
   export?: { scalePercent?: number };
   layout: {
+    editable?: EditableLayout;
     optimized?: NestingPlan;
+    nesting?: NestingPreferences;
     padding: number;
     rows: number;
     cols: number;
@@ -54,9 +60,19 @@ export interface SettingsData {
 }
 
 function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): SettingsData {
+  const nesting = collectNestingPreferences(layoutEl);
+  const optimized = layoutEl?.nesting?.active;
+  // Older readers must reject advanced layouts instead of silently using a grid.
+  const advanced = !!(
+    layoutEl?.editable?.current ||
+    nesting ||
+    optimized?.stock ||
+    optimized?.rotations ||
+    optimized?.lattice
+  );
   return {
     $schema: './schema/settings.schema.json',
-    version: 1,
+    version: advanced ? 2 : 1,
     shape: INPUT_VALIDATORS.nSides(el.shape?.value || '5'),
     curved: !!el.curved?.checked,
     curveRadius: el.curveRadius ? INPUT_VALIDATORS.curveRadius(el.curveRadius.value) : undefined,
@@ -86,7 +102,11 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
     },
     export: { scalePercent: normalizeExportScale(el.exportScale?.value) },
     layout: {
-      ...(layoutEl?.nesting?.active ? { optimized: layoutEl.nesting.active } : {}),
+      ...(layoutEl?.editable?.current ? { editable: layoutEl.editable.current } : {}),
+      ...(!layoutEl?.editable?.current && layoutEl?.nesting?.active
+        ? { optimized: layoutEl.nesting.active }
+        : {}),
+      ...(nesting ? { nesting } : {}),
       padding: parseFloat(layoutEl?.pagePadding?.value || '10'),
       rows: parseInt(layoutEl?.pageRows?.value || '3', 10),
       cols: parseInt(layoutEl?.pageCols?.value || '3', 10),
@@ -101,17 +121,17 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
 
 function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElements): void {
   const s = readImportedSettings(data);
+  if (layoutEl) applyEditableLayout(layoutEl, s.layout?.editable);
   // Older files always restore the manual layout, never a previous optimization.
   if (layoutEl?.nesting) layoutEl.nesting.active = s.layout?.optimized;
-  if (layoutEl?.nestingGap)
-    layoutEl.nestingGap.value = String(
-      s.layout?.optimized?.gap ?? layoutEl.nestingGap.defaultValue,
-    );
 
-  if (layoutEl?.nestingQuarterTurn)
-    layoutEl.nestingQuarterTurn.checked =
-      s.layout?.optimized?.placements.some((at) => at.angle === 90 || at.angle === 270) ??
-      layoutEl.nestingQuarterTurn.defaultChecked;
+  if (layoutEl)
+    applyNestingPreferences(
+      layoutEl,
+      s.layout?.nesting,
+      s.layout?.optimized,
+      s.layout?.editable?.gap,
+    );
 
   const set = (input: HTMLInputElement | null, value: unknown) => {
     if (input == null || typeof value !== 'number' || !Number.isFinite(value)) return;

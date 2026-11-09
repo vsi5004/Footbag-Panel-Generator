@@ -1,3 +1,4 @@
+import { editablePlan } from './editable-layout';
 // Rendering system for the footbag panel generator
 // Handles SVG rendering to DOM and render pipeline coordination
 
@@ -23,6 +24,8 @@ import { geometry } from './geometry';
 import { stitches as stitchHelpers } from './stitches';
 import { CONSTANTS } from './constants';
 import { svg as svgHelpers } from './svg';
+import { fitsStock } from './stock-nesting';
+import { normalizeExportScale } from './export';
 import { validPlan } from './nesting-validation';
 import { ui } from './ui';
 
@@ -246,10 +249,18 @@ export function renderLayout(
       status.textContent =
         'The saved arrangement no longer matches this design or its clearance. Manual layout restored.';
   }
+  const editable = layoutElements.editable?.current;
+  if (editable && config) optimized = editablePlan(editable, config, dotDiameter);
+  const editableSafe =
+    !layoutElements.editable?.error &&
+    (!editable ||
+      (!!optimized &&
+        !!config &&
+        validPlan(optimized, panel, config, dotDiameter, editable.count)));
   const manualButton = document.getElementById('manualLayout') as HTMLButtonElement | null;
   if (manualButton) manualButton.disabled = !optimized;
 
-  // Compute if we need to auto-fit to the host viewport
+  // Track physical size for scrolling without changing the user's zoom.
   const MM_TO_PX = 96 / 25.4;
   const { width: layoutWmm, height: layoutHmm } = measureLayoutSvg(panel, {
     rows,
@@ -267,11 +278,6 @@ export function renderLayout(
   const layoutHpx = layoutHmm * MM_TO_PX;
   state.lastLayoutWpx = layoutWpx;
   state.lastLayoutHpx = layoutHpx;
-  const hostW = pageEl.svgHost.clientWidth || 1;
-  const hostH = pageEl.svgHost.clientHeight || 1;
-  const needsFit = layoutWpx > hostW || layoutHpx > hostH;
-  const rawFitPct = Math.min(hostW / layoutWpx, hostH / layoutHpx) * 100;
-  const fitPct = Math.max(20, Math.min(300, Math.floor(rawFitPct) - 1));
 
   // Calculate and display material dimensions
   if (pageEl.dimensionsValue) {
@@ -308,8 +314,22 @@ export function renderLayout(
     pageEl.materialInfoContainer.style.display = 'flex';
   }
 
+  const stockFits =
+    !optimized ||
+    fitsStock(
+      panel,
+      optimized,
+      dotDiameter,
+      padding,
+      normalizeExportScale(layoutElements.exportScale?.value),
+    );
   const validDimensions =
-    Number.isFinite(layoutWmm) && Number.isFinite(layoutHmm) && layoutWmm > 0 && layoutHmm > 0;
+    editableSafe &&
+    stockFits &&
+    Number.isFinite(layoutWmm) &&
+    Number.isFinite(layoutHmm) &&
+    layoutWmm > 0 &&
+    layoutHmm > 0;
   if (pageEl.downloadSvg) pageEl.downloadSvg.disabled = !validDimensions;
   if (!validDimensions) {
     pageEl.svgHost.replaceChildren();
@@ -318,7 +338,12 @@ export function renderLayout(
     const message = document.createElement('p');
     message.setAttribute('role', 'status');
     message.textContent =
-      'Sheet width and height must be positive. Increase horizontal or vertical spacing, or sheet padding, to preview and download this layout.';
+      layoutElements.editable?.error ??
+      (!editableSafe
+        ? 'This edited layout does not meet its cutting gap or allowed rotations. Adjust the pattern, center spacing, rotation policy or gap before downloading.'
+        : !stockFits
+          ? 'This arrangement exceeds the stock limits at the current export scale or padding. Reduce the export scale, search again, or choose Grid layout before downloading.'
+          : 'Sheet width and height must be positive. Increase horizontal or vertical spacing, or sheet padding, to preview and download this layout.');
     pageEl.svgHost.appendChild(message);
     return;
   }
@@ -345,19 +370,11 @@ export function renderLayout(
     wrap.appendChild(svg);
     pageEl.svgHost.replaceChildren(wrap);
   }
-  const currentPct = ui?.zoom?.getPct(pageEl) || 100;
-  if (state.isFirstLayoutRender) {
-    // Keep user's/default 100% on first load; no auto-shrink
-    ui?.zoom?.apply(pageEl);
-    ui?.zoom?.updateDisplay(pageEl);
-    state.isFirstLayoutRender = false;
-  } else if (needsFit && currentPct > fitPct) {
-    // Only shrink if needed to fit
-    ui?.zoom?.setPct(pageEl, fitPct);
-  } else {
-    ui?.zoom?.apply(pageEl);
-    ui?.zoom?.updateDisplay(pageEl);
-  }
+  // Rendering or accepting a proposal must not derive zoom from the previous
+  // content height: it can temporarily collapse while the preview is replaced.
+  ui?.zoom?.apply(pageEl);
+  ui?.zoom?.updateDisplay(pageEl);
+  state.isFirstLayoutRender = false;
 }
 
 /**

@@ -149,6 +149,30 @@ test('mobile viewport retains working controls and exports', async ({ page }) =>
   expect(settings.side).toBe(35);
 });
 
+test('advanced disclosure has a drawn marker and supports keyboard toggling', async ({ page }) => {
+  const summary = page.locator('#advanced summary');
+  const marker = () =>
+    summary.evaluate((element) => {
+      const css = getComputedStyle(element, '::after');
+      return {
+        content: css.content,
+        border: css.borderTopStyle,
+        width: css.borderTopWidth,
+        transform: css.transform,
+      };
+    });
+  const collapsed = await marker();
+  expect(collapsed.content).toBe('""');
+  expect(collapsed.border).toBe('solid');
+  expect(parseFloat(collapsed.width)).toBeGreaterThan(0);
+  await summary.focus();
+  await summary.press('Enter');
+  await expect(page.locator('#advanced')).toHaveAttribute('open', '');
+  await expect.poll(async () => (await marker()).transform).toBe('matrix(-1, 0, 0, -1, 0, 0)');
+  await summary.press('Space');
+  await expect(page.locator('#advanced')).not.toHaveAttribute('open');
+});
+
 test('the same saved design imports identically after restrictive or large designs', async ({
   page,
 }) => {
@@ -201,7 +225,7 @@ test('valid JSON with invalid settings leaves the design and previews untouched'
     [],
     {},
     { ...before, side: 70, seam: 'wrong' },
-    { ...before, version: 2 },
+    { ...before, version: 999 },
   ]) {
     const pending = page.waitForEvent('dialog');
     await page.locator('#importFile').setInputFiles({
@@ -539,7 +563,7 @@ test('every help icon is an accessible button and supports keyboard dismissal', 
   page,
 }) => {
   const icons = page.locator('.tooltip-icon');
-  expect(await icons.count()).toBe(19);
+  expect(await icons.count()).toBe(20);
   for (const icon of await icons.all()) {
     await expect(icon).toHaveAttribute('type', 'button');
     await expect(icon).toHaveAttribute('aria-label', /^About .+/);
@@ -584,8 +608,11 @@ test('optional nesting previews savings before applying, preserves exports and r
   await expect(page.locator('#manualLayout')).toBeEnabled();
   const optimized = await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML);
   const saved = await settingsDownload(page);
-  expect(saved.layout.optimized.version).toBe(1);
-  expect(saved.layout.optimized.placements).toHaveLength(9);
+  expect(saved.layout.optimized).toBeUndefined();
+  expect(saved.version).toBe(2);
+  expect(saved.layout.editable.count).toBe(9);
+  await expect(page.locator('#layoutMode')).toHaveValue('pattern');
+  await expect(page.locator('#layoutPitchX')).toHaveValue(String(saved.layout.editable.pitchX));
   await expect(page.locator('#pageSvgHost svg path')).toHaveCount(9);
   for (const path of await page.locator('#pageSvgHost svg path').all())
     await expect(path).toHaveAttribute('d', originalPath!);
@@ -594,7 +621,7 @@ test('optional nesting previews savings before applying, preserves exports and r
   const pending = page.waitForEvent('download');
   await page.locator('#downloadPageSvg').click();
   const download = await pending;
-  expect(download.suggestedFilename()).toBe('footbag-nested-9panels-125pct.svg');
+  expect(download.suggestedFilename()).toBe('footbag-layout-9panels-125pct.svg');
   const text = await readFile((await download.path())!, 'utf8');
   expect(parseFloat(text.match(/\bwidth="([^"]+)"/)![1])).toBeCloseTo(parseFloat(width!) * 1.25, 8);
   expect(text).not.toContain('<use');
@@ -603,26 +630,231 @@ test('optional nesting previews savings before applying, preserves exports and r
   await importSettings(page, saved);
   expect(await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML)).toBe(optimized);
   // Old exports explicitly restore manual layout even after an optimized import.
-  delete saved.layout.optimized;
+  delete saved.layout.editable;
   await importSettings(page, saved);
   await expect(page.locator('#manualLayout')).toBeDisabled();
   await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
 });
 
-test('design and manual layout edits invalidate optimization without changing panel geometry', async ({
+test('panel preview fills available desktop height and still scrolls oversized drawings', async ({
   page,
 }) => {
-  for (const selector of ['#sideNumber', '#pageHSpaceNumber']) {
+  await page.setViewportSize({ width: 2533, height: 1222 });
+  await setChecked(page, '#curved', true);
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const metrics = () =>
+    page.locator('#svgHost').evaluate((host) => ({
+      height: host.clientHeight,
+      scroll: host.scrollHeight,
+      unused: host.closest('section.preview')!.clientHeight - host.parentElement!.clientHeight,
+    }));
+  await expect.poll(async () => (await metrics()).unused).toBeLessThanOrEqual(26);
+  await expect
+    .poll(async () => {
+      const m = await metrics();
+      return m.scroll - m.height;
+    })
+    .toBeLessThanOrEqual(1);
+  await page.locator('#sideNumber').fill('80');
+  await page.locator('#zoom').fill('300');
+  await expect
+    .poll(async () => {
+      const m = await metrics();
+      return m.scroll - m.height;
+    })
+    .toBeGreaterThan(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const bounds = await page.locator('.preview--panel').boundingBox();
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+});
+
+test('accepting the curved-pentagon pattern preserves zoom even while the preview host collapses', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  for (const viewport of [
+    { width: 2525, height: 1206 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await importSettings(page, {
+      ...initial,
+      shape: 5,
+      side: 30,
+      seam: 3.4,
+      curved: true,
+      curveRadius: 60,
+      layout: { ...initial.layout, rows: 3, cols: 3, hSpace: 0, vSpace: 1, padding: 1 },
+    });
+    await page.locator('#nestingGap').fill('0');
+    await page.locator('#pageZoom').fill('95');
     await page.locator('#optimizeLayout').click();
     await expect(page.locator('#applyNesting')).toBeEnabled();
+    await page
+      .locator('#pageSvgHost')
+      .evaluate((host: HTMLElement) => (host.style.maxHeight = '1px'));
     await page.locator('#applyNesting').click();
-    await expect(page.locator('#manualLayout')).toBeEnabled();
-    await page.locator(selector).fill(selector === '#sideNumber' ? '40' : '5');
-    await expect(page.locator('#manualLayout')).toBeDisabled();
-    const saved = await settingsDownload(page);
-    expect(saved.layout.optimized).toBeUndefined();
-    await expect(page.locator('#pageSvgHost svg path')).toHaveCount(9);
+    await expect(page.locator('#pageZoom')).toHaveValue('95');
+    await expect(page.locator('#pageZoomLabel')).toHaveText('95%');
+    await page.locator('#pageSvgHost').evaluate((host: HTMLElement) => (host.style.maxHeight = ''));
+    await expect(page.locator('#pageSvgHost .svg-wrap')).toHaveCSS(
+      'transform',
+      'matrix(0.95, 0, 0, 0.95, 0, 0)',
+    );
+    await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+    const beforeSpacingWidth = parseFloat(
+      (await page.locator('#pageSvgHost svg').getAttribute('width'))!,
+    );
+    await page.locator('#layoutPitchX').fill('60');
+    await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+    await expect(page.locator('#pageZoom')).toHaveValue('95');
+    await expect
+      .poll(async () => parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!))
+      .toBeGreaterThan(beforeSpacingWidth);
+    const width = parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!);
+    const pending = page.waitForEvent('download');
+    await page.locator('#downloadPageSvg').click();
+    const text = await readFile((await (await pending).path())!, 'utf8');
+    expect(parseFloat(text.match(/\bwidth="([^"]+)"/)![1])).toBeCloseTo(width, 8);
   }
+});
+
+test('worker loading and startup failures explain the app error, preserve the layout and allow retry', async ({
+  page,
+}) => {
+  const original = await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.route('**/nesting-worker-*.js', (route) => route.abort());
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingStatus')).toContainText(
+    'could not load or run the background nesting worker',
+  );
+  await expect(page.locator('#optimizeLayout')).toBeEnabled();
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  expect(await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML)).toBe(original);
+  await page.unroute('**/nesting-worker-*.js');
+  await page.evaluate(() => {
+    const originalWorker = window.Worker;
+    window.Worker = class {
+      constructor() {
+        throw new Error('Blocked worker startup');
+      }
+    } as unknown as typeof Worker;
+    try {
+      document.getElementById('optimizeLayout')!.click();
+    } finally {
+      window.Worker = originalWorker;
+    }
+  });
+  await expect(page.locator('#nestingStatus')).toContainText(
+    'local previews require the server to stay running',
+  );
+  await expect(page.locator('#optimizeLayout')).toBeEnabled();
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  expect(await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML)).toBe(original);
+  expect(errors).toEqual([]);
+});
+
+test('green candidate overlays are transient, rejectable and excluded from current-layout downloads', async ({
+  page,
+}) => {
+  const before = await settingsDownload(page);
+  const svg = page.locator('#pageSvgHost svg');
+  const original = await svg.evaluate((node) => node.outerHTML);
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  const overlay = page.locator('img[data-nesting-preview]');
+  await expect(overlay).toHaveCount(1);
+  await expect
+    .poll(() => overlay.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
+    .toBe(true);
+  await expect(overlay).toHaveCSS('opacity', '0.6');
+  expect(await svg.evaluate((node) => node.outerHTML)).toBe(original);
+  expect((await settingsDownload(page)).layout).toEqual(before.layout);
+  await page.locator('#pageZoom').fill('150');
+  await expect(overlay).toHaveCount(1);
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  const text = await readFile((await (await pending).path())!, 'utf8');
+  expect(text).not.toContain('16a34a');
+  expect(text).not.toContain('nesting-preview');
+  await page.getByRole('button', { name: 'Reject candidate', exact: true }).click();
+  await expect(overlay).toHaveCount(0);
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  expect(await svg.evaluate((node) => node.outerHTML)).toBe(original);
+  expect((await settingsDownload(page)).layout).toEqual(before.layout);
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await expect(overlay).toHaveCount(1);
+  await page.locator('#applyNesting').click();
+  await expect(overlay).toHaveCount(0);
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+  const accepted = await settingsDownload(page);
+  expect(accepted.layout.editable.count).toBe(9);
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await expect(overlay).toHaveCount(1);
+  await page.locator('#nestingGap').fill('2');
+  await expect(overlay).toHaveCount(0);
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  expect((await settingsDownload(page)).layout.editable).toEqual(accepted.layout.editable);
+});
+
+test('accepted layouts remain editable through design changes, block overlaps and recover in place', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, { ...initial, shape: 4, curved: false, showHoles: false });
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const accepted = await settingsDownload(page);
+  await page.locator('#sideNumber').fill('25');
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+  expect((await settingsDownload(page)).layout.editable).toEqual(accepted.layout.editable);
+  await expect(page.locator('#layoutMode')).toHaveValue('pattern');
+  await page.locator('#sideNumber').fill('40');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await expect(page.locator('#pageSvgHost')).toContainText('does not meet its cutting gap');
+  expect((await settingsDownload(page)).layout.editable).toEqual(accepted.layout.editable);
+  await page.locator('#layoutPitchX').fill('45');
+  await page.locator('#layoutPitchY').fill('45');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+  await page.locator('#layoutCount').fill('7');
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(7);
+  await page.locator('#layoutColumns').fill('3');
+  await expect(page.locator('#layoutPatternRows')).toHaveText('3');
+  const edited = await settingsDownload(page);
+  expect(edited.layout.editable.count).toBe(7);
+  expect(edited.layout.editable.pitchX).toBe(45);
+  const beforeWidth = parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!);
+  const pending = page.waitForEvent('download');
+  await page.evaluate(() => {
+    const input = document.querySelector<HTMLInputElement>('#layoutPitchX')!;
+    input.value = '50';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('downloadPageSvg')!.click();
+  });
+  const exported = await readFile((await (await pending).path())!, 'utf8');
+  expect(parseFloat(exported.match(/\bwidth="([^"]+)"/)![1])).toBeCloseTo(beforeWidth + 10, 8);
+  await page.locator('#layoutRotations').selectOption('none');
+  await page.locator('#layoutAngle').selectOption('90');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await page.locator('#layoutRotations').selectOption('quarter');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await page.locator('#layoutStockWidth').fill('0');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await page.locator('#layoutStockWidth').fill('500');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(7);
 });
 
 test('clearance check detects overlap and safely checks an optimized curved star', async ({
@@ -646,7 +878,7 @@ test('clearance check detects overlap and safely checks an optimized curved star
     starRootAngle: 128,
     layout: { ...initial.layout, rows: 2, cols: 3 },
   });
-  await page.locator('#nestingQuarterTurn').check();
+  await page.locator('#nestingRotation').selectOption('quarter');
   await page.locator('#nestingGap').fill('2');
   await page.locator('#optimizeLayout').click();
   await expect(page.locator('#applyNesting')).toBeEnabled();
@@ -654,8 +886,8 @@ test('clearance check detects overlap and safely checks an optimized curved star
   await page.locator('#checkClearance').click();
   await expect(page.locator('#nestingStatus')).toContainText('All cut outlines meet');
   const saved = await settingsDownload(page);
-  expect(saved.layout.optimized.gap).toBe(2);
-  expect(saved.layout.optimized.placements).toHaveLength(6);
+  expect(saved.layout.editable.gap).toBe(2);
+  expect(saved.layout.editable.count).toBe(6);
 });
 
 test('nesting worker cancellation and setting edits cannot apply stale results', async ({
@@ -684,7 +916,7 @@ test('nesting worker cancellation and setting edits cannot apply stale results',
   await expect(page.locator('#applyNesting')).toBeDisabled();
 });
 
-test('malformed optimized imports are atomic and unsafe arrangements fall back to manual', async ({
+test('malformed pattern imports are atomic and unsafe settings are retained with export blocked', async ({
   page,
 }) => {
   await page.locator('#optimizeLayout').click();
@@ -700,36 +932,183 @@ test('malformed optimized imports are atomic and unsafe arrangements fall back t
       JSON.stringify({
         ...saved,
         side: 60,
-        layout: { ...saved.layout, optimized: { ...saved.layout.optimized, gap: -1 } },
+        layout: { ...saved.layout, editable: { ...saved.layout.editable, gap: -1 } },
       }),
     ),
   });
   await (await dialog).dismiss();
   await expect(page.locator('#sideNumber')).toHaveValue('30');
   await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', before!);
-  saved.layout.optimized.placements = saved.layout.optimized.placements.map(() => ({
-    x: 0,
-    y: 0,
-    angle: 0,
-  }));
-  await importSettings(page, saved);
-  await expect(page.locator('#manualLayout')).toBeDisabled();
-  await expect(page.locator('#nestingStatus')).toContainText('Manual layout restored');
-  await expect(page.locator('#pageSvgHost svg path')).toHaveCount(9);
+  saved.layout.editable.pitchX = 0;
+  saved.layout.editable.pitchY = 0;
+  await importSettings(page, saved, false);
+  await expect(page.locator('#manualLayout')).toBeEnabled();
+  await expect(page.locator('#layoutMode')).toHaveValue('pattern');
+  await expect(page.locator('#pageSvgHost')).toContainText('does not meet its cutting gap');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  expect((await settingsDownload(page)).layout.editable).toEqual(saved.layout.editable);
 });
 
 test('nesting controls work at phone width and reset restores manual layout', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  const help = page.getByRole('button', { name: 'About Optimize layout', exact: true });
+  await help.click();
+  await expect(page.locator('#optimizeLayoutHelp')).toBeVisible();
+  await expect(page.locator('#optimizeLayoutHelp')).toContainText(
+    'unless you choose capacity mode',
+  );
+  await help.press('Escape');
+  await expect(page.locator('#optimizeLayoutHelp')).toBeHidden();
   await page.locator('#optimizeLayout').click();
   await expect(page.locator('#applyNesting')).toBeEnabled();
   await page.locator('#applyNesting').click();
   const applied = await settingsDownload(page);
-  expect(applied.layout.optimized.placements).toHaveLength(9);
+  expect(applied.layout.editable.count).toBe(9);
+  const patternBounds = await page.locator('#patternLayoutControls').boundingBox();
+  expect(patternBounds!.x + patternBounds!.width).toBeLessThanOrEqual(390);
   await page.locator('#resetLayoutSettings').click();
   await expect(page.locator('#manualLayout')).toBeDisabled();
-  expect((await settingsDownload(page)).layout.optimized).toBeUndefined();
+  expect((await settingsDownload(page)).layout.editable).toBeUndefined();
   const bounds = await page.locator('.nesting-tools').boundingBox();
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+});
+
+test('stock fitting accounts for export scale and blocks an outgrown arrangement until it fits again', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, { ...initial, shape: 4, curved: false, showHoles: false });
+  await page.locator('#nestingMode').selectOption('fit');
+  await page.locator('#nestingRotation').selectOption('none');
+  await page.locator('#nestingStockWidth').fill('120');
+  await page.locator('#nestingStockHeight').fill('120');
+  await page.locator('#exportScale').fill('125');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingStatus')).toContainText('No arrangement found');
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  await page.locator('#nestingStockWidth').fill('150');
+  await page.locator('#nestingStockHeight').fill('150');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await expect(page.locator('#nestingStatus')).toContainText('125% export');
+  await page.locator('#applyNesting').click();
+  const saved = await settingsDownload(page);
+  expect(saved.layout.editable.stock).toEqual({ mode: 'fit', width: 150, height: 150 });
+  expect(saved.layout.editable.angle).toBe(0);
+  expect(saved.layout.editable.rotateAlternates).toBe(false);
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  const exported = await readFile((await (await pending).path())!, 'utf8');
+  expect(parseFloat(exported.match(/\bwidth="([^"]+)"/)![1])).toBeLessThanOrEqual(150);
+  expect(parseFloat(exported.match(/\bheight="([^"]+)"/)![1])).toBeLessThanOrEqual(150);
+  let unexpected = 0;
+  page.on('download', () => unexpected++);
+  await page.evaluate(() => {
+    const scale = document.querySelector<HTMLInputElement>('#exportScale')!;
+    scale.value = '200';
+    scale.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('downloadPageSvg')!.click();
+  });
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await expect(page.locator('#pageSvgHost')).toContainText('exceeds the stock limits');
+  await expect(page.locator('#manualLayout')).toBeEnabled();
+  await expect(page.locator('#pageSvgHost svg')).toHaveCount(0);
+  await page.waitForTimeout(150);
+  expect(unexpected).toBe(0);
+  await page.locator('#exportScale').fill('125');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+  expect((await settingsDownload(page)).layout.editable).toEqual(saved.layout.editable);
+  await importSettings(page, { ...saved, export: { scalePercent: 200 } }, false);
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await page.locator('#manualLayout').click();
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+});
+
+test('capacity uses actual panel count, round trips limits, and preserves the manual arrangement', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const initial = await settingsDownload(page);
+  await importSettings(page, { ...initial, shape: 4, curved: false, showHoles: false });
+  const manual = await page.locator('#pageSvgHost svg').getAttribute('width');
+  await page.locator('#nestingMode').selectOption('capacity');
+  await page.locator('#nestingRotation').selectOption('none');
+  await page.locator('#nestingStockWidth').fill('120');
+  await page.locator('#nestingStockHeight').fill('85');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await expect(page.locator('#nestingStatus')).toContainText('Best capacity found: 6 panels');
+  await expect(page.locator('#nestingStatus')).toContainText('not a proven maximum');
+  await page.locator('#applyNesting').click();
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(6);
+  await expect(page.locator('#layoutCount')).toHaveValue('6');
+  await expect(page.locator('#layoutColumns')).toHaveValue('3');
+  const saved = await settingsDownload(page);
+  expect(saved.layout.editable.count).toBe(6);
+  await expect(page.locator('#layoutStockWidth')).toHaveValue('120');
+  await expect(page.locator('#layoutStockHeight')).toHaveValue('85');
+  await page.locator('#layoutCount').fill('5');
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(5);
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await page.locator('#layoutCount').fill('6');
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  expect((await pending).suggestedFilename()).toBe('footbag-layout-6panels.svg');
+  await page.locator('#nestingStockWidth').fill('10');
+  await expect(page.locator('#nestingStatus')).toContainText('keeps its settings');
+  expect((await settingsDownload(page)).layout.editable.stock.width).toBe(120);
+  await page.locator('#manualLayout').click();
+  await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+  await importSettings(page, saved);
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(6);
+  await expect(page.locator('#nestingMode')).toHaveValue('capacity');
+  await expect(page.locator('#nestingStockWidth')).toHaveValue('120');
+  await page.locator('#resetLayoutSettings').click();
+  await expect(page.locator('#nestingMode')).toHaveValue('free');
+  await expect(page.locator('#nestingRotation')).toHaveValue('half');
+  await expect(page.locator('#nestingStockWidth')).toHaveValue('');
+  await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+});
+
+test('stock search handles missing dimensions, no fit, quarter turns and stale candidates', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, {
+    ...initial,
+    shape: 3,
+    curved: false,
+    showHoles: false,
+    layout: { ...initial.layout, rows: 1, cols: 1 },
+  });
+  await page.locator('#nestingMode').selectOption('capacity');
+  await page.locator('#nestingStockWidth').fill('49');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingStatus')).toContainText('requires both');
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  await page.locator('#nestingMode').selectOption('fit');
+  await page.locator('#nestingRotation').selectOption('none');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingStatus')).toContainText('No arrangement found');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await page.locator('#nestingRotation').selectOption('quarter');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#exportScale').fill('125');
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  await page.locator('#exportScale').fill('100');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const saved = await settingsDownload(page);
+  expect([90, 270]).toContain(saved.layout.editable.angle);
+  delete saved.layout.nesting;
+  delete saved.layout.editable;
+  await importSettings(page, saved);
+  await expect(page.locator('#nestingMode')).toHaveValue('free');
+  await expect(page.locator('#nestingRotation')).toHaveValue('half');
 });
 
 test('large layout bursts reuse panel drawings and commit only the latest value once per frame', async ({
@@ -910,5 +1289,5 @@ test('nesting checks flush pending layout changes and optimized grid updates pre
     );
   });
   expect(retained).toBe(true);
-  expect((await settingsDownload(page)).layout.optimized).toEqual(before.layout.optimized);
+  expect((await settingsDownload(page)).layout.editable).toEqual(before.layout.editable);
 });

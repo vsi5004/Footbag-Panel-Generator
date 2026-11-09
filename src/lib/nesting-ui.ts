@@ -1,5 +1,11 @@
+import { showNestingOverlay, clearNestingOverlay } from './nesting-overlay';
+import { adoptPlan } from './lattice';
+import { applyEditableLayout, editablePlan } from './editable-layout';
 import type { Panel, PanelConfig, PageElements, LayoutElements } from '../types';
 import { manualPlacements, measureLayoutSvg, type LayoutSvgOptions } from './layout';
+import { normalizeExportScale } from './export';
+import { readStock, readRotations } from './stock-nesting';
+import type { StockConstraint } from './nesting-types';
 import { designKey, measurePlaced, type NestingPlan } from './nesting-types';
 
 export function initializeNesting(
@@ -15,21 +21,28 @@ export function initializeNesting(
   const manual = document.getElementById('manualLayout') as HTMLButtonElement;
   const cancel = document.getElementById('cancelNesting') as HTMLButtonElement;
   const gapInput = document.getElementById('nestingGap') as HTMLInputElement;
-  const quarter = document.getElementById('nestingQuarterTurn') as HTMLInputElement;
+  const rotation = document.getElementById('nestingRotation') as HTMLSelectElement;
+  const mode = document.getElementById('nestingMode') as HTMLSelectElement;
+  const stockWidth = document.getElementById('nestingStockWidth') as HTMLInputElement;
+  const stockHeight = document.getElementById('nestingStockHeight') as HTMLInputElement;
   const status = document.getElementById('nestingStatus')!;
   let worker: Worker | undefined, candidate: NestingPlan | undefined;
   const stop = () => {
+    if (page.svgHost) clearNestingOverlay(page.svgHost);
     worker?.terminate();
     worker = undefined;
     candidate = undefined;
     optimize.disabled = false;
     check.disabled = false;
     cancel.disabled = true;
+    cancel.textContent = 'Cancel search';
     apply.disabled = true;
   };
   const options = (): LayoutSvgOptions => ({
-    rows: Number(layout.pageRows?.value ?? 3),
-    cols: Number(layout.pageCols?.value ?? 3),
+    rows: layout.editable?.current
+      ? Math.ceil(layout.editable.current.count / layout.editable.current.columns)
+      : Number(layout.pageRows?.value ?? 3),
+    cols: layout.editable?.current?.columns ?? Number(layout.pageCols?.value ?? 3),
     hSpace: Number(layout.pageHSpaceNumber?.value ?? 0),
     vSpace: Number(layout.pageVSpace?.value ?? 1),
     invertOdd: !!layout.pageInvert?.checked,
@@ -37,7 +50,10 @@ export function initializeNesting(
     dotDiameter: getPanel().dot,
     padding: Number(layout.pagePadding?.value ?? 10),
     showGrid: !!page.showGrid?.checked,
-    optimized: layout.nesting?.active,
+    optimized:
+      layout.editable?.current && getPanel().config
+        ? editablePlan(layout.editable.current, getPanel().config!, getPanel().dot)
+        : layout.nesting?.active,
   });
   const start = (checkOnly: boolean) => {
     stop();
@@ -49,8 +65,23 @@ export function initializeNesting(
       status.textContent = 'Enter a minimum gap from 0 to 20 mm.';
       return;
     }
+    let stock: StockConstraint | undefined;
+    if (!checkOnly && mode.value !== 'free') {
+      try {
+        stock = readStock({
+          mode: mode.value,
+          width: Number(stockWidth.value),
+          ...(stockHeight.value.trim() !== '' ? { height: Number(stockHeight.value) } : {}),
+        });
+      } catch {
+        status.textContent =
+          'Enter stock width from 1 to 10000 mm, and height in that range when supplied. Capacity mode requires both.';
+        return;
+      }
+    }
+    const scalePercent = normalizeExportScale(layout.exportScale?.value);
     const opts = options(),
-      count = opts.rows * opts.cols,
+      count = layout.editable?.current?.count ?? opts.rows * opts.cols,
       source = designKey(config, dot, count);
     const current = measureLayoutSvg(panel, opts);
     optimize.disabled = true;
@@ -59,10 +90,21 @@ export function initializeNesting(
     status.textContent = checkOnly
       ? 'Checking clearance...'
       : 'Searching aligned, alternating and staggered layouts...';
-    worker = new Worker(new URL('./nesting-worker.ts', import.meta.url), { type: 'module' });
-    worker.onerror = () => {
+    const workerFailed = (error: unknown) => {
       stop();
-      status.textContent = 'Unable to run the nesting search. Manual layout remains available.';
+      console.error('Nesting worker failed:', error);
+      status.textContent =
+        'The app could not load or run the background nesting worker. Your current layout is unchanged. Reload the page and retry; local previews require the server to stay running.';
+    };
+    try {
+      worker = new Worker(new URL('./nesting-worker.ts', import.meta.url), { type: 'module' });
+    } catch (error) {
+      workerFailed(error);
+      return;
+    }
+    worker.onerror = (event) => {
+      event.preventDefault();
+      workerFailed(event.message || 'Worker script could not be loaded.');
     };
     worker.onmessage = (
       event: MessageEvent<{ plan?: NestingPlan; safe?: boolean; error?: string }>,
@@ -74,7 +116,14 @@ export function initializeNesting(
       cancel.disabled = true;
       const latest = getPanel(),
         now = options();
-      if (!latest.config || designKey(latest.config, latest.dot, now.rows * now.cols) !== source) {
+      if (
+        !latest.config ||
+        designKey(
+          latest.config,
+          latest.dot,
+          layout.editable?.current?.count ?? now.rows * now.cols,
+        ) !== source
+      ) {
         stop();
         status.textContent = 'Design changed. Run the search again.';
         return;
@@ -86,12 +135,39 @@ export function initializeNesting(
       if (checkOnly) {
         status.textContent = event.data.safe
           ? 'All cut outlines meet the requested gap, including a conservative curve allowance.'
-          : 'Some cut outlines overlap, touch, or are too close for the requested gap (including the curve allowance). Manual export is still available.';
+          : 'Some cut outlines overlap, touch, or are too close for the requested gap (including the curve allowance). This check does not change the placement settings.';
         return;
       }
       candidate = event.data.plan;
       if (!candidate) return;
+      if (page.svgHost) showNestingOverlay(page.svgHost, panel, candidate, dot, opts.padding ?? 10);
+      cancel.disabled = false;
+      cancel.textContent = 'Reject candidate';
+      const previewHint =
+        ' Translucent green shows the candidate over the current sheet. Apply or reject to finish the comparison.';
       const size = measurePlaced(panel, candidate.placements, dot, opts.padding ?? 10);
+      if (candidate.stock) {
+        const s = candidate.stock,
+          scale = scalePercent / 100;
+        status.textContent =
+          (s.mode === 'capacity' ? 'Best capacity found: ' : 'Candidate: ') +
+          candidate.placements.length +
+          ' panels, ' +
+          (size.width * scale).toFixed(1) +
+          ' × ' +
+          (size.height * scale).toFixed(1) +
+          ' mm at ' +
+          scalePercent +
+          '% export. Fits stock ' +
+          s.width +
+          ' mm wide' +
+          (s.height !== undefined ? ' × ' + s.height + ' mm high' : '') +
+          (s.mode === 'capacity' ? '. Search limit: 144 panels; not a proven maximum.' : '.') +
+          ' Apply to use this arrangement.' +
+          previewHint;
+        apply.disabled = false;
+        return;
+      }
       const percent = (1 - (size.width * size.height) / (current.width * current.height)) * 100;
       const comparison =
         Number.isFinite(percent) && current.width > 0 && current.height > 0
@@ -109,17 +185,20 @@ export function initializeNesting(
         ' mm' +
         comparison +
         '. ' +
-        count +
+        candidate.placements.length +
         ' panels, minimum gap ' +
         gap +
-        ' mm at 100% export. Apply to use this arrangement.';
+        ' mm at 100% export. Apply to use this arrangement.' +
+        previewHint;
       apply.disabled = false;
     };
     worker.postMessage({
       panel,
       count,
       gap,
-      quarterTurn: quarter.checked,
+      rotations: readRotations(rotation.value),
+      scalePercent,
+      ...(stock ? { stock } : {}),
       source,
       padding: opts.padding ?? 10,
       dot,
@@ -138,29 +217,53 @@ export function initializeNesting(
     if (
       !candidate ||
       !config ||
-      candidate.source !== designKey(config, dot, opts.rows * opts.cols)
+      candidate.source !==
+        designKey(config, dot, layout.editable?.current?.count ?? opts.rows * opts.cols)
     ) {
       stop();
       return;
     }
-    if (layout.nesting) layout.nesting.active = candidate;
-    const gap = candidate.gap;
+    try {
+      applyEditableLayout(layout, adoptPlan(candidate));
+    } catch (error) {
+      stop();
+      status.textContent =
+        error instanceof Error ? error.message : 'Unable to adopt this arrangement.';
+      return;
+    }
+    if (layout.nesting) layout.nesting.active = undefined;
+    const gap = candidate.gap,
+      stock = candidate.stock,
+      count = candidate.placements.length;
     stop();
     refresh();
     status.textContent =
-      'Optimized layout applied. Minimum gap ' +
+      (stock
+        ? (stock.mode === 'capacity' ? 'Capacity layout applied: ' : 'Stock layout applied: ') +
+          count +
+          ' panels, stock ' +
+          stock.width +
+          ' mm wide' +
+          (stock.height !== undefined ? ' × ' + stock.height + ' mm high' : '') +
+          '. '
+        : 'Optimized layout applied. ') +
+      'Minimum gap ' +
       gap +
-      ' mm at 100% export. Design or manual layout edits restore the manual arrangement.';
+      ' mm at 100% export. Pattern layout settings now contain this arrangement and remain editable.';
   });
   manual.addEventListener('click', () => {
     stop();
     if (layout.nesting) layout.nesting.active = undefined;
+    applyEditableLayout(layout);
     refresh();
-    status.textContent = 'Manual layout restored.';
+    status.textContent = 'Grid layout selected.';
   });
   cancel.addEventListener('click', () => {
+    const rejected = !!candidate;
     stop();
-    status.textContent = 'Search cancelled. Current layout unchanged.';
+    status.textContent = rejected
+      ? 'Candidate rejected. Current layout unchanged.'
+      : 'Search cancelled. Current layout unchanged.';
   });
   for (const id of ['resetPanelSettings', 'resetLayoutSettings'])
     document.getElementById(id)?.addEventListener('click', () => {
@@ -170,10 +273,17 @@ export function initializeNesting(
       }
     });
   for (const event of ['input', 'change'])
-    document.addEventListener(event, () => {
+    document.addEventListener(event, (e) => {
+      if (['zoom', 'pageZoom'].includes((e.target as HTMLElement)?.id)) return;
       if (worker || candidate) {
         stop();
         status.textContent = 'Settings changed. Run the search or clearance check again.';
+      } else if (
+        (layout.nesting?.active || layout.editable?.current) &&
+        [rotation, mode, stockWidth, stockHeight, gapInput].includes(e.target as HTMLInputElement)
+      ) {
+        status.textContent =
+          'Search options changed. The current Pattern layout keeps its settings. Apply a new candidate to replace them.';
       }
     });
 }

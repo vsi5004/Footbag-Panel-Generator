@@ -1,3 +1,5 @@
+import { readEditableLayout, readLattice } from './lattice';
+import { readStock, readRotations, readNestingPreferences } from './stock-nesting';
 import schema from '../../schema/settings.schema.json';
 import { SETTINGS } from './settings';
 import type { SettingsData } from './state';
@@ -19,7 +21,8 @@ export function readImportedSettings(value: unknown): ImportedSettings {
     (key) => key !== '$schema' && key !== 'version',
   );
   if (!known.some((key) => key in result)) throw new Error('No design settings found');
-  if ('version' in result && result.version !== 1) throw new Error('Unsupported settings version');
+  if ('version' in result && result.version !== 1 && result.version !== 2)
+    throw new Error('Unsupported settings version');
 
   for (const key of ['hex', 'layout', 'export']) {
     if (key in result) {
@@ -66,6 +69,12 @@ export function readImportedSettings(value: unknown): ImportedSettings {
         throw new Error(`Invalid layout.${key}`);
     }
   }
+  if (isObject(layout) && 'editable' in layout) {
+    if ('optimized' in layout) throw new Error('Conflicting layout modes');
+    layout.editable = readEditableLayout(layout.editable);
+  }
+  if (isObject(layout) && 'nesting' in layout)
+    layout.nesting = readNestingPreferences(layout.nesting);
   if (isObject(layout) && 'optimized' in layout) {
     const plan = layout.optimized;
     if (
@@ -101,6 +110,9 @@ export function readImportedSettings(value: unknown): ImportedSettings {
       source: plan.source,
       gap: plan.gap,
       placements: plan.placements.map((at) => ({ ...at })),
+      ...('lattice' in plan ? { lattice: readLattice(plan.lattice) } : {}),
+      ...('rotations' in plan ? { rotations: readRotations(plan.rotations) } : {}),
+      ...('stock' in plan ? { stock: readStock(plan.stock) } : {}),
     };
   }
   return result as ImportedSettings;

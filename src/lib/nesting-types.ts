@@ -1,3 +1,4 @@
+import type { Lattice } from './lattice';
 import { CONSTANTS } from './constants';
 import type { Point, Panel, PanelConfig } from '../types';
 export interface Placement {
@@ -6,10 +7,29 @@ export interface Placement {
   angle: 0 | 90 | 180 | 270;
   flipY?: boolean;
 }
+export type RotationMode = 'none' | 'half' | 'quarter';
+export type SearchMode = 'free' | 'fit' | 'capacity';
+export interface StockSize {
+  width: number;
+  height?: number;
+}
+export interface StockConstraint extends StockSize {
+  mode: 'fit' | 'capacity';
+}
+export interface NestingPreferences {
+  gap?: number;
+  mode: SearchMode;
+  rotations: RotationMode;
+  width?: number;
+  height?: number;
+}
 export interface NestingPlan {
   version: 1;
+  lattice?: Lattice;
   source: string;
   gap: number;
+  rotations?: RotationMode;
+  stock?: StockConstraint;
   placements: Placement[];
 }
 export interface NestingState {
