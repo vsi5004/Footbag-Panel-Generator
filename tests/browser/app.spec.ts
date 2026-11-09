@@ -1829,3 +1829,65 @@ test('placement pattern help illustrates shifts and optional rotations without c
   }
   expect(await settingsDownload(page)).toEqual(saved);
 });
+
+test('fabric rectangle follows actual dimensions, output scale and preview zoom without entering exports', async ({
+  page,
+}) => {
+  const svg = page.locator('#pageSvgHost svg');
+  const original = await svg.evaluate((el) => el.outerHTML);
+  await setStock(page, '#nestingStockWidth', '300');
+  await setStock(page, '#nestingStockHeight', '200');
+  const fabric = page.locator('#pageSvgHost [data-fabric-preview]');
+  await expect(fabric).toBeVisible();
+  await expect(fabric).toHaveAttribute('aria-label', 'Fabric 300 × 200 mm');
+  const size = await fabric.boundingBox(),
+    sheet = await svg.boundingBox();
+  expect(size!.x).toBeCloseTo(sheet!.x, 1);
+  expect(size!.y).toBeCloseTo(sheet!.y, 1);
+  expect(size!.width).toBeCloseTo((300 * 96) / 25.4, 1);
+  expect(size!.height).toBeCloseTo((200 * 96) / 25.4, 1);
+  expect(await svg.evaluate((el) => el.outerHTML)).toBe(original);
+  const pending = page.waitForEvent('download');
+  await page.locator('#downloadPageSvg').click();
+  const exported = await readFile((await (await pending).path())!, 'utf8');
+  expect(exported).not.toContain('fabric');
+  expect(exported).not.toContain('Fabric');
+  await page.locator('#exportScaleNumber').fill('125');
+  await expect
+    .poll(async () => (await fabric.boundingBox())!.width)
+    .toBeCloseTo(size!.width / 1.25, 1);
+  await page.locator('#pageZoom').fill('150');
+  await expect
+    .poll(async () => (await fabric.boundingBox())!.width)
+    .toBeCloseTo((size!.width / 1.25) * 1.5, 1);
+  await expect(fabric).toHaveAttribute('aria-label', 'Fabric 300 × 200 mm');
+  const saved = await settingsDownload(page);
+  await page.reload();
+  await importSettings(page, saved);
+  await expect(fabric).toHaveAttribute('aria-label', 'Fabric 300 × 200 mm');
+  await setStock(page, '#nestingStockHeight', '');
+  await expect(fabric).toHaveCount(0);
+  await setStock(page, '#nestingStockHeight', '-1');
+  await expect(fabric).toHaveCount(0);
+});
+
+test('fabric rectangle remains visible for an outgrown arrangement and recovers with its layout', async ({
+  page,
+}) => {
+  await setStock(page, '#nestingStockWidth', '500');
+  await setStock(page, '#nestingStockHeight', '400');
+  await page.locator('#layoutMode').selectOption('pattern');
+  await page.locator('#layoutPitchX').fill('80');
+  await page.locator('#layoutPitchY').fill('80');
+  const fabric = page.locator('#pageSvgHost [data-fabric-preview]');
+  await expect(fabric).toBeVisible();
+  await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
+  await setStock(page, '#nestingStockHeight', '20');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await expect(page.locator('#pageSvgHost svg')).toHaveCount(0);
+  await expect(fabric).toHaveAttribute('aria-label', 'Fabric 500 × 20 mm');
+  await setStock(page, '#nestingStockHeight', '400');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await expect(fabric).toHaveAttribute('aria-label', 'Fabric 500 × 400 mm');
+  await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
+});

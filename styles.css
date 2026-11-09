@@ -441,3 +441,7 @@ dialog p { color: var(--muted); font-size: .85rem; line-height: 1.5; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .secondary-button { background: #2a2f43; color: var(--text); }
 .text-button { background: transparent; color: var(--accent); padding: 0; }
+
+/* The fabric is a preview reference, aligned with the layout's padding edge. */
+.fabric-boundary { position: absolute; left: 0; top: 0; border: 2px dashed #4ea1ff; pointer-events: none; z-index: 1; }
+.fabric-boundary-label { position: absolute; top: 2px; left: 2px; max-width: calc(100% - 4px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 2px 4px; background: #eaf3ff; color: #175599; font: 12px/1.4 sans-serif; }

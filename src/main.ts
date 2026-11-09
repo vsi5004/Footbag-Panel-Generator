@@ -185,8 +185,8 @@ function initializeApp(): void {
           syncExportScaleControls(
             event === 'change' ? normalizeExportScale(field.value) : field.value,
           );
-          if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
-            renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
+          // Fabric limits are actual mm even when the current arrangement is a grid.
+          renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
         });
     }
 

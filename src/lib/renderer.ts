@@ -1,3 +1,4 @@
+import { fabricPreviewSize, updateFabricPreview } from './fabric-preview';
 import type { LayoutSvgOptions } from './layout';
 import { editablePlan, showPatternFeedback } from './editable-layout';
 // Rendering system for the footbag panel generator
@@ -340,6 +341,10 @@ export function renderLayout(
     height: layoutHmm,
     scale: normalizeExportScale(layoutElements.exportScale?.value) / 100,
   });
+  const fabric = fabricPreviewSize(
+    layoutElements,
+    normalizeExportScale(layoutElements.exportScale?.value),
+  );
   const validDimensions =
     editableSafe &&
     stockFits &&
@@ -369,6 +374,15 @@ export function renderLayout(
           ? 'This arrangement exceeds the stock limits at the current export scale or padding. Reduce the export scale, search again, or choose Grid layout before downloading.'
           : 'Sheet width and height must be positive. Increase horizontal or vertical spacing, or sheet padding, to preview and download this layout.');
     pageEl.svgHost.appendChild(message);
+    if (fabric) {
+      const wrap = document.createElement('div');
+      wrap.className = 'svg-wrap';
+      pageEl.svgHost.append(wrap);
+      updateFabricPreview(wrap, fabric);
+      state.lastLayoutWpx = fabric.width * MM_TO_PX;
+      state.lastLayoutHpx = fabric.height * MM_TO_PX;
+      ui.zoom.apply(pageEl);
+    }
     return;
   }
   const cutLayout = {
@@ -395,6 +409,10 @@ export function renderLayout(
     wrap.appendChild(svg);
     pageEl.svgHost.replaceChildren(wrap);
   }
+  const wrap = pageEl.svgHost.querySelector<HTMLElement>('.svg-wrap');
+  if (wrap) updateFabricPreview(wrap, fabric);
+  state.lastLayoutWpx = Math.max(layoutWmm, fabric?.width ?? 0) * MM_TO_PX;
+  state.lastLayoutHpx = Math.max(layoutHmm, fabric?.height ?? 0) * MM_TO_PX;
   // Rendering or accepting a proposal must not derive zoom from the previous
   // content height: it can temporarily collapse while the preview is replaced.
   ui?.zoom?.apply(pageEl);
