@@ -18,10 +18,12 @@
     "check": "npm run settings:check && npm run lint && npm run format:check && npm test && npm run build",
     "benchmark": "node --import ./tests/register.mjs scripts/benchmark.mjs",
     "benchmark:browser": "node scripts/benchmark-browser.mjs",
-    "benchmark:nesting": "node --import ./tests/register.mjs scripts/benchmark-nesting.mjs"
+    "benchmark:nesting": "node --import ./tests/register.mjs scripts/benchmark-nesting.mjs",
+    "benchmark:gcode": "node --expose-gc --import ./tests/register.mjs scripts/benchmark-gcode.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
+    "@types/clipper-lib": "^6.4.0",
     "@types/node": "^20.11.0",
     "ajv": "^8.20.0",
     "eslint": "^9.39.5",
@@ -42,5 +44,8 @@
     "generator"
   ],
   "author": "Ivan Iakimenko",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "clipper-lib": "^6.4.2"
+  }
 }

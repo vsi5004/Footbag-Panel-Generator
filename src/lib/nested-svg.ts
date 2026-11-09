@@ -4,7 +4,7 @@ import { utils } from './utils';
 import { measurePlaced, type NestingPlan } from './nesting-types';
 export function createNestedSvg(
   panel: Panel,
-  plan: NestingPlan,
+  plan: Pick<NestingPlan, 'placements'>,
   dot: number,
   padding: number,
   showGrid: boolean,

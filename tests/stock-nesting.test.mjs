@@ -35,7 +35,10 @@ test('shared advanced settings migrate conflicting older values; v1 files remain
   const validateOld = new Ajv2020({ strict: false }).compile(oldSchema);
   const validate = new Ajv2020({ strict: false }).compile(schema);
   assert.equal(original.version, 1);
-  assert.ok(validateOld(original));
+  // Compare the legacy design payload: the new optional machine settings did not exist then.
+  const legacyOriginal = { ...original };
+  delete legacyOriginal.gcode;
+  assert.ok(validateOld(legacyOriginal));
   assert.ok(validate(original));
   const model = {
     count: 7,

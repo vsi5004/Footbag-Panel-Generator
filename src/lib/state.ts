@@ -16,6 +16,7 @@ import { collectNestingPreferences, applyNestingPreferences } from './nesting-pr
 import type { NestingPreferences } from './nesting-types';
 import type { NestingPlan } from './nesting-types';
 import { syncPairDisplay } from './ui';
+import { collectGcodeSettings, applyGcodeSettings, type GcodeSettings } from './gcode-settings';
 
 const { clamp } = utils;
 
@@ -44,6 +45,7 @@ export interface SettingsData {
     ratio?: number;
   };
   export?: { scalePercent?: number };
+  gcode?: GcodeSettings;
   layout: {
     editable?: EditableLayout;
     optimized?: NestingPlan;
@@ -101,6 +103,7 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
       ratio: el.hexRatio ? normalizeSetting('hexRatio', el.hexRatio.value) : undefined,
     },
     export: { scalePercent: normalizeExportScale(el.exportScale?.value) },
+    gcode: collectGcodeSettings(),
     layout: {
       ...(layoutEl?.editable?.current ? { editable: layoutEl.editable.current } : {}),
       ...(!layoutEl?.editable?.current && layoutEl?.nesting?.active
@@ -121,6 +124,7 @@ function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): Settings
 
 function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElements): void {
   const s = readImportedSettings(data);
+  applyGcodeSettings(s.gcode);
   if (layoutEl) applyEditableLayout(layoutEl, s.layout?.editable);
   // Older files always restore the manual layout, never a previous optimization.
   if (layoutEl?.nesting) {

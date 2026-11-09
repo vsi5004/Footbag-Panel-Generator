@@ -1,4 +1,7 @@
+import type { CutLayout } from './lib/gcode-job';
 import { designKey } from './lib/nesting-types';
+import { initializeGcode } from './lib/gcode-ui';
+import { state } from './lib/state';
 import { initializeEditableLayout } from './lib/editable-layout';
 import type { Panel, PanelElements, PageElements, PanelConfig } from './types';
 import { normalizeExportScale, syncExportScaleControls } from './lib/export';
@@ -52,8 +55,20 @@ function initializeApp(): void {
     lastLayoutHpx: 0,
   };
 
+  let cutLayout: CutLayout | undefined;
   const layoutFrame = createFrameScheduler(() => {
-    renderLayout(lastPanel, lastDotSize, pageEl, layoutElements, layoutState, lastPanelConfig);
+    renderLayout(
+      lastPanel,
+      lastDotSize,
+      pageEl,
+      layoutElements,
+      layoutState,
+      lastPanelConfig,
+      (model) => {
+        cutLayout = model;
+        document.dispatchEvent(new Event('cut-layout-changed'));
+      },
+    );
     requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState));
   });
   function createLayoutRenderFunction() {
@@ -170,8 +185,8 @@ function initializeApp(): void {
           syncExportScaleControls(
             event === 'change' ? normalizeExportScale(field.value) : field.value,
           );
-          if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
-            renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
+          // Fabric limits are actual mm even when the current arrangement is a grid.
+          renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
         });
     }
 
@@ -185,7 +200,13 @@ function initializeApp(): void {
     if (el.exportSettings) {
       el.exportSettings.addEventListener('click', () => {
         flushRenders();
-        exportSettings(el, { ...layoutElements, pageEl });
+        try {
+          exportSettings(el, { ...layoutElements, pageEl });
+        } catch (error) {
+          const status = document.getElementById('gcodeStatus');
+          if (status)
+            status.textContent = `Settings not exported: ${error instanceof Error ? error.message : 'Invalid settings'}`;
+        }
       });
     }
 
@@ -300,6 +321,16 @@ function initializeApp(): void {
     () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined),
   );
   initializeTooltips();
+  initializeGcode(
+    flushRenders,
+    () => {
+      // Revalidate synchronously even when geometry/scale was edited in the same task.
+      render();
+      flushRenders();
+    },
+    () => cutLayout,
+    () => state.collect(el, { ...layoutElements, pageEl }),
+  );
 } // End of initializeApp
 
 initializeApp();

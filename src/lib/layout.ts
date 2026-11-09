@@ -18,7 +18,7 @@ export interface LayoutArrangement {
 }
 
 export interface LayoutSvgOptions extends LayoutArrangement {
-  optimized?: NestingPlan;
+  optimized?: Pick<NestingPlan, 'placements'>;
   dotDiameter: number;
   showGrid: boolean;
   padding?: number;
