@@ -345,6 +345,27 @@ details.advanced .advanced-content { margin-top: 8px; }
   visibility: visible;
 }
 
+.placement-help-label { margin-top: 10px; }
+.placement-help-label label { margin: 0; }
+.placement-help {
+  position: fixed;
+  bottom: auto;
+  transform: none;
+  margin: 0;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  text-align: left;
+}
+.placement-help::after { display: none; }
+.placement-example { display: grid; grid-template-columns: 88px 1fr; gap: 10px; align-items: center; padding: 4px 0; }
+.placement-example + .placement-example { border-top: 1px solid #2a2f43; }
+.placement-example svg { width: 88px; height: 67px; fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.placement-example strong, .placement-example span { display: block; }
+.placement-example span, .placement-help-note { font-size: 0.78rem; color: var(--muted); }
+.placement-help-note { border-top: 1px solid #2a2f43; padding-top: 8px; }
+
 .nesting-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
 @media (max-width: 960px) {

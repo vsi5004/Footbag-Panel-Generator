@@ -364,7 +364,11 @@
           <p>Rows: <output id="layoutPatternRows">3</output></p>
           <label for="layoutPitchX">Horizontal center spacing (mm)</label><input id="layoutPitchX" type="number" min="0" max="10000" step="any" value="50" />
           <label for="layoutPitchY">Vertical center spacing (mm)</label><input id="layoutPitchY" type="number" min="0" max="10000" step="any" value="50" />
-          <label for="layoutPattern">Placement pattern</label>
+          <div class="tooltip-container placement-help-label">
+            <label for="layoutPattern">Placement pattern</label>
+            <button type="button" class="tooltip-icon" aria-label="About placement patterns" aria-describedby="placementPatternHelp">?</button>
+            <div id="placementPatternHelp" class="tooltip-content placement-help" role="tooltip"></div>
+          </div>
           <select id="layoutPattern"><option value="0">Aligned</option><option value="1">Alternating rows</option><option value="2">Staggered rows</option><option value="3">Alternating columns</option><option value="4">Staggered columns</option></select>
           <details id="patternAdvanced" class="advanced">
             <summary>Advanced parameters</summary>
