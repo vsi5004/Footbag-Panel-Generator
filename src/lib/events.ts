@@ -58,7 +58,10 @@ export function resetLayoutSettings(
   config?: PanelConfig,
 ): void {
   applyEditableLayout(layoutEl);
-  if (layoutEl.nesting) layoutEl.nesting.active = undefined;
+  if (layoutEl.nesting) {
+    layoutEl.nesting.active = undefined;
+    layoutEl.nesting.constraintsEdited = false;
+  }
   applyNestingPreferences(layoutEl);
   for (const [range, display] of layoutControlPairs(layoutEl)) {
     if (!range) continue;

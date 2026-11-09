@@ -1,3 +1,10 @@
+import {
+  constraintFields,
+  readConstraints,
+  validateConstraints,
+  writeConstraints,
+  updateMaterialSummary,
+} from './cutting-constraints';
 import type { PlanProblem } from './nesting-validation';
 import { numberFieldError, setFieldError } from './field-feedback';
 import type { LayoutElements, Panel, PanelConfig } from '../types';
@@ -14,10 +21,6 @@ export const patternFields = [
   'layoutPattern',
   'layoutAngle',
   'layoutAlternate',
-  'layoutRotations',
-  'layoutGap',
-  'layoutStockWidth',
-  'layoutStockHeight',
 ];
 const precisePitches = new WeakMap<HTMLInputElement, { display: string; value: number }>();
 const numericLabels: Record<string, string> = {
@@ -25,9 +28,6 @@ const numericLabels: Record<string, string> = {
   layoutColumns: 'columns',
   layoutPitchX: 'horizontal center spacing',
   layoutPitchY: 'vertical center spacing',
-  layoutGap: 'minimum cutting gap',
-  layoutStockWidth: 'stock width',
-  layoutStockHeight: 'stock height',
 };
 export function applyEditableLayout(layout: LayoutElements, model?: EditableLayout): void {
   if (layout.editable) {
@@ -41,6 +41,7 @@ export function applyEditableLayout(layout: LayoutElements, model?: EditableLayo
   document.getElementById('gridLayoutControls')?.classList.toggle('hidden', !!model);
   document.getElementById('patternLayoutControls')?.classList.toggle('hidden', !model);
   if (!model) return;
+  writeConstraints(layout, model);
   for (const [id, value] of [
     ['layoutCount', model.count],
     ['layoutColumns', model.columns],
@@ -48,10 +49,6 @@ export function applyEditableLayout(layout: LayoutElements, model?: EditableLayo
     ['layoutPitchY', model.pitchY],
     ['layoutPattern', model.pattern],
     ['layoutAngle', model.angle],
-    ['layoutRotations', model.rotations],
-    ['layoutGap', model.gap],
-    ['layoutStockWidth', model.stock?.width ?? ''],
-    ['layoutStockHeight', model.stock?.height ?? ''],
   ] as const) {
     const field = input(id);
     if (id === 'layoutPitchX' || id === 'layoutPitchY') {
@@ -66,14 +63,12 @@ export function applyEditableLayout(layout: LayoutElements, model?: EditableLayo
   const rows = document.getElementById('layoutPatternRows');
   if (rows) rows.textContent = String(Math.ceil(model.count / model.columns));
 }
-function readControls(): EditableLayout {
+function readControls(layout: LayoutElements): EditableLayout {
   const n = (id: string) => {
     const field = input(id),
       precise = precisePitches.get(field);
     return precise && field.value === precise.display ? precise.value : Number(field.value);
   };
-  const width = n('layoutStockWidth'),
-    height = n('layoutStockHeight');
   return readEditableLayout({
     count: n('layoutCount'),
     columns: n('layoutColumns'),
@@ -82,11 +77,7 @@ function readControls(): EditableLayout {
     pattern: Number(select('layoutPattern').value) as EditableLayout['pattern'],
     angle: Number(select('layoutAngle').value) as EditableLayout['angle'],
     rotateAlternates: input('layoutAlternate').checked,
-    rotations: select('layoutRotations').value as EditableLayout['rotations'],
-    gap: n('layoutGap'),
-    ...(width >= 1
-      ? { stock: { mode: 'fit' as const, width, ...(height >= 1 ? { height } : {}) } }
-      : {}),
+    ...readConstraints(layout),
   });
 }
 const plans = new WeakMap<EditableLayout, { source: string; plan: NestingPlan }>();
@@ -110,25 +101,48 @@ export function initializeEditableLayout(
   getPanel: () => { panel: Panel | null; dot: number },
   refresh: () => void,
 ): void {
-  const update = () => {
-    if (select('layoutMode').value !== 'pattern') return;
-    const errors: string[] = [];
+  const update = (constraintId?: string) => {
+    const errors = validateConstraints(layout);
+    updateMaterialSummary(layout);
+    const notice = document.getElementById('layoutImportNotice');
+    if (notice) notice.textContent = '';
+    const pattern = select('layoutMode').value === 'pattern';
     for (const id of patternFields) {
       const field = input(id);
-      let error = numericLabels[id]
-        ? numberFieldError(field, numericLabels[id], !id.startsWith('layoutStock'))
-        : undefined;
-      if (id === 'layoutStockWidth' && !field.value && input('layoutStockHeight').value)
-        error = 'Enter stock width when a stock height is set.';
+      const error =
+        pattern && numericLabels[id]
+          ? numberFieldError(field, numericLabels[id], !id.startsWith('layoutStock'))
+          : undefined;
       setFieldError(id, error);
       if (error) errors.push(error);
     }
-    if (layout.editable) layout.editable.error = errors.length ? errors.join(' ') : undefined;
+    if (layout.editable)
+      layout.editable.error =
+        (pattern || layout.nesting?.active) && errors.length ? errors.join(' ') : undefined;
     if (errors.length) {
       refresh();
       return;
     }
-    const model = readControls();
+    if (!pattern) {
+      if (constraintId && layout.nesting?.active) {
+        const old = layout.nesting.active,
+          constraints = readConstraints(layout);
+        layout.nesting.active = {
+          ...old,
+          gap: constraints.gap,
+          ...(constraintId === 'nestingRotation' || old.rotations
+            ? { rotations: constraints.rotations }
+            : {}),
+          stock: constraints.stock
+            ? { ...constraints.stock, mode: old.stock?.mode ?? 'fit' }
+            : undefined,
+        };
+        layout.nesting.constraintsEdited = true;
+      }
+      refresh();
+      return;
+    }
+    const model = readControls(layout);
     if (layout.editable) layout.editable.current = model;
     const rows = document.getElementById('layoutPatternRows');
     if (rows) rows.textContent = String(Math.ceil(model.count / model.columns));
@@ -140,9 +154,15 @@ export function initializeEditableLayout(
       precisePitches.delete(input(id));
       update();
     });
-    input(id)?.addEventListener('change', update);
+    input(id)?.addEventListener('change', () => update());
   }
+  for (const id of constraintFields)
+    for (const event of ['input', 'change']) input(id)?.addEventListener(event, () => update(id));
   select('layoutMode')?.addEventListener('change', () => {
+    if (select('layoutMode').value === 'pattern' && validateConstraints(layout).length) {
+      select('layoutMode').value = layout.editable?.current ? 'pattern' : 'grid';
+      return;
+    }
     if (layout.nesting) layout.nesting.active = undefined;
     if (select('layoutMode').value === 'grid') applyEditableLayout(layout);
     else {
@@ -161,8 +181,7 @@ export function initializeEditableLayout(
         pattern: 0,
         angle: 0,
         rotateAlternates: false,
-        rotations: 'half',
-        gap: 0,
+        ...readConstraints(layout),
       });
     }
     refresh();
@@ -186,24 +205,28 @@ export function showPatternFeedback(
     scale: number;
   },
 ): void {
-  if (layout.editable?.error) return;
+  if (layout.editable?.error || validateConstraints(layout, 'free', false).length) return;
   const errors: Record<string, string> = {};
-  if (layout.editable?.current && problem === 'rotations') {
+  if ((layout.editable?.current || layout.nesting?.constraintsEdited) && problem === 'rotations') {
     const message =
       'Panel rotations exceed the allowed policy. Change the panel rotation, alternate rotation or allowed rotations.';
-    for (const id of ['layoutAngle', 'layoutAlternate', 'layoutRotations']) errors[id] = message;
+    for (const id of ['layoutAngle', 'layoutAlternate', 'nestingRotation']) errors[id] = message;
   } else if (problem === 'clearance') {
-    for (const id of ['layoutPitchX', 'layoutPitchY', 'layoutGap'])
+    for (const id of ['layoutPitchX', 'layoutPitchY', 'nestingGap'])
       errors[id] =
         'Cut outlines overlap or are too close. Increase center spacing, change the pattern, or reduce the cutting gap.';
   }
   for (const [id, dimension, size, limit] of [
-    ['layoutStockWidth', 'width', width, plan?.stock?.width],
-    ['layoutStockHeight', 'height', height, plan?.stock?.height],
+    ['nestingStockWidth', 'width', width, plan?.stock?.width],
+    ['nestingStockHeight', 'height', height, plan?.stock?.height],
   ] as const) {
-    if (layout.editable?.current && limit !== undefined && size * scale > limit + 1e-8)
+    if (
+      (layout.editable?.current || layout.nesting?.constraintsEdited) &&
+      limit !== undefined &&
+      size * scale > limit + 1e-8
+    )
       errors[id] =
         `This arrangement needs at least ${(Math.ceil(size * scale * 10) / 10).toFixed(1)} mm ${dimension} at the current export scale and padding. Increase stock ${dimension} or reduce scale, padding or spacing.`;
   }
-  for (const id of patternFields) setFieldError(id, errors[id]);
+  for (const id of [...patternFields, ...constraintFields]) setFieldError(id, errors[id]);
 }

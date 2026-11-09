@@ -345,9 +345,6 @@ details.advanced .advanced-content { margin-top: 8px; }
   visibility: visible;
 }
 
-.nesting-tools { padding: 12px 16px; font-size: 0.85rem; }
-.nesting-tools p { color: var(--muted); }
-.nesting-tools input[type="number"] { width: 90px; margin: 6px; padding: 6px 8px; border: 1px solid #2a2f43; border-radius: 6px; background: var(--panel); color: var(--text); }
 .nesting-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
 @media (max-width: 960px) {
@@ -356,9 +353,6 @@ details.advanced .advanced-content { margin-top: 8px; }
   .preview-toolbar { flex-wrap: wrap; }
 }
 
-.nesting-tools > label, .stock-dimensions label { display: block; margin-top: 10px; }
-.nesting-tools select { max-width: 100%; margin-top: 6px; padding: 6px 8px; background: var(--panel); color: var(--text); border: 1px solid #2a2f43; border-radius: 6px; }
-.stock-dimensions input[type="number"] { width: 180px; max-width: 100%; }
 
 .pattern-controls { padding: 0 0 12px; }
 .pattern-controls > details.advanced { margin-top: 14px; }
@@ -372,3 +366,25 @@ img[data-nesting-preview] { position: absolute; left: 0; top: 0; opacity: .6; po
 .pattern-controls .advanced-content > label { display: block; margin-top: 10px; }
 .field-error { display: block; color: #ffaaaa; font-size: .8rem; margin: 4px 0 8px; }
 [aria-invalid="true"] { border-color: #ff8c8c !important; outline: 1px solid #ff8c8c; }
+
+/* Layout workflow: configure in the sidebar, compare beside the drawing. */
+.cutting-controls { min-width: 0; margin: 12px 0; padding: 12px 0 0; border: 0; border-top: 1px solid #364064; }
+.cutting-controls legend { padding: 0 8px 0 0; font-weight: 600; font-size: .9rem; }
+.cutting-controls .control:last-child, .material-limits .control:last-child { margin-bottom: 0; }
+.material-limits summary span { margin-left: auto; margin-right: 8px; font-size: .75rem; font-weight: normal; }
+.layout-notice:empty, #nestingStatus:empty { display: none; }
+.layout-notice { color: var(--muted); font-size: .8rem; }
+.layout-workflow { padding: 4px 16px 10px; }
+.workflow-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+#clearanceStatus { font-size: .85rem; color: #95cda4; }
+#clearanceStatus.warning { color: #ffd18a; }
+.comparison-bar { margin-top: 10px; border-left: 3px solid #4ea1ff; padding: 0 12px; }
+.comparison-bar p { margin: 0; font-size: .85rem; }
+.material-info-container { gap: 8px 16px; }
+dialog { box-sizing: border-box; width: min(440px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; padding: 24px; color: var(--text); background: var(--card); border: 1px solid #364064; border-radius: 12px; }
+dialog::backdrop { background: #0009; }
+dialog h2 { margin: 0 0 20px; font-size: 1.2rem; }
+dialog p { color: var(--muted); font-size: .85rem; line-height: 1.5; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.secondary-button { background: #2a2f43; color: var(--text); }
+.text-button { background: transparent; color: var(--accent); padding: 0; }

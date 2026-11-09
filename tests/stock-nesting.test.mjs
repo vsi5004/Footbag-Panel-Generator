@@ -13,12 +13,16 @@ import { calculateMaterialUtilization } from '../src/lib/layout.ts';
 import { createMainElements, getLayoutElements, createPageElements } from '../src/lib/dom.ts';
 import { state } from '../src/lib/state.ts';
 import { adoptPlan, latticePlacements, readEditableLayout } from '../src/lib/lattice.ts';
-import { applyEditableLayout, editablePlan } from '../src/lib/editable-layout.ts';
+import {
+  applyEditableLayout,
+  editablePlan,
+  initializeEditableLayout,
+} from '../src/lib/editable-layout.ts';
 import { createLayoutSvg } from '../src/lib/layout.ts';
 import { showNestingOverlay, clearNestingOverlay } from '../src/lib/nesting-overlay.ts';
 import { createExportSvg } from '../src/lib/export.ts';
 
-test('all advanced settings round trip independently; v1 files remain valid and v2 is explicit', () => {
+test('shared advanced settings migrate conflicting older values; v1 files remain valid and v2 is explicit', () => {
   const { el, layout } = fresh();
   const original = state.collect(el, layout);
   // Frozen from merged main 72d4cd0; never sync this compatibility fixture.
@@ -63,17 +67,30 @@ test('all advanced settings round trip independently; v1 files remain valid and 
     assert.deepEqual(saved.layout.nesting, {
       mode,
       rotations: 'quarter',
-      width: 210.5,
-      height: 297.25,
-      gap,
+      width: model.stock.width,
+      height: model.stock.height,
+      gap: model.gap,
     });
     assert.ok(validate(saved), JSON.stringify(validate.errors));
     assert.equal(validateOld(saved), false);
     state.apply(el, original, layout);
     state.apply(el, JSON.parse(JSON.stringify(saved)), layout);
     assert.deepEqual(state.collect(el, layout), saved);
-    assert.equal(layout.nestingGap.value, String(gap));
-    assert.equal(document.getElementById('layoutGap').value, '0.5');
+    assert.equal(layout.nestingGap.value, String(model.gap));
+    assert.equal(document.getElementById('layoutGap'), null);
+    const old = {
+      ...saved,
+      layout: {
+        ...saved.layout,
+        nesting: { mode, gap, rotations: 'half', width: 210.5, height: 297.25 },
+      },
+    };
+    state.apply(el, old, layout);
+    assert.deepEqual(state.collect(el, layout), saved);
+    assert.match(
+      document.getElementById('layoutImportNotice').textContent,
+      /older search settings differed/,
+    );
     // Preview exports made before the version bump remain readable too.
     state.apply(el, { ...saved, version: 1 }, layout);
     assert.deepEqual(state.collect(el, layout), saved);
@@ -548,8 +565,9 @@ test('stock settings and incomplete search preferences round trip; malformed imp
     { ...saved, layout: { ...saved.layout, nesting: { mode: 'fit', rotations: 'half' } } },
     layout,
   );
-  assert.equal(layout.nestingStockWidth.value, '');
-  assert.equal(layout.nestingStockHeight.value, '');
+  assert.equal(layout.nestingStockWidth.value, '120');
+  assert.equal(layout.nestingStockHeight.value, '85');
+  assert.equal(layout.nestingRotation.value, 'none');
   assert.deepEqual(state.collect(el, layout).layout.optimized, plan);
   state.apply(el, saved, layout);
   const validate = new Ajv2020({ strict: false }).compile(
@@ -678,4 +696,44 @@ test('control-boundary geometry remains finite and fully enclosed across all sha
           );
         }
       }
+});
+
+test('editing legacy plan constraints retains exact positions while unsafe exports are blocked', () => {
+  for (const capacity of [false, true]) {
+    const { layout, page } = fresh(),
+      panel = computePanel(config),
+      source = designKey(config, 1, 9);
+    const stock = { mode: 'capacity', width: 120, height: 85 };
+    layout.nesting.active = capacity
+      ? {
+          ...findCapacity({ panel, gap: 1, rotations: 'none', source, padding: 10, dot: 1, stock }),
+          stock,
+          rotations: 'none',
+        }
+      : findNesting({
+          panel,
+          count: 9,
+          gap: 1,
+          rotations: 'half',
+          source,
+          padding: 10,
+          dot: 1,
+          currentCols: 3,
+        });
+    const original = state.collect(createMainElements(), layout);
+    state.apply(createMainElements(), original, layout);
+    const placements = structuredClone(layout.nesting.active.placements);
+    const render = () =>
+      renderLayout(panel, 1, page, layout, { lastLayoutWpx: 0, lastLayoutHpx: 0 }, config);
+    initializeEditableLayout(layout, () => ({ panel, dot: 1 }), render);
+    const gap = document.getElementById('nestingGap');
+    gap.value = '20';
+    gap.dispatchEvent(new window.Event('input', { bubbles: true }));
+    assert.deepEqual(layout.nesting.active.placements, placements);
+    assert.equal(page.downloadSvg.disabled, true);
+    gap.value = '1';
+    gap.dispatchEvent(new window.Event('input', { bubbles: true }));
+    assert.deepEqual(layout.nesting.active.placements, placements);
+    assert.equal(page.downloadSvg.disabled, false);
+  }
 });

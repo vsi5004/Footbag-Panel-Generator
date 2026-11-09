@@ -194,7 +194,7 @@ function initializeApp(): void {
     initializeEditableLayout(
       layoutElements,
       () => ({ panel: lastPanel, dot: lastDotSize }),
-      refreshLayout,
+      () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined),
     );
     pageInvert?.addEventListener('change', () => {
       if (layoutElements.nesting) layoutElements.nesting.active = undefined;
