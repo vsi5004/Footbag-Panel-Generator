@@ -285,11 +285,11 @@
               <label for="exportScale">Export scale (%)</label>
               <button type="button" class="tooltip-icon" aria-label="About export scale" aria-describedby="exportScaleHelp">?</button>
               <div id="exportScaleHelp" class="tooltip-content" role="tooltip">
-                Scales both SVG downloads, including seam allowances, holes, and layout spacing. Base design measurements and previews stay unchanged. The reference grid stays at 10 mm. 100% is original size.
+                Scales SVG and GCode output, including seam allowances, holes, and layout spacing. Base design measurements and SVG previews stay unchanged. GCode previews show scaled output. The reference grid stays at 10 mm. 100% is original size.
               </div>
             </div>
             <input id="exportScale" type="number" min="1" max="1000" step="any" value="100" data-export-scale aria-describedby="exportScaleNote" />
-            <small id="exportScaleNote">Shared for both SVG downloads (1–1000%).</small>
+            <small id="exportScaleNote">Shared for SVG and GCode output (1–1000%).</small>
           </div>
           <button id="downloadSvg" type="button">Download SVG</button>
         </div>
@@ -487,11 +487,11 @@
               <label for="exportScaleNumber">Export scale (%)</label>
               <button type="button" class="tooltip-icon" aria-label="About layout export scale" aria-describedby="layoutExportScaleHelp">?</button>
               <div id="layoutExportScaleHelp" class="tooltip-content" role="tooltip">
-                Scales both SVG downloads, including seam allowances, holes, and layout spacing. Base design measurements and previews stay unchanged. The reference grid stays at 10 mm. 100% is original size.
+                Scales SVG and GCode output, including seam allowances, holes, and layout spacing. Base design measurements and SVG previews stay unchanged. GCode previews show scaled output. The reference grid stays at 10 mm. 100% is original size.
               </div>
             </div>
             <input id="exportScaleNumber" type="number" min="1" max="1000" step="any" value="100" data-export-scale aria-describedby="layoutExportScaleNote" />
-            <small id="layoutExportScaleNote">Shared for both SVG downloads (1–1000%).</small>
+            <small id="layoutExportScaleNote">Shared for SVG and GCode output (1–1000%).</small>
           </div>
           <button id="downloadPageSvg" type="button">Download Layout SVG</button>
         </div>
@@ -549,6 +549,40 @@
       </section>
     </main>
     </div>
+
+    <main class="app app--gcode">
+      <section id="gcodeSettings" class="controls" aria-label="GCode Settings">
+        <div class="section-header"><h3>Lasercutter GCode Generation</h3><button id="resetGcodeSettings" type="button" class="reset-button">Reset</button></div>
+        <p class="gcode-note">Uses the current lasercutter layout and shared export scale. Origin is the lower-left corner of the sheet (X right, Y up).</p>
+        <div class="control"><label for="gcode-cutPower">Cut power (%)</label><input id="gcode-cutPower" type="number" min="0" max="100" step="any" value="100" /></div>
+        <div class="control"><label for="gcode-cutSpeed">Cut speed (mm/min)</label><input id="gcode-cutSpeed" type="number" min="1" max="100000" step="any" value="1000" /></div>
+        <div class="control"><label for="gcode-kerf">Laser kerf width (mm)</label><input id="gcode-kerf" type="number" min="0" max="10" step="any" value="0.1" /><small>Full width removed. Panel outlines offset outward by half; holes inward by half. Kerf stays in actual mm at every export scale.</small></div>
+        <div class="control"><label for="gcode-segmentLength">Curve segment length (mm)</label><input id="gcode-segmentLength" type="number" min="0.01" max="5" step="any" value="0.2" /><small>Maximum segment length along curves. Try 0.1–0.5 mm; smaller values create more commands.</small></div>
+        <div class="control"><label for="gcode-stitchMode">Stitch cutting mode</label><select id="gcode-stitchMode"><option value="slit">Centered short slit</option><option value="outline">Follow hole outline</option></select><small>Slit length = scaled hole diameter − kerf. Slits follow the panel’s local horizontal axis, including layout rotations.</small></div>
+        <div class="control"><label for="gcode-cutOrder">Cut order</label><select id="gcode-cutOrder"><option value="all-stitches-first">All stitches first (recommended)</option><option value="panel-by-panel">Panel by panel: stitches, then outline</option><option value="optimized">Travel optimized: unrestricted order</option></select><small>All stitches first reduces fabric shifting. Unrestricted order can release a panel before its stitches are complete. Travel is optimized within the selected order.</small></div>
+        <details class="advanced"><summary>Machine settings &amp; start/end GCode</summary><div class="advanced-content">
+          <div class="control"><label for="gcode-powerMax">Laser power scale maximum (S value)</label><input id="gcode-powerMax" type="number" min="0.001" max="1000000" step="any" value="1000" /><small>Zero is off. Use 1 for S0–1, 1000 for S0–1000. Cut power is converted from percent.</small></div>
+          <div class="control"><label for="gcode-startCode">Start GCode</label><textarea id="gcode-startCode" rows="5" spellcheck="false">G21         ; Set units to mm
+G90         ; Absolute positioning
+M4 S0       ; Enable Laser/Spindle (0 power)</textarea></div>
+          <div class="control"><label for="gcode-endCode">End GCode</label><textarea id="gcode-endCode" rows="4" spellcheck="false">M5          ; Disable Laser/Spindle
+M2          ; End</textarea></div>
+          <p class="gcode-note">Defaults follow your M4 laser examples. The generated cutting body sets mm, absolute positioning, feed per minute, and M4 S0. Travel uses S0. Custom commands are preserved; unsupported preview commands are reported.</p>
+        </div></details>
+        <div class="export-actions"><button id="generateGcode" type="button">Generate GCode</button><button id="exportGcode" type="button" disabled>Export GCode</button></div>
+        <p id="gcodeStatus" role="status" aria-live="polite">Generate GCode to preview the current layout.</p>
+      </section>
+      <section id="gcodePreview" class="preview" aria-label="GCode Preview">
+        <div class="gcode-preview-inner">
+          <div class="gcode-toolbar"><label for="gcodeView">Preview</label><select id="gcodeView"><option value="toolpath">Cut / move lines</option><option value="code">GCode</option></select></div>
+          <p id="gcodeStats" class="gcode-note"></p>
+          <div id="gcodeToolpathControls" class="gcode-toolbar"><button id="gcodeZoomOut" type="button" aria-label="Zoom out toolpath">−</button><button id="gcodeZoomIn" type="button" aria-label="Zoom in toolpath">+</button><button id="gcodeZoomReset" type="button">Fit</button><label><input id="gcodeShowTravel" type="checkbox" checked /> Show travel</label><span class="gcode-cut-key">━ Cut</span><span class="gcode-travel-key">┄ Travel</span></div>
+          <div id="gcodeViewport" tabindex="0" aria-label="Toolpath; drag to pan, scroll to zoom"></div>
+          <textarea id="gcodeCode" aria-label="Generated GCode" readonly spellcheck="false" hidden></textarea>
+          <p class="gcode-note">Drag to pan; scroll or use buttons to zoom. Code view shows the exact exported file.</p>
+        </div>
+      </section>
+    </main>
 
     <dialog id="nestingDialog" aria-labelledby="nestingDialogTitle">
       <h2 id="nestingDialogTitle">Optimize layout</h2>

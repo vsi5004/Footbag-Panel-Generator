@@ -222,3 +222,20 @@ The app is automatically deployed to GitHub Pages via GitHub Actions when pushin
 ## Contributing
 
 Bug reports and improvements welcome! Please keep changes focused and incremental.
+
+
+## Lasercutter GCode Generation
+
+The third section converts the current layout into GRBL-style laser GCode. Generate the layout, choose cutting settings, then **Generate GCode**. Toggle between **Cut / move lines** and **GCode**; **Export GCode** downloads exactly the displayed text. The toolpath has zoom/pan and a travel visibility toggle. Changes clear stale output and require regeneration. Pending green nesting candidates are excluded until applied.
+
+- Cut power is a percentage of the machine's maximum S value (1, 1000, etc.); zero is off. The default S scale is 1000, cut power 100%, speed 1000 mm/min.
+- Start/end defaults follow the supplied laser examples: `G21`, `G90`, `M4 S0`; then `M5`, `M2`. Snippets are saved in the existing settings JSON with the other `gcode` settings. Older files without this section reset machine defaults. Invalid imports are rejected before changing the design.
+- Kerf is the full removed width, in physical mm. Panel boundaries move outward by half; hole boundaries move inward by half. The shared export scale scales geometry, spacing and hole diameter; kerf and curve segment length stay in actual mm.
+- Default stitches are centered slits, with length **scaled hole diameter minus kerf**. They follow the panel's local X axis, including rotations and flips. Hole-outline mode follows the compensated circle. Collapsed holes are rejected rather than silently replaced by burns.
+- **All stitches first** is the default to reduce fabric shifting. **Panel by panel** completes one panel's stitches and outline before moving to another. **Travel optimized** allows unrestricted ordering, including outlines before remaining stitches; use it only when fabric shifting is acceptable.
+- Routing uses deterministic nearest eligible entry points with reversible slits and rotating contour starts, accelerated by a mutable spatial index. It is a travel-reduction heuristic, not a guaranteed shortest route. Clipper handles concave/curved kerf offsets; [OpenBuilds CAM's toolpath worker](https://github.com/OpenBuilds/OpenBuilds-CAM/blob/master/workers/toolpath/worker/toolpathworker.js) informed the offset/entry approach. No CAM source was copied. The `clipper-lib` dependency carries its upstream Boost Software License.
+- Curve segment length is the maximum length along approximated circular curves before offset (default 0.2 mm). Straight edges remain single moves. Smaller values improve accuracy and increase command count.
+
+Coordinates are mm with origin at the lower-left corner of the sheet, X right and Y up. The generated body explicitly sets `G21 G90 G94` and dynamic `M4 S0`; each travel starts at S0, and the body ends with S0/M5 before the end snippet. Homing, work offsets, and machine configuration belong to your machine setup/start snippet. The preview reads the exported G0/G1 text, including custom linear start/end moves, assuming an initial X0 Y0 position. Unsupported custom commands (such as homing, arcs, or machine-coordinate moves) remain in the file and are explicitly reported as not simulated. Distances exclude unsupported motion. Use the code view to inspect those commands. Start snippets cannot contain program-end M2/M30 commands.
+
+GCode generation rejects invalid layouts, self-crossing outlines, overlapping/insufficiently separated panels, compensated contours that cross, collapsed holes, and cuts outside sheet bounds. It uses the same accepted/manual placement data as the layout preview and revalidates synchronously before export. Test a small sample on your machine to confirm kerf, power and speed for the material.

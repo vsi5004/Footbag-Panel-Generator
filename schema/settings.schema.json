@@ -479,6 +479,58 @@
           "editable"
         ]
       }
+    },
+    "gcode": {
+      "type": "object",
+      "properties": {
+        "startCode": {
+          "type": "string",
+          "maxLength": 20000
+        },
+        "endCode": {
+          "type": "string",
+          "maxLength": 20000
+        },
+        "powerMax": {
+          "type": "number",
+          "minimum": 0.001,
+          "maximum": 1000000
+        },
+        "cutPower": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "kerf": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "cutSpeed": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "segmentLength": {
+          "type": "number",
+          "minimum": 0.01,
+          "maximum": 5
+        },
+        "stitchMode": {
+          "enum": [
+            "slit",
+            "outline"
+          ]
+        },
+        "cutOrder": {
+          "enum": [
+            "all-stitches-first",
+            "panel-by-panel",
+            "optimized"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": [

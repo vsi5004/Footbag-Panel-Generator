@@ -3,6 +3,7 @@ import { readStock, readRotations, readNestingPreferences } from './stock-nestin
 import schema from '../../schema/settings.schema.json';
 import { SETTINGS } from './settings';
 import type { SettingsData } from './state';
+import { readGcodeSettings } from './gcode-settings';
 
 export type ImportedSettings = Partial<Omit<SettingsData, 'hex' | 'layout'>> & {
   hex?: Partial<SettingsData['hex']>;
@@ -17,6 +18,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 export function readImportedSettings(value: unknown): ImportedSettings {
   if (!isObject(value)) throw new Error('Settings must be an object');
   const result = { ...value };
+  if ('gcode' in result) result.gcode = readGcodeSettings(result.gcode);
   const known = Object.keys(schema.properties).filter(
     (key) => key !== '$schema' && key !== 'version',
   );
