@@ -68,7 +68,7 @@ test('invalid settings fail before any control is mutated', () => {
     123,
     {},
     { shape: 7 },
-    { version: 2, side: 30 },
+    { version: 999, side: 30 },
     { side: 40, seam: 'wrong' },
     { side: 40, curved: 'false' },
     { side: 40, layout: [] },

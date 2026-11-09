@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schema/settings.schema.json",
+  "title": "Footbag Panel Settings",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer"
+    },
+    "shape": {
+      "type": "integer",
+      "enum": [
+        3,
+        4,
+        5,
+        6,
+        10
+      ]
+    },
+    "curved": {
+      "type": "boolean"
+    },
+    "curveRadius": {
+      "type": "number",
+      "minimum": 10,
+      "maximum": 130
+    },
+    "side": {
+      "type": "number",
+      "minimum": 10,
+      "maximum": 80
+    },
+    "seam": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 9
+    },
+    "stitches": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+    },
+    "showGrid": {
+      "type": "boolean"
+    },
+    "cornerMargin": {
+      "type": "number",
+      "minimum": 0
+    },
+    "holeSpacing": {
+      "type": "number",
+      "minimum": 1
+    },
+    "dotSize": {
+      "type": "number",
+      "minimum": 0.2,
+      "maximum": 1.5
+    },
+    "hex": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "regular",
+            "truncated"
+          ]
+        },
+        "long": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 80
+        },
+        "ratio": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 0.9
+        }
+      },
+      "additionalProperties": false
+    },
+    "$schema": {
+      "type": "string"
+    },
+    "showHoles": {
+      "type": "boolean"
+    },
+    "holeBunching": {
+      "type": "number",
+      "minimum": 0
+    },
+    "starRootOffset": {
+      "type": "number",
+      "minimum": -3,
+      "maximum": 1
+    },
+    "starRootAngle": {
+      "type": "number",
+      "minimum": 100,
+      "maximum": 150
+    },
+    "cornerStitchSpacing": {
+      "type": "boolean"
+    },
+    "cornerStitchDistance": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 10
+    },
+    "export": {
+      "type": "object",
+      "properties": {
+        "scalePercent": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        }
+      },
+      "additionalProperties": false
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "padding": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "hSpace": {
+          "type": "number",
+          "minimum": -20,
+          "maximum": 50
+        },
+        "vSpace": {
+          "type": "number",
+          "minimum": -20,
+          "maximum": 60
+        },
+        "invert": {
+          "type": "boolean"
+        },
+        "nestingOffset": {
+          "type": "number",
+          "minimum": -40,
+          "maximum": 40
+        },
+        "showGrid": {
+          "type": "boolean"
+        },
+        "optimized": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "const": 1
+            },
+            "source": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "gap": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20
+            },
+            "placements": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 144,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "minimum": -100000,
+                    "maximum": 100000
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": -100000,
+                    "maximum": 100000
+                  },
+                  "angle": {
+                    "enum": [
+                      0,
+                      90,
+                      180,
+                      270
+                    ]
+                  },
+                  "flipY": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "angle"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "version",
+            "source",
+            "gap",
+            "placements"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "version",
+    "shape",
+    "curved",
+    "side",
+    "seam",
+    "stitches",
+    "dotSize",
+    "hex"
+  ],
+  "additionalProperties": false
+}

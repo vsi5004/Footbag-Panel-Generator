@@ -59,7 +59,6 @@ export function resetLayoutSettings(
 ): void {
   applyEditableLayout(layoutEl);
   if (layoutEl.nesting) layoutEl.nesting.active = undefined;
-  if (layoutEl.nestingGap) layoutEl.nestingGap.value = layoutEl.nestingGap.defaultValue;
   applyNestingPreferences(layoutEl);
   for (const [range, display] of layoutControlPairs(layoutEl)) {
     if (!range) continue;

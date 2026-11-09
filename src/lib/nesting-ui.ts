@@ -135,7 +135,7 @@ export function initializeNesting(
       if (checkOnly) {
         status.textContent = event.data.safe
           ? 'All cut outlines meet the requested gap, including a conservative curve allowance.'
-          : 'Some cut outlines overlap, touch, or are too close for the requested gap (including the curve allowance). Manual export is still available.';
+          : 'Some cut outlines overlap, touch, or are too close for the requested gap (including the curve allowance). This check does not change the placement settings.';
         return;
       }
       candidate = event.data.plan;

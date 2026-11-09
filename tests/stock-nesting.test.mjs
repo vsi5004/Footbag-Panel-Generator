@@ -18,6 +18,94 @@ import { createLayoutSvg } from '../src/lib/layout.ts';
 import { showNestingOverlay, clearNestingOverlay } from '../src/lib/nesting-overlay.ts';
 import { createExportSvg } from '../src/lib/export.ts';
 
+test('all advanced settings round trip independently; v1 files remain valid and v2 is explicit', () => {
+  const { el, layout } = fresh();
+  const original = state.collect(el, layout);
+  // Frozen from merged main 72d4cd0; never sync this compatibility fixture.
+  const oldSchema = JSON.parse(
+    readFileSync(new URL('./fixtures/settings-schema-v1.json', import.meta.url), 'utf8'),
+  );
+  const schema = JSON.parse(
+    readFileSync(new URL('../schema/settings.schema.json', import.meta.url), 'utf8'),
+  );
+  const validateOld = new Ajv2020({ strict: false }).compile(oldSchema);
+  const validate = new Ajv2020({ strict: false }).compile(schema);
+  assert.equal(original.version, 1);
+  assert.ok(validateOld(original));
+  assert.ok(validate(original));
+  const model = {
+    count: 7,
+    columns: 4,
+    pitchX: 52.125,
+    pitchY: 48.875,
+    pattern: 4,
+    angle: 90,
+    rotateAlternates: true,
+    rotations: 'quarter',
+    gap: 0.5,
+    stock: { mode: 'fit', width: 250, height: 175 },
+  };
+  for (const [mode, gap] of [
+    ['free', 0],
+    ['fit', 1],
+    ['capacity', 2],
+  ]) {
+    applyEditableLayout(layout, model);
+    layout.nestingMode.value = mode;
+    layout.nestingRotation.value = 'quarter';
+    layout.nestingStockWidth.value = '210.5';
+    layout.nestingStockHeight.value = '297.25';
+    layout.nestingGap.value = String(gap);
+    el.exportScale.value = '125';
+    const saved = state.collect(el, layout);
+    assert.equal(saved.version, 2);
+    assert.deepEqual(saved.layout.editable, model);
+    assert.deepEqual(saved.layout.nesting, {
+      mode,
+      rotations: 'quarter',
+      width: 210.5,
+      height: 297.25,
+      gap,
+    });
+    assert.ok(validate(saved), JSON.stringify(validate.errors));
+    assert.equal(validateOld(saved), false);
+    state.apply(el, original, layout);
+    state.apply(el, JSON.parse(JSON.stringify(saved)), layout);
+    assert.deepEqual(state.collect(el, layout), saved);
+    assert.equal(layout.nestingGap.value, String(gap));
+    assert.equal(document.getElementById('layoutGap').value, '0.5');
+    // Preview exports made before the version bump remain readable too.
+    state.apply(el, { ...saved, version: 1 }, layout);
+    assert.deepEqual(state.collect(el, layout), saved);
+    const before = state.collect(el, layout);
+    for (const badGap of [-1, 21, '2', null]) {
+      assert.throws(() =>
+        state.apply(
+          el,
+          {
+            ...saved,
+            side: 60,
+            layout: { ...saved.layout, nesting: { ...saved.layout.nesting, gap: badGap } },
+          },
+          layout,
+        ),
+      );
+      assert.deepEqual(state.collect(el, layout), before);
+    }
+  }
+  state.apply(el, original, layout);
+  layout.nestingGap.value = '0';
+  const unapplied = state.collect(el, layout);
+  assert.equal(unapplied.version, 2);
+  assert.equal(unapplied.layout.editable, undefined);
+  assert.equal(unapplied.layout.nesting.gap, 0);
+  state.apply(el, original, layout);
+  state.apply(el, unapplied, layout);
+  assert.deepEqual(state.collect(el, layout), unapplied);
+  state.apply(el, original, layout);
+  assert.deepEqual(state.collect(el, layout), original);
+});
+
 test('candidate overlays leave the exportable SVG untouched and restore the comparison canvas', () => {
   fresh();
   const panel = computePanel(config);
@@ -307,7 +395,7 @@ test('stock settings and incomplete search preferences round trip; malformed imp
   state.apply(el, saved, layout);
   const collected = state.collect(el, layout);
   assert.deepEqual(collected.layout.optimized, plan);
-  assert.deepEqual(collected.layout.nesting, saved.layout.nesting);
+  assert.deepEqual(collected.layout.nesting, { ...saved.layout.nesting, gap: 1 });
   state.apply(
     el,
     { ...saved, layout: { ...saved.layout, nesting: { mode: 'fit', rotations: 'half' } } },

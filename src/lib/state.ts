@@ -61,9 +61,18 @@ export interface SettingsData {
 
 function collect(el: PanelElements, layoutEl?: LayoutSettingsElements): SettingsData {
   const nesting = collectNestingPreferences(layoutEl);
+  const optimized = layoutEl?.nesting?.active;
+  // Older readers must reject advanced layouts instead of silently using a grid.
+  const advanced = !!(
+    layoutEl?.editable?.current ||
+    nesting ||
+    optimized?.stock ||
+    optimized?.rotations ||
+    optimized?.lattice
+  );
   return {
     $schema: './schema/settings.schema.json',
-    version: 1,
+    version: advanced ? 2 : 1,
     shape: INPUT_VALIDATORS.nSides(el.shape?.value || '5'),
     curved: !!el.curved?.checked,
     curveRadius: el.curveRadius ? INPUT_VALIDATORS.curveRadius(el.curveRadius.value) : undefined,
@@ -115,12 +124,14 @@ function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElemen
   if (layoutEl) applyEditableLayout(layoutEl, s.layout?.editable);
   // Older files always restore the manual layout, never a previous optimization.
   if (layoutEl?.nesting) layoutEl.nesting.active = s.layout?.optimized;
-  if (layoutEl?.nestingGap)
-    layoutEl.nestingGap.value = String(
-      s.layout?.optimized?.gap ?? layoutEl.nestingGap.defaultValue,
-    );
 
-  if (layoutEl) applyNestingPreferences(layoutEl, s.layout?.nesting, s.layout?.optimized);
+  if (layoutEl)
+    applyNestingPreferences(
+      layoutEl,
+      s.layout?.nesting,
+      s.layout?.optimized,
+      s.layout?.editable?.gap,
+    );
 
   const set = (input: HTMLInputElement | null, value: unknown) => {
     if (input == null || typeof value !== 'number' || !Number.isFinite(value)) return;

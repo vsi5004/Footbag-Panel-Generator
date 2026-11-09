@@ -17,6 +17,7 @@ export interface StockConstraint extends StockSize {
   mode: 'fit' | 'capacity';
 }
 export interface NestingPreferences {
+  gap?: number;
   mode: SearchMode;
   rotations: RotationMode;
   width?: number;

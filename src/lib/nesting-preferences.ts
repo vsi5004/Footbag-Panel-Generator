@@ -12,6 +12,10 @@ export function collectNestingPreferences(layout?: LayoutElements): NestingPrefe
   const prefs: NestingPreferences = {
     mode: layout.nestingMode.value as NestingPreferences['mode'],
     rotations: layout.nestingRotation.value as NestingPreferences['rotations'],
+    gap:
+      layout.nestingGap?.value.trim() && Number.isFinite(Number(layout.nestingGap.value))
+        ? Math.max(0, Math.min(20, Number(layout.nestingGap.value)))
+        : 1,
   };
   const width = number(layout.nestingStockWidth),
     height = number(layout.nestingStockHeight);
@@ -20,7 +24,10 @@ export function collectNestingPreferences(layout?: LayoutElements): NestingPrefe
   return prefs.mode === 'free' &&
     prefs.rotations === 'half' &&
     width === undefined &&
-    height === undefined
+    height === undefined &&
+    prefs.gap === 1 &&
+    !layout.editable?.current &&
+    !layout.nesting?.active
     ? undefined
     : prefs;
 }
@@ -28,7 +35,12 @@ export function applyNestingPreferences(
   layout: LayoutElements,
   prefs?: NestingPreferences,
   plan?: NestingPlan,
+  acceptedGap?: number,
 ): void {
+  if (layout.nestingGap)
+    layout.nestingGap.value = String(
+      prefs?.gap ?? plan?.gap ?? acceptedGap ?? Number(layout.nestingGap.defaultValue),
+    );
   if (layout.nestingMode) layout.nestingMode.value = prefs?.mode ?? plan?.stock?.mode ?? 'free';
   if (layout.nestingRotation)
     layout.nestingRotation.value =

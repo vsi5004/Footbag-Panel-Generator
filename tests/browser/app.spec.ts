@@ -225,7 +225,7 @@ test('valid JSON with invalid settings leaves the design and previews untouched'
     [],
     {},
     { ...before, side: 70, seam: 'wrong' },
-    { ...before, version: 2 },
+    { ...before, version: 999 },
   ]) {
     const pending = page.waitForEvent('dialog');
     await page.locator('#importFile').setInputFiles({
@@ -609,6 +609,7 @@ test('optional nesting previews savings before applying, preserves exports and r
   const optimized = await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML);
   const saved = await settingsDownload(page);
   expect(saved.layout.optimized).toBeUndefined();
+  expect(saved.version).toBe(2);
   expect(saved.layout.editable.count).toBe(9);
   await expect(page.locator('#layoutMode')).toHaveValue('pattern');
   await expect(page.locator('#layoutPitchX')).toHaveValue(String(saved.layout.editable.pitchX));

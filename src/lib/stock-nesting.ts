@@ -37,6 +37,11 @@ export function readNestingPreferences(value: unknown): NestingPreferences {
   if (
     !object(value) ||
     !['free', 'fit', 'capacity'].includes(value.mode as string) ||
+    (value.gap !== undefined &&
+      (typeof value.gap !== 'number' ||
+        !Number.isFinite(value.gap) ||
+        value.gap < 0 ||
+        value.gap > 20)) ||
     (value.width !== undefined && !dimension(value.width)) ||
     (value.height !== undefined && !dimension(value.height))
   )
@@ -44,6 +49,7 @@ export function readNestingPreferences(value: unknown): NestingPreferences {
   return {
     mode: value.mode as NestingPreferences['mode'],
     rotations: readRotations(value.rotations),
+    ...(value.gap !== undefined ? { gap: value.gap as number } : {}),
     ...(value.width !== undefined ? { width: value.width as number } : {}),
     ...(value.height !== undefined ? { height: value.height as number } : {}),
   };

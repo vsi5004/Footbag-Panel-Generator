@@ -21,7 +21,8 @@ export function readImportedSettings(value: unknown): ImportedSettings {
     (key) => key !== '$schema' && key !== 'version',
   );
   if (!known.some((key) => key in result)) throw new Error('No design settings found');
-  if ('version' in result && result.version !== 1) throw new Error('Unsupported settings version');
+  if ('version' in result && result.version !== 1 && result.version !== 2)
+    throw new Error('Unsupported settings version');
 
   for (const key of ['hex', 'layout', 'export']) {
     if (key in result) {
