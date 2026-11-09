@@ -3,7 +3,10 @@
  * Supports both hover (desktop) and click/tap (mobile) interactions
  */
 
+import { initializePlacementHelp } from './placement-help';
+
 export function initializeTooltips(): void {
+  initializePlacementHelp();
   const tooltipContainers = document.querySelectorAll('.tooltip-container');
 
   tooltipContainers.forEach((container) => {

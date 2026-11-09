@@ -606,7 +606,7 @@ test('every help icon is an accessible button and supports keyboard dismissal', 
   page,
 }) => {
   const icons = page.locator('.tooltip-icon');
-  expect(await icons.count()).toBe(34);
+  expect(await icons.count()).toBe(35);
   for (const icon of await icons.all()) {
     await expect(icon).toHaveAttribute('type', 'button');
     await expect(icon).toHaveAttribute('aria-label', /^About .+/);
@@ -1774,4 +1774,58 @@ test('legacy accepted placements survive padding and stitch changes', async ({ p
   await expect(page.locator('#downloadPageSvg')).toBeEnabled();
   await importSettings(page, changed);
   expect((await settingsDownload(page)).layout.optimized).toEqual(changed.layout.optimized);
+});
+
+test('placement pattern help illustrates shifts and optional rotations without changing settings', async ({
+  page,
+}) => {
+  await page.locator('#layoutMode').selectOption('pattern');
+  const saved = await settingsDownload(page);
+  const icon = page.getByRole('button', { name: 'About placement patterns', exact: true });
+  const help = page.locator('#placementPatternHelp');
+  for (const viewport of [
+    { width: 1280, height: 720 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await icon.scrollIntoViewIfNeeded();
+    await icon.focus();
+    await icon.press('Enter');
+    await expect(help).toBeVisible();
+    await expect(help.locator('svg')).toHaveCount(5);
+    await expect(help.locator('strong')).toHaveText([
+      'Aligned',
+      'Alternating rows',
+      'Staggered rows',
+      'Alternating columns',
+      'Staggered columns',
+    ]);
+    await expect(help).toContainText('half the horizontal center spacing');
+    await expect(help).toContainText('half the vertical center spacing');
+    await expect(help).toContainText('Turn it off to keep every panel at the base rotation');
+    const transforms = await help
+      .locator('svg')
+      .evaluateAll((diagrams) =>
+        diagrams.map((svg) =>
+          Array.from(svg.querySelectorAll('path'), (path) => path.getAttribute('transform')),
+        ),
+      );
+    expect(transforms[0][3]).toBe('translate(12 34) rotate(0)');
+    expect(transforms[1][3]).toBe('translate(12 34) rotate(180)');
+    expect(transforms[2][3]).toBe('translate(26 34) rotate(180)');
+    expect(transforms[3][1]).toBe('translate(40 10) rotate(180)');
+    expect(transforms[4][1]).toBe('translate(40 22) rotate(180)');
+    const bounds = await help.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(8);
+    expect(bounds!.y).toBeGreaterThanOrEqual(8);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width - 7);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height - 7);
+    await icon.press('Escape');
+    await expect(help).toBeHidden();
+    await icon.click();
+    await expect(help).toBeVisible();
+    await page.locator('h1').click();
+    await expect(help).toBeHidden();
+  }
+  expect(await settingsDownload(page)).toEqual(saved);
 });
