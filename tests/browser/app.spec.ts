@@ -635,6 +635,40 @@ test('optional nesting previews savings before applying, preserves exports and r
   await expect(page.locator('#pageSvgHost svg')).toHaveAttribute('width', manual!);
 });
 
+test('panel preview fills available desktop height and still scrolls oversized drawings', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 2533, height: 1222 });
+  await setChecked(page, '#curved', true);
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const metrics = () =>
+    page.locator('#svgHost').evaluate((host) => ({
+      height: host.clientHeight,
+      scroll: host.scrollHeight,
+      unused: host.closest('section.preview')!.clientHeight - host.parentElement!.clientHeight,
+    }));
+  await expect.poll(async () => (await metrics()).unused).toBeLessThanOrEqual(26);
+  await expect
+    .poll(async () => {
+      const m = await metrics();
+      return m.scroll - m.height;
+    })
+    .toBeLessThanOrEqual(1);
+  await page.locator('#sideNumber').fill('80');
+  await page.locator('#zoom').fill('300');
+  await expect
+    .poll(async () => {
+      const m = await metrics();
+      return m.scroll - m.height;
+    })
+    .toBeGreaterThan(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const bounds = await page.locator('.preview--panel').boundingBox();
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+});
+
 test('accepting the curved-pentagon pattern preserves zoom even while the preview host collapses', async ({
   page,
 }) => {
@@ -669,9 +703,15 @@ test('accepting the curved-pentagon pattern preserves zoom even while the previe
       'matrix(0.95, 0, 0, 0.95, 0, 0)',
     );
     await expect(page.locator('#pageSvgHost path')).toHaveCount(9);
+    const beforeSpacingWidth = parseFloat(
+      (await page.locator('#pageSvgHost svg').getAttribute('width'))!,
+    );
     await page.locator('#layoutPitchX').fill('60');
     await expect(page.locator('#downloadPageSvg')).toBeEnabled();
     await expect(page.locator('#pageZoom')).toHaveValue('95');
+    await expect
+      .poll(async () => parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!))
+      .toBeGreaterThan(beforeSpacingWidth);
     const width = parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!);
     const pending = page.waitForEvent('download');
     await page.locator('#downloadPageSvg').click();
