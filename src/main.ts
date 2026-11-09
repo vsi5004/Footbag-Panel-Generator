@@ -186,7 +186,13 @@ function initializeApp(): void {
     if (el.exportSettings) {
       el.exportSettings.addEventListener('click', () => {
         flushRenders();
-        exportSettings(el, { ...layoutElements, pageEl });
+        try {
+          exportSettings(el, { ...layoutElements, pageEl });
+        } catch (error) {
+          const status = document.getElementById('gcodeStatus');
+          if (status)
+            status.textContent = `Settings not exported: ${error instanceof Error ? error.message : 'Invalid settings'}`;
+        }
       });
     }
 

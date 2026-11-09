@@ -103,6 +103,8 @@ test('settings persist machine code and cut order, while older imports restore d
 });
 
 test('all cut orders, scaled hole outlines and kerf errors are handled', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
   for (const order of ['all-stitches-first', 'panel-by-panel', 'optimized']) {
     await page.locator('#gcode-cutOrder').selectOption(order);
     await generate(page);
@@ -115,6 +117,15 @@ test('all cut orders, scaled hole outlines and kerf errors are handled', async (
   await page.locator('#generateGcode').click();
   await expect(page.locator('#exportGcode')).toBeDisabled();
   await expect(page.locator('#gcodeStatus')).toContainText(/diameter|kerf/);
+  await page.locator('#gcode-cutSpeed').fill('');
+  let downloads = 0;
+  page.on('download', () => downloads++);
+  await page.locator('#exportSettings').click();
+  await expect(page.locator('#gcodeStatus')).toContainText(
+    'Settings not exported: Invalid GCode cutSpeed',
+  );
+  expect(downloads).toBe(0);
+  expect(errors).toEqual([]);
 });
 
 test('accepted optimized layouts feed GCode and pending candidates do not', async ({ page }) => {
