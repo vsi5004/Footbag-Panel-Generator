@@ -92,7 +92,7 @@ test('GCode toolpath, code toggle and download agree; view controls preserve exp
   expect(await page.locator('#gcodeViewport svg').getAttribute('viewBox')).not.toBe(before);
   await page.locator('#gcodeZoomReset').click();
   expect(await page.locator('#gcodeViewport svg').getAttribute('viewBox')).toBe(before);
-  await page.locator('#gcodeShowTravel').uncheck();
+  await page.locator('label.switch:has(#gcodeShowTravel)').click();
   await expect(page.locator('[data-travel]')).toHaveClass(/hidden/);
   await page.locator('#gcodeView').selectOption('code');
   await expect(page.locator('#gcodeCode')).toBeVisible();
@@ -208,7 +208,7 @@ test('header-details toggle adds current design comments, persists, and leaves t
   await generate(page);
   const before = await page.locator('#gcodeCode').inputValue();
   const cutBefore = await page.locator('.gcode-cut').getAttribute('d');
-  await page.locator('#gcode-includeSettings').check();
+  await page.locator('label.switch:has(#gcode-includeSettings)').click();
   await expect(page.locator('#exportGcode')).toBeDisabled();
   await generate(page);
   const code = await page.locator('#gcodeCode').inputValue();
@@ -227,7 +227,7 @@ test('header-details toggle adds current design comments, persists, and leaves t
     buffer: Buffer.from(saved),
   });
   await expect(page.locator('#gcode-includeSettings')).toBeChecked();
-  await page.locator('#gcode-includeSettings').uncheck();
+  await page.locator('label.switch:has(#gcode-includeSettings)').click();
   await generate(page);
   expect(await page.locator('#gcodeCode').inputValue()).toBe(before);
 });
