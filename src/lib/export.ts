@@ -10,6 +10,12 @@ export function normalizeExportScale(value: unknown): number {
     : SETTINGS.exportScale.default;
 }
 
+/** Both download areas edit one global export setting, including an in-progress draft. */
+export function syncExportScaleControls(value: string | number): void {
+  for (const field of document.querySelectorAll<HTMLInputElement>('[data-export-scale]'))
+    field.value = String(value);
+}
+
 /** Scale physical output dimensions while preserving the base design and viewBox. */
 export function createExportSvg(svg: SVGElement, scalePercent: number = 100): SVGElement {
   const clone = svg.cloneNode(true) as SVGElement;

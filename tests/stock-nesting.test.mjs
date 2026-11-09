@@ -109,7 +109,16 @@ test('all advanced settings round trip independently; v1 files remain valid and 
 test('candidate overlays leave the exportable SVG untouched and restore the comparison canvas', () => {
   fresh();
   const panel = computePanel(config);
-  const plan = findNesting(panel, 7, 1, 'half', 'overlay', 10, 1, 3);
+  const plan = findNesting({
+    panel,
+    count: 7,
+    gap: 1,
+    rotations: 'half',
+    source: 'overlay',
+    padding: 10,
+    dot: 1,
+    currentCols: 3,
+  });
   const host = document.createElement('div'),
     wrap = document.createElement('div');
   wrap.className = 'svg-wrap';
@@ -162,7 +171,16 @@ test('adopted optimizer patterns reproduce exact placements and SVGs across shap
         const c = { ...config, nSides, hexType, curvedEdges },
           panel = computePanel(c);
         const plan = {
-          ...findNesting(panel, 7, 1, rotations, designKey(c, 1, 7), 10, 1, 3),
+          ...findNesting({
+            panel,
+            count: 7,
+            gap: 1,
+            rotations,
+            source: designKey(c, 1, 7),
+            padding: 10,
+            dot: 1,
+            currentCols: 3,
+          }),
           rotations,
         };
         const model = adoptPlan(plan),
@@ -194,7 +212,15 @@ test('pattern edits retain placement settings across design changes and guard un
   const { el, layout, page } = fresh(),
     panel = computePanel(config);
   const model = adoptPlan({
-    ...findCapacity(panel, 1, 'none', designKey(config, 1, 9), 10, 1, { width: 120, height: 85 }),
+    ...findCapacity({
+      panel,
+      gap: 1,
+      rotations: 'none',
+      source: designKey(config, 1, 9),
+      padding: 10,
+      dot: 1,
+      stock: { width: 120, height: 85 },
+    }),
     rotations: 'none',
   });
   applyEditableLayout(layout, model);
@@ -205,14 +231,7 @@ test('pattern edits retain placement settings across design changes and guard un
   assert.deepEqual(layout.editable.current, model);
   assert.equal(document.getElementById('layoutCount').value, '6');
   const render = (c) =>
-    renderLayout(
-      computePanel(c),
-      1,
-      page,
-      layout,
-      { lastLayoutWpx: 0, lastLayoutHpx: 0, isFirstLayoutRender: true },
-      c,
-    );
+    renderLayout(computePanel(c), 1, page, layout, { lastLayoutWpx: 0, lastLayoutHpx: 0 }, c);
   render({ ...config, sideLen: 25 });
   assert.deepEqual(layout.editable.current, model);
   assert.equal(page.svgHost.querySelectorAll('path').length, 6);
@@ -293,50 +312,153 @@ function verify(panel, plan, stock, rotations) {
 test('stock fit honors width-only limits, both dimensions, and explicit rotations', () => {
   const panel = computePanel(config);
   const stock = { width: 55 };
-  const plan = findNesting(panel, 6, 1, 'none', 'fit', 10, 1, 3, stock);
+  const plan = findNesting({
+    panel,
+    count: 6,
+    gap: 1,
+    rotations: 'none',
+    source: 'fit',
+    padding: 10,
+    dot: 1,
+    currentCols: 3,
+    stock,
+  });
   verify(panel, plan, stock, [0]);
   assert.equal(plan.placements.length, 6);
   assert.ok(measurePlaced(panel, plan.placements, 1, 10).height < 210);
   assert.throws(
-    () => findNesting(panel, 6, 1, 'half', 'fit', 10, 1, 3, { width: 55, height: 55 }),
+    () =>
+      findNesting({
+        panel,
+        count: 6,
+        gap: 1,
+        rotations: 'half',
+        source: 'fit',
+        padding: 10,
+        dot: 1,
+        currentCols: 3,
+        stock: { width: 55, height: 55 },
+      }),
     /No arrangement found/,
   );
   const triangle = computePanel({ ...config, nSides: 3 });
   assert.throws(
-    () => findNesting(triangle, 1, 1, 'none', 'fit', 10, 1, 1, { width: 49 }),
+    () =>
+      findNesting({
+        panel: triangle,
+        count: 1,
+        gap: 1,
+        rotations: 'none',
+        source: 'fit',
+        padding: 10,
+        dot: 1,
+        currentCols: 1,
+        stock: { width: 49 },
+      }),
     /No arrangement/,
   );
-  const rotated = findNesting(triangle, 1, 1, 'quarter', 'fit', 10, 1, 1, { width: 49 });
+  const rotated = findNesting({
+    panel: triangle,
+    count: 1,
+    gap: 1,
+    rotations: 'quarter',
+    source: 'fit',
+    padding: 10,
+    dot: 1,
+    currentCols: 1,
+    stock: { width: 49 },
+  });
   verify(triangle, rotated, { width: 49 }, [90, 270]);
 });
 
 test('capacity is deterministic, obeys full-outline clearance and caps results at 144', () => {
   const panel = computePanel(config),
     stock = { width: 120, height: 85 };
-  const plan = findCapacity(panel, 1, 'none', 'capacity', 10, 1, stock);
+  const plan = findCapacity({
+    panel,
+    gap: 1,
+    rotations: 'none',
+    source: 'capacity',
+    padding: 10,
+    dot: 1,
+    stock,
+  });
   assert.equal(plan.placements.length, 6);
   verify(panel, plan, stock, [0]);
-  const strip = findCapacity(panel, 1, 'none', 'strip', 10, 1, { width: 6000, height: 55 });
+  const strip = findCapacity({
+    panel,
+    gap: 1,
+    rotations: 'none',
+    source: 'strip',
+    padding: 10,
+    dot: 1,
+    stock: { width: 6000, height: 55 },
+  });
   const adoptedStrip = adoptPlan({ ...strip, rotations: 'none' });
   assert.equal(adoptedStrip.count, 144);
   assert.equal(adoptedStrip.columns, 144);
   assert.deepEqual(latticePlacements(adoptedStrip, 144), strip.placements);
-  assert.deepEqual(plan, findCapacity(panel, 1, 'none', 'capacity', 10, 1, stock));
+  assert.deepEqual(
+    plan,
+    findCapacity({
+      panel,
+      gap: 1,
+      rotations: 'none',
+      source: 'capacity',
+      padding: 10,
+      dot: 1,
+      stock,
+    }),
+  );
   assert.equal(
-    findCapacity(panel, 1, 'half', 'cap', 10, 1, { width: 1000, height: 1000 }).placements.length,
+    findCapacity({
+      panel,
+      gap: 1,
+      rotations: 'half',
+      source: 'cap',
+      padding: 10,
+      dot: 1,
+      stock: { width: 1000, height: 1000 },
+    }).placements.length,
     144,
   );
   assert.throws(
-    () => findCapacity(panel, 1, 'half', 'cap', 10, 1, { width: 120 }),
+    () =>
+      findCapacity({
+        panel,
+        gap: 1,
+        rotations: 'half',
+        source: 'cap',
+        padding: 10,
+        dot: 1,
+        stock: { width: 120 },
+      }),
     /requires width and height/,
   );
   assert.throws(
-    () => findCapacity(panel, 1, 'half', 'cap', 10, 1, { width: 10, height: 10 }),
+    () =>
+      findCapacity({
+        panel,
+        gap: 1,
+        rotations: 'half',
+        source: 'cap',
+        padding: 10,
+        dot: 1,
+        stock: { width: 10, height: 10 },
+      }),
     /No arrangement/,
   );
   for (const nSides of [3, 5, 6, 10]) {
     const shaped = computePanel({ ...config, nSides, curvedEdges: true });
-    const found = findCapacity(shaped, 2, 'quarter', 'cap', 10, 1, { width: 150, height: 130 });
+    const found = findCapacity({
+      panel: shaped,
+      gap: 2,
+      rotations: 'quarter',
+      source: 'cap',
+      padding: 10,
+      dot: 1,
+      stock: { width: 150, height: 130 },
+    });
     verify(shaped, found, { width: 150, height: 130 }, [0, 90, 180, 270]);
   }
 });
@@ -345,7 +467,15 @@ test('stock fit includes scaled drawing allowances and padding, and capacity uti
   const panel = computePanel(config),
     stock = { mode: 'capacity', width: 120, height: 85 };
   const plan = {
-    ...findCapacity(panel, 1, 'none', designKey(config, 1, 9), 10, 1, stock),
+    ...findCapacity({
+      panel,
+      gap: 1,
+      rotations: 'none',
+      source: designKey(config, 1, 9),
+      padding: 10,
+      dot: 1,
+      stock,
+    }),
     stock,
     rotations: 'none',
   };
@@ -369,7 +499,16 @@ test('stock fit includes scaled drawing allowances and padding, and capacity uti
         (100 * 900 * 6) / (size.width * size.height),
     ) < 1e-8,
   );
-  const rotated = findNesting(panel, 4, 1, 'quarter', designKey(config, 1, 4), 10, 1, 2);
+  const rotated = findNesting({
+    panel,
+    count: 4,
+    gap: 1,
+    rotations: 'quarter',
+    source: designKey(config, 1, 4),
+    padding: 10,
+    dot: 1,
+    currentCols: 2,
+  });
   rotated.placements[0].angle = 90;
   assert.equal(validPlan({ ...rotated, rotations: 'none' }, panel, config, 1, 4), false);
 });
@@ -380,7 +519,15 @@ test('stock settings and incomplete search preferences round trip; malformed imp
   const panel = computePanel(config),
     stock = { mode: 'capacity', width: 120, height: 85 };
   const plan = {
-    ...findCapacity(panel, 1, 'none', designKey(config, 1, 9), 10, 1, stock),
+    ...findCapacity({
+      panel,
+      gap: 1,
+      rotations: 'none',
+      source: designKey(config, 1, 9),
+      padding: 10,
+      dot: 1,
+      stock,
+    }),
     stock,
     rotations: 'none',
   };
@@ -457,23 +604,26 @@ test('outgrown imported stock plans block export and recover without discarding 
   const { layout, page } = fresh(),
     panel = computePanel(config);
   layout.nesting.active = {
-    ...findNesting(panel, 9, 1, 'none', designKey(config, 1, 9), 10, 1, 3, {
-      width: 120,
-      height: 120,
+    ...findNesting({
+      panel,
+      count: 9,
+      gap: 1,
+      rotations: 'none',
+      source: designKey(config, 1, 9),
+      padding: 10,
+      dot: 1,
+      currentCols: 3,
+      stock: {
+        width: 120,
+        height: 120,
+      },
     }),
     stock: { mode: 'fit', width: 120, height: 120 },
     rotations: 'none',
   };
   const plan = layout.nesting.active;
   const render = () =>
-    renderLayout(
-      panel,
-      1,
-      page,
-      layout,
-      { lastLayoutWpx: 0, lastLayoutHpx: 0, isFirstLayoutRender: true },
-      config,
-    );
+    renderLayout(panel, 1, page, layout, { lastLayoutWpx: 0, lastLayoutHpx: 0 }, config);
   layout.exportScale.value = '125';
   render();
   assert.equal(page.svgHost.querySelector('svg'), null);

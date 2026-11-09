@@ -1,3 +1,4 @@
+import { setFieldError } from './field-feedback';
 import type { LayoutElements } from '../types';
 import type { NestingPreferences, NestingPlan } from './nesting-types';
 import { MAX_STOCK_MM } from './stock-nesting';
@@ -51,4 +52,23 @@ export function applyNestingPreferences(
     layout.nestingStockWidth.value = String((prefs ? prefs.width : plan?.stock?.width) ?? '');
   if (layout.nestingStockHeight)
     layout.nestingStockHeight.value = String((prefs ? prefs.height : plan?.stock?.height) ?? '');
+  for (const id of ['nestingGap', 'nestingStockWidth', 'nestingStockHeight']) setFieldError(id);
+  syncNestingControls(layout);
+}
+
+/** Hiding search-only stock controls never discards their saved values. */
+export function syncNestingControls(layout: LayoutElements): void {
+  const stockMode = layout.nestingMode?.value !== 'free';
+  document.getElementById('nestingStockControls')?.classList.toggle('hidden', !stockMode);
+  layout.nestingStockWidth?.setAttribute('aria-required', String(stockMode));
+  layout.nestingStockHeight?.setAttribute(
+    'aria-required',
+    String(layout.nestingMode?.value === 'capacity'),
+  );
+  const label = document.querySelector('label[for="nestingStockHeight"]');
+  if (label)
+    label.textContent =
+      layout.nestingMode?.value === 'capacity'
+        ? 'Maximum height (actual mm, required for capacity)'
+        : 'Maximum height (actual mm, optional)';
 }

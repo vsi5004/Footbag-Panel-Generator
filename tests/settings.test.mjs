@@ -43,7 +43,10 @@ test('11- and 12-row/column layouts survive settings round trips', () => {
 test('panel Reset restores all design controls and visibility to fresh-page defaults', () => {
   const { el, layout } = freshControls();
   const section = document.querySelector('[aria-label="Panel Settings"]');
-  const controls = [...section.querySelectorAll('input, select'), el.showGrid];
+  const controls = [
+    ...section.querySelectorAll('input:not([data-export-scale]), select'),
+    el.showGrid,
+  ];
   const defaults = controls.map((control) => ({
     control,
     value: control.value,

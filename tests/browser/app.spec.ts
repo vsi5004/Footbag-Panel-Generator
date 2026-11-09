@@ -563,7 +563,7 @@ test('every help icon is an accessible button and supports keyboard dismissal', 
   page,
 }) => {
   const icons = page.locator('.tooltip-icon');
-  expect(await icons.count()).toBe(20);
+  expect(await icons.count()).toBe(21);
   for (const icon of await icons.all()) {
     await expect(icon).toHaveAttribute('type', 'button');
     await expect(icon).toHaveAttribute('aria-label', /^About .+/);
@@ -612,7 +612,9 @@ test('optional nesting previews savings before applying, preserves exports and r
   expect(saved.version).toBe(2);
   expect(saved.layout.editable.count).toBe(9);
   await expect(page.locator('#layoutMode')).toHaveValue('pattern');
-  await expect(page.locator('#layoutPitchX')).toHaveValue(String(saved.layout.editable.pitchX));
+  await expect(page.locator('#layoutPitchX')).toHaveValue(
+    String(Number(saved.layout.editable.pitchX.toFixed(3))),
+  );
   await expect(page.locator('#pageSvgHost svg path')).toHaveCount(9);
   for (const path of await page.locator('#pageSvgHost svg path').all())
     await expect(path).toHaveAttribute('d', originalPath!);
@@ -842,6 +844,9 @@ test('accepted layouts remain editable through design changes, block overlaps an
   });
   const exported = await readFile((await (await pending).path())!, 'utf8');
   expect(parseFloat(exported.match(/\bwidth="([^"]+)"/)![1])).toBeCloseTo(beforeWidth + 10, 8);
+  await page.locator('#patternAdvanced').evaluate((details: HTMLDetailsElement) => {
+    details.open = true;
+  });
   await page.locator('#layoutRotations').selectOption('none');
   await page.locator('#layoutAngle').selectOption('90');
   await expect(page.locator('#downloadPageSvg')).toBeDisabled();
@@ -1290,4 +1295,209 @@ test('nesting checks flush pending layout changes and optimized grid updates pre
   });
   expect(retained).toBe(true);
   expect((await settingsDownload(page)).layout.editable).toEqual(before.layout.editable);
+});
+
+test('search stock fields follow the selected goal, preserve hidden values and identify invalid inputs', async ({
+  page,
+}) => {
+  await expect(page.locator('#nestingStockControls')).toBeHidden();
+  await page.locator('#nestingMode').selectOption('fit');
+  await expect(page.locator('#nestingStockControls')).toBeVisible();
+  await page.locator('#nestingStockWidth').fill('210.5');
+  await page.locator('#nestingStockHeight').fill('297.25');
+  await page.locator('#nestingMode').selectOption('free');
+  const hidden = await settingsDownload(page);
+  expect(hidden.layout.nesting.width).toBe(210.5);
+  expect(hidden.layout.nesting.height).toBe(297.25);
+  await importSettings(page, hidden);
+  await expect(page.locator('#nestingStockControls')).toBeHidden();
+  await page.locator('#nestingMode').selectOption('capacity');
+  await expect(page.locator('#nestingStockWidth')).toHaveValue('210.5');
+  await page.locator('#nestingStockHeight').fill('');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingStockHeight')).toBeFocused();
+  await expect(page.locator('#nestingStockHeight')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#nestingStockHeightError')).toHaveText('Enter stock height.');
+  await expect(page.locator('#nestingStockHeight')).toHaveAttribute(
+    'aria-describedby',
+    'stockSizeHelp nestingStockHeightError',
+  );
+  // A clearance check needs no stock dimensions and must clear irrelevant errors.
+  await page.locator('#checkClearance').click();
+  await expect(page.locator('#nestingStatus')).toContainText('cut outlines');
+  await expect(page.locator('#nestingStockHeight')).not.toHaveAttribute('aria-invalid', 'true');
+  await page.locator('#nestingGap').fill('21');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#nestingGap')).toBeFocused();
+  await expect(page.locator('#nestingGapError')).toContainText('from 0 to 20');
+  await page.locator('#nestingGap').fill('0');
+  await expect(page.locator('#nestingGapError')).toHaveCount(0);
+  await expect(page.locator('#nestingGap')).toHaveAttribute('aria-describedby', 'nestingGapHelp');
+  await page.locator('#resetLayoutSettings').click();
+  await expect(page.locator('#nestingStockControls')).toBeHidden();
+  await expect(page.locator('.field-error')).toHaveCount(0);
+});
+
+test('readable spacing preserves exact geometry through unrelated edits and imports', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const saved = await settingsDownload(page);
+  const model = saved.layout.editable;
+  await expect(page.locator('#patternAdvanced')).not.toHaveAttribute('open');
+  for (const [id, exact] of [
+    ['layoutPitchX', model.pitchX],
+    ['layoutPitchY', model.pitchY],
+  ] as const)
+    await expect(page.locator('#' + id)).toHaveValue(String(Number(exact.toFixed(3))));
+  const originalSvg = await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML);
+  await page.locator('#layoutCount').fill(String(model.count));
+  expect((await settingsDownload(page)).layout.editable).toEqual(model);
+  expect(await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML)).toBe(originalSvg);
+  await page.locator('#layoutCount').fill('7');
+  const changed = await settingsDownload(page);
+  expect(changed.layout.editable.pitchX).toBe(model.pitchX);
+  expect(changed.layout.editable.pitchY).toBe(model.pitchY);
+  await importSettings(page, changed);
+  expect((await settingsDownload(page)).layout.editable).toEqual(changed.layout.editable);
+  const pitch = Number(model.pitchX.toFixed(3)) + 1;
+  await page.locator('#layoutPitchX').fill(String(pitch));
+  expect((await settingsDownload(page)).layout.editable.pitchX).toBe(pitch);
+  const bounds = await page.locator('#patternLayoutControls').boundingBox();
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+});
+
+test('pattern feedback identifies numeric, rotation, clearance and stock constraints and clears on recovery', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, { ...initial, shape: 4, curved: false, showHoles: false });
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const accepted = await settingsDownload(page);
+  await page.locator('#layoutCount').fill('1.5');
+  await expect(page.locator('#layoutCountError')).toContainText('whole number');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  // Invalid drafts retain the last committed model, rather than silently clamping it.
+  expect((await settingsDownload(page)).layout.editable).toEqual(accepted.layout.editable);
+  await page.locator('#layoutCount').fill('');
+  await expect(page.locator('#layoutCountError')).toHaveText('Enter panel count.');
+  await page.locator('#layoutCount').fill('9');
+  await expect(page.locator('#layoutCountError')).toHaveCount(0);
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await page.locator('#layoutPitchX').fill('0');
+  await expect(page.locator('#layoutPitchXError')).toContainText('overlap or are too close');
+  await expect(page.locator('#patternAdvanced')).toHaveAttribute('open');
+  await page.locator('#layoutPitchX').fill('45');
+  await page.locator('#layoutPitchY').fill('45');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await page.locator('#layoutRotations').selectOption('none');
+  await page.locator('#layoutAngle').selectOption('90');
+  await expect(page.locator('#layoutAngleError')).toContainText('allowed policy');
+  await expect(page.locator('#pageSvgHost')).toContainText('rotations outside');
+  await page.locator('#layoutRotations').selectOption('quarter');
+  await expect(page.locator('#layoutAngleError')).toHaveCount(0);
+  await page.locator('#layoutStockHeight').fill('500');
+  await expect(page.locator('#layoutStockWidthError')).toContainText('when a stock height is set');
+  await page.locator('#layoutStockWidth').fill('50');
+  await expect(page.locator('#layoutStockWidthError')).toContainText('needs');
+  await expect(page.locator('#layoutStockHeightError')).toHaveCount(0);
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await page.locator('#layoutStockWidth').fill('500');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await expect(page.locator('.field-error')).toHaveCount(0);
+  await expect(page.locator('#layoutStockWidth')).not.toHaveAttribute('aria-invalid', 'true');
+});
+
+test('shared export scale sits beside both downloads, syncs immediately and survives imports', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  for (const viewport of [
+    { width: 2533, height: 1222 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const [scaleId, buttonId] of [
+      ['exportScale', 'downloadSvg'],
+      ['exportScaleNumber', 'downloadPageSvg'],
+    ]) {
+      expect(
+        await page
+          .locator('#' + scaleId)
+          .evaluate(
+            (input, button) =>
+              input.closest('.export-actions')!.contains(document.getElementById(button)),
+            buttonId,
+          ),
+      ).toBe(true);
+      expect(await page.locator('#' + scaleId).evaluate((input) => !!input.closest('header'))).toBe(
+        false,
+      );
+    }
+  }
+  const paths = await page
+    .locator('#svgHost svg path')
+    .evaluateAll((paths) => paths.map((p) => p.getAttribute('d')));
+  for (const [scaleId, value] of [
+    ['exportScaleNumber', '75.5'],
+    ['exportScale', '125'],
+  ]) {
+    await page.locator('#' + scaleId).fill(value);
+    await expect(page.locator('#exportScale')).toHaveValue(value);
+    await expect(page.locator('#exportScaleNumber')).toHaveValue(value);
+    expect((await settingsDownload(page)).export.scalePercent).toBe(Number(value));
+    for (const [host, button] of [
+      ['svgHost', 'downloadSvg'],
+      ['pageSvgHost', 'downloadPageSvg'],
+    ]) {
+      const originalWidth = parseFloat(
+        (await page.locator('#' + host + ' svg').getAttribute('width'))!,
+      );
+      const pending = page.waitForEvent('download');
+      await page.locator('#' + button).click();
+      const text = await readFile((await (await pending).path())!, 'utf8');
+      expect(parseFloat(text.match(/\bwidth="([^"]+)"/)![1])).toBeCloseTo(
+        (originalWidth * Number(value)) / 100,
+        8,
+      );
+    }
+  }
+  expect(
+    await page
+      .locator('#svgHost svg path')
+      .evaluateAll((paths) => paths.map((p) => p.getAttribute('d'))),
+  ).toEqual(paths);
+  const saved = await settingsDownload(page);
+  await page.locator('#exportScaleNumber').fill('2000');
+  await page.locator('#exportScaleNumber').blur();
+  await expect(page.locator('#exportScale')).toHaveValue('1000');
+  await expect(page.locator('#exportScaleNumber')).toHaveValue('1000');
+  await importSettings(page, saved);
+  await expect(page.locator('#exportScaleNumber')).toHaveValue('125');
+  await page.locator('#resetPanelSettings').click();
+  await page.locator('#resetLayoutSettings').click();
+  await expect(page.locator('#exportScale')).toHaveValue('125');
+  await expect(page.locator('#exportScaleNumber')).toHaveValue('125');
+  delete initial.export;
+  await importSettings(page, initial);
+  await expect(page.locator('#exportScale')).toHaveValue('100');
+  await expect(page.locator('#exportScaleNumber')).toHaveValue('100');
+  // Editing scale beside the layout download must immediately recheck accepted stock limits.
+  await importSettings(page, { ...initial, shape: 4, curved: false, showHoles: false });
+  await page.locator('#nestingMode').selectOption('fit');
+  await page.locator('#nestingRotation').selectOption('none');
+  await page.locator('#nestingStockWidth').fill('150');
+  await page.locator('#nestingStockHeight').fill('150');
+  await page.locator('#optimizeLayout').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  await page.locator('#exportScaleNumber').fill('200');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await page.locator('#exportScaleNumber').fill('100');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
 });

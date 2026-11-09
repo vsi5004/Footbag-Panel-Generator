@@ -3,16 +3,17 @@ import { flattenOutline, checkPlacements, isSimple } from './nesting-geometry';
 import { designKey, CLEARANCE_ALLOWANCE, type NestingPlan } from './nesting-types';
 
 const verified = new WeakMap<NestingPlan, string>();
-export function validPlan(
+export type PlanProblem = 'design' | 'rotations' | 'outline' | 'clearance';
+export function planProblem(
   plan: NestingPlan,
   panel: Panel,
   config: PanelConfig,
   dot: number,
   count: number,
-): boolean {
+): PlanProblem | undefined {
   const key = designKey(config, dot, count);
   if (plan.source !== key || (plan.stock?.mode !== 'capacity' && plan.placements.length !== count))
-    return false;
+    return 'design';
   if (
     plan.rotations &&
     plan.placements.some(
@@ -22,14 +23,22 @@ export function validPlan(
         (plan.rotations === 'half' && at.angle % 180 !== 0),
     )
   )
-    return false;
-  if (verified.get(plan) === key) return true;
+    return 'rotations';
+  if (verified.get(plan) === key) return undefined;
   const outline = flattenOutline(panel.outlinePath);
-  if (
-    !isSimple(outline) ||
-    !checkPlacements(outline, plan.placements, plan.gap + CLEARANCE_ALLOWANCE)
-  )
-    return false;
+  if (!isSimple(outline)) return 'outline';
+  if (!checkPlacements(outline, plan.placements, plan.gap + CLEARANCE_ALLOWANCE))
+    return 'clearance';
   verified.set(plan, key);
-  return true;
+  return undefined;
+}
+
+export function validPlan(
+  plan: NestingPlan,
+  panel: Panel,
+  config: PanelConfig,
+  dot: number,
+  count: number,
+): boolean {
+  return planProblem(plan, panel, config, dot, count) === undefined;
 }

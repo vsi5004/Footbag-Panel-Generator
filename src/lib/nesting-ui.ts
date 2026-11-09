@@ -1,6 +1,8 @@
+import { focusFirstError, numberFieldError, setFieldError } from './field-feedback';
+import { syncNestingControls } from './nesting-preferences';
 import { showNestingOverlay, clearNestingOverlay } from './nesting-overlay';
 import { adoptPlan } from './lattice';
-import { applyEditableLayout, editablePlan } from './editable-layout';
+import { applyEditableLayout, editablePlan, patternFields } from './editable-layout';
 import type { Panel, PanelConfig, PageElements, LayoutElements } from '../types';
 import { manualPlacements, measureLayoutSvg, type LayoutSvgOptions } from './layout';
 import { normalizeExportScale } from './export';
@@ -26,6 +28,30 @@ export function initializeNesting(
   const stockWidth = document.getElementById('nestingStockWidth') as HTMLInputElement;
   const stockHeight = document.getElementById('nestingStockHeight') as HTMLInputElement;
   const status = document.getElementById('nestingStatus')!;
+  const searchFields = ['nestingGap', 'nestingStockWidth', 'nestingStockHeight'];
+  let validationActive = false,
+    lastCheckOnly = false;
+  const validateOptions = (checkOnly: boolean): string[] => {
+    const errors: string[] = [];
+    const stockRequired = !checkOnly && mode.value !== 'free';
+    for (const [field, label, required, enabled] of [
+      [gapInput, 'minimum cutting gap', true, true],
+      [stockWidth, 'stock width', true, stockRequired],
+      [stockHeight, 'stock height', mode.value === 'capacity', stockRequired],
+    ] as const) {
+      const message = enabled ? numberFieldError(field, label, required) : undefined;
+      setFieldError(field.id, message);
+      if (message) errors.push(message);
+    }
+    return errors;
+  };
+  syncNestingControls(layout);
+  for (const field of [mode, gapInput, stockWidth, stockHeight])
+    for (const event of ['input', 'change'])
+      field.addEventListener(event, () => {
+        syncNestingControls(layout);
+        if (validationActive) validateOptions(lastCheckOnly);
+      });
   let worker: Worker | undefined, candidate: NestingPlan | undefined;
   const stop = () => {
     if (page.svgHost) clearNestingOverlay(page.svgHost);
@@ -60,25 +86,32 @@ export function initializeNesting(
     flush();
     const { panel, config, dot } = getPanel();
     if (!panel || !config) return;
-    const gap = Number(gapInput.value);
-    if (gapInput.value.trim() === '' || !Number.isFinite(gap) || gap < 0 || gap > 20) {
-      status.textContent = 'Enter a minimum gap from 0 to 20 mm.';
+    validationActive = true;
+    lastCheckOnly = checkOnly;
+    const errors = validateOptions(checkOnly);
+    if (layout.editable?.error) {
+      status.textContent = layout.editable.error;
+      focusFirstError(patternFields);
       return;
     }
-    let stock: StockConstraint | undefined;
-    if (!checkOnly && mode.value !== 'free') {
-      try {
-        stock = readStock({
-          mode: mode.value,
-          width: Number(stockWidth.value),
-          ...(stockHeight.value.trim() !== '' ? { height: Number(stockHeight.value) } : {}),
-        });
-      } catch {
-        status.textContent =
-          'Enter stock width from 1 to 10000 mm, and height in that range when supplied. Capacity mode requires both.';
-        return;
-      }
+    if (errors.length) {
+      status.textContent =
+        errors.join(' ') +
+        (mode.value === 'capacity' && !checkOnly
+          ? ' Capacity mode requires both width and height.'
+          : '');
+      focusFirstError(searchFields);
+      return;
     }
+    const gap = Number(gapInput.value);
+    const stock: StockConstraint | undefined =
+      !checkOnly && mode.value !== 'free'
+        ? readStock({
+            mode: mode.value,
+            width: Number(stockWidth.value),
+            ...(stockHeight.value.trim() !== '' ? { height: Number(stockHeight.value) } : {}),
+          })
+        : undefined;
     const scalePercent = normalizeExportScale(layout.exportScale?.value);
     const opts = options(),
       count = layout.editable?.current?.count ?? opts.rows * opts.cols,

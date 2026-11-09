@@ -16,17 +16,7 @@
         <button id="importSettings" type="button" class="header-button">Import Settings</button>
         <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
       </div>
-      <div class="export-options control">
-        <div class="tooltip-container">
-          <label for="exportScale">Export scale (%)</label>
-          <button type="button" class="tooltip-icon" aria-label="About export scale" aria-describedby="exportScaleHelp">?</button>
-          <div id="exportScaleHelp" class="tooltip-content" role="tooltip">
-            Scales both SVG downloads, including seam allowances, holes, and layout spacing. Base design measurements and previews stay unchanged. The reference grid stays at 10 mm. 100% is original size.
-          </div>
-        </div>
-        <input id="exportScale" type="number" min="1" max="1000" step="any" value="100" aria-describedby="exportScaleNote" />
-        <small id="exportScaleNote">Applies to panel and layout SVG downloads only (1–1000%).</small>
-      </div>
+
     </header>
 
     <div class="app-wrapper">
@@ -289,8 +279,19 @@
           </div>
         </details>
 
-        <div class="actions">
-          <button id="downloadSvg">Download SVG</button>
+        <div class="export-actions">
+          <div class="export-options control">
+            <div class="tooltip-container">
+              <label for="exportScale">Export scale (%)</label>
+              <button type="button" class="tooltip-icon" aria-label="About export scale" aria-describedby="exportScaleHelp">?</button>
+              <div id="exportScaleHelp" class="tooltip-content" role="tooltip">
+                Scales both SVG downloads, including seam allowances, holes, and layout spacing. Base design measurements and previews stay unchanged. The reference grid stays at 10 mm. 100% is original size.
+              </div>
+            </div>
+            <input id="exportScale" type="number" min="1" max="1000" step="any" value="100" data-export-scale aria-describedby="exportScaleNote" />
+            <small id="exportScaleNote">Shared for both SVG downloads (1–1000%).</small>
+          </div>
+          <button id="downloadSvg" type="button">Download SVG</button>
         </div>
       </section>
 
@@ -357,7 +358,7 @@
           <select id="layoutMode"><option value="grid">Grid layout</option><option value="pattern">Pattern layout</option></select>
         </div>
         <div id="patternLayoutControls" class="hidden pattern-controls">
-          <p>Editable positions use panel centers. A partial final row is allowed. Applying an optimized result fills these settings.</p>
+          <p>Spacing is measured between panel centers. The final row can be partially filled.</p>
           <label for="layoutCount">Panel count</label><input id="layoutCount" type="number" min="1" max="144" step="1" value="9" />
           <label for="layoutColumns">Columns</label><input id="layoutColumns" type="number" min="1" max="144" step="1" value="3" />
           <p>Rows: <output id="layoutPatternRows">3</output></p>
@@ -365,14 +366,19 @@
           <label for="layoutPitchY">Vertical center spacing (mm)</label><input id="layoutPitchY" type="number" min="0" max="10000" step="any" value="50" />
           <label for="layoutPattern">Placement pattern</label>
           <select id="layoutPattern"><option value="0">Aligned</option><option value="1">Alternating rows</option><option value="2">Staggered rows</option><option value="3">Alternating columns</option><option value="4">Staggered columns</option></select>
-          <label for="layoutAngle">Panel rotation</label>
-          <select id="layoutAngle"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
-          <label><input id="layoutAlternate" type="checkbox" /> Rotate alternate rows/columns 180°</label>
-          <label for="layoutRotations">Allowed rotations (fabric grain and nap)</label>
-          <select id="layoutRotations"><option value="none">No rotation</option><option value="half" selected>0° and 180°</option><option value="quarter">90° increments</option></select>
-          <label for="layoutGap">Minimum cutting gap (mm at 100% export)</label><input id="layoutGap" type="number" min="0" max="20" step="any" value="1" />
-          <label for="layoutStockWidth">Stock width (actual mm, blank for no limit)</label><input id="layoutStockWidth" type="number" min="1" max="10000" step="any" />
-          <label for="layoutStockHeight">Maximum stock height (actual mm, optional)</label><input id="layoutStockHeight" type="number" min="1" max="10000" step="any" />
+          <details id="patternAdvanced" class="advanced">
+            <summary>Rotation and cutting constraints</summary>
+            <div class="advanced-content">
+              <label for="layoutAngle">Panel rotation</label>
+              <select id="layoutAngle"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+              <label><input id="layoutAlternate" type="checkbox" /> Rotate alternate rows/columns 180°</label>
+              <label for="layoutRotations">Allowed rotations (fabric grain and nap)</label>
+              <select id="layoutRotations"><option value="none">No rotation</option><option value="half" selected>0° and 180°</option><option value="quarter">90° increments</option></select>
+              <label for="layoutGap">Minimum cutting gap (mm at 100% export)</label><input id="layoutGap" type="number" min="0" max="20" step="any" value="1" />
+              <label for="layoutStockWidth">Stock width (actual mm, blank for no limit)</label><input id="layoutStockWidth" type="number" min="1" max="10000" step="any" />
+              <label for="layoutStockHeight">Maximum stock height (actual mm, optional)</label><input id="layoutStockHeight" type="number" min="1" max="10000" step="any" />
+            </div>
+          </details>
         </div>
         <div id="gridLayoutControls">
         <div class="control">
@@ -446,7 +452,18 @@
         </div>
 
         </div>
-        <div class="actions">
+        <div class="export-actions">
+          <div class="export-options control">
+            <div class="tooltip-container">
+              <label for="exportScaleNumber">Export scale (%)</label>
+              <button type="button" class="tooltip-icon" aria-label="About layout export scale" aria-describedby="layoutExportScaleHelp">?</button>
+              <div id="layoutExportScaleHelp" class="tooltip-content" role="tooltip">
+                Scales both SVG downloads, including seam allowances, holes, and layout spacing. Base design measurements and previews stay unchanged. The reference grid stays at 10 mm. 100% is original size.
+              </div>
+            </div>
+            <input id="exportScaleNumber" type="number" min="1" max="1000" step="any" value="100" data-export-scale aria-describedby="layoutExportScaleNote" />
+            <small id="layoutExportScaleNote">Shared for both SVG downloads (1–1000%).</small>
+          </div>
           <button id="downloadPageSvg" type="button">Download Layout SVG</button>
         </div>
       </section>
@@ -483,7 +500,7 @@
           </div>
           <div class="nesting-tools">
             <label for="nestingGap">Minimum cutting gap (mm at 100% export)</label>
-            <input id="nestingGap" type="number" min="0" max="20" step="0.1" value="1" aria-describedby="nestingGapHelp" />
+            <input id="nestingGap" type="number" min="0" max="20" step="any" value="1" aria-describedby="nestingGapHelp" />
             <p id="nestingGapHelp">Gap is between cut outlines, with an extra allowance for curve approximation. Export scaling also scales this gap. Hole marks are not checked. Choose permitted rotations for your fabric.</p>
             <p>Search options apply to the next search. Apply commits its result to the editable Pattern layout settings.</p>
             <label for="nestingRotation">Allowed rotations (check fabric grain and nap)</label>
@@ -498,13 +515,13 @@
               <option value="fit">Fit current count within stock</option>
               <option value="capacity">Find capacity within stock (up to 144)</option>
             </select>
-            <div class="stock-dimensions">
+            <div id="nestingStockControls" class="stock-dimensions hidden">
               <label for="nestingStockWidth">Stock width (actual mm)</label>
               <input id="nestingStockWidth" type="number" min="1" max="10000" step="any" placeholder="Required for stock modes" aria-describedby="stockSizeHelp" />
               <label for="nestingStockHeight">Maximum height (actual mm, optional for fit mode)</label>
               <input id="nestingStockHeight" type="number" min="1" max="10000" step="any" placeholder="Required for capacity" aria-describedby="stockSizeHelp" />
+              <p id="stockSizeHelp">Stock limits include padding and drawing allowances at the current export scale. Exports are cropped to the arrangement within those limits. Capacity reports the best found count, capped at 144; it is not a proof of the maximum.</p>
             </div>
-            <p id="stockSizeHelp">Stock limits include padding and drawing allowances at the current export scale. Exports are cropped to the arrangement within those limits. Capacity reports the best found count, capped at 144; it is not a proof of the maximum.</p>
             <div class="nesting-actions">
               <button id="checkClearance" type="button">Check clearance</button>
               <div class="tooltip-container">

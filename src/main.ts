@@ -1,6 +1,6 @@
 import { initializeEditableLayout } from './lib/editable-layout';
 import type { Panel, PanelElements, PageElements, PanelConfig } from './types';
-import { normalizeExportScale } from './lib/export';
+import { normalizeExportScale, syncExportScaleControls } from './lib/export';
 import {
   createMainElements,
   createPageElements,
@@ -49,7 +49,6 @@ function initializeApp(): void {
   const layoutState = {
     lastLayoutWpx: 0,
     lastLayoutHpx: 0,
-    isFirstLayoutRender: true,
   };
 
   const layoutFrame = createFrameScheduler(() => {
@@ -146,18 +145,19 @@ function initializeApp(): void {
   function bindExportControls(): void {
     const readExportScale = (): number => {
       const scale = normalizeExportScale(el.exportScale?.value);
-      if (el.exportScale) el.exportScale.value = String(scale);
+      syncExportScaleControls(scale);
       return scale;
     };
-    el.exportScale?.addEventListener('input', () => {
-      if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
-        renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
-    });
-    el.exportScale?.addEventListener('change', () => {
-      readExportScale();
-      if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
-        renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
-    });
+    for (const field of document.querySelectorAll<HTMLInputElement>('[data-export-scale]')) {
+      for (const event of ['input', 'change'])
+        field.addEventListener(event, () => {
+          syncExportScaleControls(
+            event === 'change' ? normalizeExportScale(field.value) : field.value,
+          );
+          if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
+            renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
+        });
+    }
 
     el.downloadSvg?.addEventListener('click', () => {
       flushRenders();

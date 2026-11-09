@@ -38,7 +38,8 @@ body {
   background: var(--hover);
 }
 
-.export-options { margin: 16px auto 0; max-width: 360px; }
+.export-options { margin: 0 0 12px; }
+.export-actions { margin-top: 16px; padding-top: 14px; border-top: 1px solid #364064; }
 .export-options small { display: block; margin-top: 6px; color: var(--muted); }
 .export-options .tooltip-icon { padding: 0; }
 .tooltip-container:not(.tooltip-dismissed) .tooltip-icon:focus-visible + .tooltip-content { opacity: 1; visibility: visible; }
@@ -365,3 +366,8 @@ details.advanced .advanced-content { margin-top: 8px; }
 .pattern-controls p { color: var(--muted); font-size: .85rem; }
 
 img[data-nesting-preview] { position: absolute; left: 0; top: 0; opacity: .6; pointer-events: none; max-width: none; }
+
+/* Constraints stay available without crowding the common placement controls. */
+.pattern-controls .advanced-content > label { display: block; margin-top: 10px; }
+.field-error { display: block; color: #ffaaaa; font-size: .8rem; margin: 4px 0 8px; }
+[aria-invalid="true"] { border-color: #ff8c8c !important; outline: 1px solid #ff8c8c; }

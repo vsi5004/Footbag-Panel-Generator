@@ -93,7 +93,19 @@ test('count, geometry, dot size and manual/optimized transitions rebuild safely'
     [computePanel({ ...config, sideLen: 50 }), base],
     [
       panel,
-      { ...base, optimized: findNesting(panel, 6, 1, true, designKey(config, 1, 6), 10, 1, 3) },
+      {
+        ...base,
+        optimized: findNesting({
+          panel,
+          count: 6,
+          gap: 1,
+          rotations: 'quarter',
+          source: designKey(config, 1, 6),
+          padding: 10,
+          dot: 1,
+          currentCols: 3,
+        }),
+      },
     ],
     [panel, base],
   ]) {
@@ -106,7 +118,16 @@ test('count, geometry, dot size and manual/optimized transitions rebuild safely'
 
 test('optimized updates preserve drawings while positions, padding and grid change', () => {
   const panel = computePanel(config);
-  const plan = findNesting(panel, 6, 1, true, designKey(config, 1, 6), 10, 1, 3);
+  const plan = findNesting({
+    panel,
+    count: 6,
+    gap: 1,
+    rotations: 'quarter',
+    source: designKey(config, 1, 6),
+    padding: 10,
+    dot: 1,
+    currentCols: 3,
+  });
   let opts = { ...base, optimized: plan },
     svg = updateLayoutPreview(panel, opts);
   const root = svg,

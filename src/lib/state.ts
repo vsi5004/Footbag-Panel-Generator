@@ -8,7 +8,7 @@ import {
   computeGeometry,
   updateDynamicConstraints,
 } from './validation';
-import { normalizeExportScale } from './export';
+import { normalizeExportScale, syncExportScaleControls } from './export';
 import { normalizeSetting } from './settings';
 import { readImportedSettings } from './import-settings';
 import { panelControlPairs } from './controls';
@@ -150,6 +150,7 @@ function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElemen
 
   // Missing export settings in older files must reset a previously selected scale.
   set(el.exportScale, normalizeExportScale(s.export?.scalePercent));
+  syncExportScaleControls(normalizeExportScale(s.export?.scalePercent));
 
   // Panel settings
   if (typeof s.shape === 'number' && el.shape) el.shape.value = String(s.shape);

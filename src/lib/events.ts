@@ -172,15 +172,8 @@ export function setupImportSettings(
             syncPairDisplay(range, display);
         }
 
-        // Reset layout zoom to a reasonable level after import
-        if (layoutEl?.pageEl) {
-          // Reset the layout state to treat this as a fresh render
-          if (layoutEl.layoutState) {
-            layoutEl.layoutState.isFirstLayoutRender = true;
-          }
-          // Set zoom to 100% initially, the auto-fit logic will adjust if needed
-          appUi.zoom.setPct(layoutEl.pageEl, 100);
-        }
+        // Imports start at 100%; subsequent renders preserve the selected zoom.
+        if (layoutEl?.pageEl) appUi.zoom.setPct(layoutEl.pageEl, 100);
 
         ui.updateVisibility(el);
         layoutEl?.nestingOffsetRow?.classList.toggle('hidden', !layoutEl.pageInvert?.checked);
