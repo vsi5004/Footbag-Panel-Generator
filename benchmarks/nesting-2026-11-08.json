@@ -1,0 +1,128 @@
+{
+  "baselineCommit": "9e4d4f3708e9216636add0cd145cdb22c4a3a864",
+  "notes": "Advisory same-host measurements; one warm-up per case. Baseline 3 trials, after 5 trials. Independent fine-outline verification excluded from timing. Identical hashes/areas; no speedup claimed.",
+  "before": {
+    "runtime": "v22.22.2",
+    "platform": "win32",
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor            ",
+    "runs": 3,
+    "cases": [
+      {
+        "name": "5-regular-curved-half",
+        "medianMs": 10.07,
+        "count": 7,
+        "widthMm": 117.10371966249687,
+        "heightMm": 216.50340286451754,
+        "sheetAreaMm2": 25353.353795023086,
+        "resultHash": "7574be192b75ad2de0124caf3008ef694666b01376241eb5fb98985dad81c900"
+      },
+      {
+        "name": "10-regular-curved-quarter",
+        "medianMs": 39.66,
+        "count": 7,
+        "widthMm": 123.35539097770922,
+        "heightMm": 214.07520983124843,
+        "sheetAreaMm2": 26407.331207368792,
+        "resultHash": "932a843a4f99244642ca0d2d7fdb2275d5a43d706c728b7b1a4b2194b3963340"
+      },
+      {
+        "name": "hexagon-36",
+        "medianMs": 13.05,
+        "count": 36,
+        "widthMm": 310.5525,
+        "heightMm": 364.5550242270663,
+        "sheetAreaMm2": 113213.47416127601,
+        "resultHash": "87f105caad33241fb7fb41c81c05e32c6a43067f09e275f2336f2d35cb0055fb"
+      },
+      {
+        "name": "curved-stock-fit",
+        "medianMs": 40.22,
+        "count": 9,
+        "widthMm": 144.74851966249685,
+        "heightMm": 150.44094850112242,
+        "sheetAreaMm2": 21776.104592159394,
+        "resultHash": "769fcd36a53b5943a822284cb502b2b88101d33b37fc633dfdcbb9a6f32af3d1"
+      },
+      {
+        "name": "square-capacity-144",
+        "medianMs": 129.55,
+        "count": 144,
+        "widthMm": 381.605,
+        "heightMm": 381.605,
+        "sheetAreaMm2": 145622.376025,
+        "resultHash": "5c7a5c1a94ba9d288b488d9d55b3ae4ea7406b3157a5502f224f4f384a1232cb"
+      },
+      {
+        "name": "curved-star-capacity",
+        "medianMs": 2421.93,
+        "count": 4,
+        "widthMm": 124.36559097770922,
+        "heightMm": 128.5109,
+        "sheetAreaMm2": 15982.334025577291,
+        "resultHash": "c11daf0da466ea3c67f6fa858558f4529c3339cad1ebef27893f0330e7fe9dea"
+      }
+    ]
+  },
+  "after": {
+    "runtime": "v22.22.2",
+    "platform": "win32",
+    "cpu": "AMD Ryzen 9 5950X 16-Core Processor            ",
+    "runs": 5,
+    "cases": [
+      {
+        "name": "5-regular-curved-half",
+        "medianMs": 10.28,
+        "count": 7,
+        "widthMm": 117.10371966249687,
+        "heightMm": 216.50340286451754,
+        "sheetAreaMm2": 25353.353795023086,
+        "resultHash": "7574be192b75ad2de0124caf3008ef694666b01376241eb5fb98985dad81c900"
+      },
+      {
+        "name": "10-regular-curved-quarter",
+        "medianMs": 34.36,
+        "count": 7,
+        "widthMm": 123.35539097770922,
+        "heightMm": 214.07520983124843,
+        "sheetAreaMm2": 26407.331207368792,
+        "resultHash": "932a843a4f99244642ca0d2d7fdb2275d5a43d706c728b7b1a4b2194b3963340"
+      },
+      {
+        "name": "hexagon-36",
+        "medianMs": 12.66,
+        "count": 36,
+        "widthMm": 310.5525,
+        "heightMm": 364.5550242270663,
+        "sheetAreaMm2": 113213.47416127601,
+        "resultHash": "87f105caad33241fb7fb41c81c05e32c6a43067f09e275f2336f2d35cb0055fb"
+      },
+      {
+        "name": "curved-stock-fit",
+        "medianMs": 39.84,
+        "count": 9,
+        "widthMm": 144.74851966249685,
+        "heightMm": 150.44094850112242,
+        "sheetAreaMm2": 21776.104592159394,
+        "resultHash": "769fcd36a53b5943a822284cb502b2b88101d33b37fc633dfdcbb9a6f32af3d1"
+      },
+      {
+        "name": "square-capacity-144",
+        "medianMs": 123.22,
+        "count": 144,
+        "widthMm": 381.605,
+        "heightMm": 381.605,
+        "sheetAreaMm2": 145622.376025,
+        "resultHash": "5c7a5c1a94ba9d288b488d9d55b3ae4ea7406b3157a5502f224f4f384a1232cb"
+      },
+      {
+        "name": "curved-star-capacity",
+        "medianMs": 2514.35,
+        "count": 4,
+        "widthMm": 124.36559097770922,
+        "heightMm": 128.5109,
+        "sheetAreaMm2": 15982.334025577291,
+        "resultHash": "c11daf0da466ea3c67f6fa858558f4529c3339cad1ebef27893f0330e7fe9dea"
+      }
+    ]
+  }
+}

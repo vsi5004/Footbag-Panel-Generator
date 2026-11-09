@@ -44,18 +44,26 @@ self.onmessage = (
         : undefined;
       const plan =
         stock?.mode === 'capacity'
-          ? findCapacity(r.panel, r.gap, rotations, r.source, r.padding, r.dot, limits!)
-          : findNesting(
-              r.panel,
-              r.count,
-              r.gap,
+          ? findCapacity({
+              panel: r.panel,
+              gap: r.gap,
               rotations,
-              r.source,
-              r.padding,
-              r.dot,
-              r.cols,
-              limits,
-            );
+              source: r.source,
+              padding: r.padding,
+              dot: r.dot,
+              stock: limits!,
+            })
+          : findNesting({
+              panel: r.panel,
+              count: r.count,
+              gap: r.gap,
+              rotations,
+              source: r.source,
+              padding: r.padding,
+              dot: r.dot,
+              currentCols: r.cols,
+              stock: limits,
+            });
       self.postMessage({ plan: { ...plan, rotations, ...(stock ? { stock } : {}) } });
     }
   } catch (error) {

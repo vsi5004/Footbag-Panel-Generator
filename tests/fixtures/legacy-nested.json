@@ -1,0 +1,102 @@
+{
+  "$schema": "./schema/settings.schema.json",
+  "version": 2,
+  "shape": 5,
+  "curved": false,
+  "curveRadius": 60,
+  "side": 30,
+  "seam": 5,
+  "showHoles": true,
+  "stitches": 8,
+  "showGrid": true,
+  "cornerMargin": 0,
+  "holeSpacing": 3,
+  "holeBunching": 0,
+  "dotSize": 1,
+  "starRootOffset": -1.5,
+  "starRootAngle": 128,
+  "cornerStitchSpacing": false,
+  "cornerStitchDistance": 3,
+  "hex": {
+    "type": "regular",
+    "long": 30,
+    "ratio": 0.5
+  },
+  "export": {
+    "scalePercent": 100
+  },
+  "layout": {
+    "optimized": {
+      "version": 1,
+      "source": "[5,30,5,8,false,\"regular\",30,0.5,60,3,0,0,-1.5,128,false,3,1,9]",
+      "gap": 1,
+      "lattice": {
+        "columns": 3,
+        "pitchX": 44.55980468749999,
+        "pitchY": 47.211093749999996,
+        "pattern": 3,
+        "angle": 0,
+        "rotateAlternates": true
+      },
+      "placements": [
+        {
+          "x": 0,
+          "y": 0,
+          "angle": 0
+        },
+        {
+          "x": 44.5598,
+          "y": 0,
+          "angle": 180
+        },
+        {
+          "x": 89.1196,
+          "y": 0,
+          "angle": 0
+        },
+        {
+          "x": 0,
+          "y": 47.2111,
+          "angle": 0
+        },
+        {
+          "x": 44.5598,
+          "y": 47.2111,
+          "angle": 180
+        },
+        {
+          "x": 89.1196,
+          "y": 47.2111,
+          "angle": 0
+        },
+        {
+          "x": 0,
+          "y": 94.4222,
+          "angle": 0
+        },
+        {
+          "x": 44.5598,
+          "y": 94.4222,
+          "angle": 180
+        },
+        {
+          "x": 89.1196,
+          "y": 94.4222,
+          "angle": 0
+        }
+      ]
+    },
+    "nesting": {
+      "mode": "free",
+      "rotations": "half",
+      "gap": 1
+    },
+    "padding": 10,
+    "rows": 3,
+    "cols": 3,
+    "hSpace": 0,
+    "vSpace": 1,
+    "invert": false,
+    "nestingOffset": 0
+  }
+}

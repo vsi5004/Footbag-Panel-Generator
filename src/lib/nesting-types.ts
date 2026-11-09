@@ -33,6 +33,7 @@ export interface NestingPlan {
   placements: Placement[];
 }
 export interface NestingState {
+  constraintsEdited?: boolean;
   active?: NestingPlan;
 }
 export const OUTLINE_TOLERANCE = 0.02;

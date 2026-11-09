@@ -1,4 +1,4 @@
-import { editablePlan } from './editable-layout';
+import { editablePlan, showPatternFeedback } from './editable-layout';
 // Rendering system for the footbag panel generator
 // Handles SVG rendering to DOM and render pipeline coordination
 
@@ -26,7 +26,7 @@ import { CONSTANTS } from './constants';
 import { svg as svgHelpers } from './svg';
 import { fitsStock } from './stock-nesting';
 import { normalizeExportScale } from './export';
-import { validPlan } from './nesting-validation';
+import { validPlan, planProblem } from './nesting-validation';
 import { ui } from './ui';
 
 /**
@@ -241,24 +241,28 @@ export function renderLayout(
   const padding = pagePadding ? Math.max(0, parseFloat(pagePadding.value || '10')) : 10;
 
   let optimized = layoutElements.nesting?.active;
-  if (optimized && (!config || !validPlan(optimized, panel, config, dotDiameter, rows * cols))) {
+  if (
+    optimized &&
+    !layoutElements.nesting?.constraintsEdited &&
+    (!config || !validPlan(optimized, panel, config, dotDiameter, rows * cols))
+  ) {
     if (layoutElements.nesting) layoutElements.nesting.active = undefined;
     optimized = undefined;
     const status = document.getElementById('nestingStatus');
-    if (status)
-      status.textContent =
-        'The saved arrangement no longer matches this design or its clearance. Manual layout restored.';
+    const message =
+      'The saved arrangement no longer matches this design or its clearance. Manual layout restored.';
+    if (status) status.textContent = message;
+    const notice = document.getElementById('layoutImportNotice');
+    if (notice) notice.textContent = message;
   }
   const editable = layoutElements.editable?.current;
   if (editable && config) optimized = editablePlan(editable, config, dotDiameter);
+  const problem =
+    (editable || layoutElements.nesting?.constraintsEdited) && optimized && config
+      ? planProblem(optimized, panel, config, dotDiameter, editable?.count ?? rows * cols)
+      : undefined;
   const editableSafe =
-    !layoutElements.editable?.error &&
-    (!editable ||
-      (!!optimized &&
-        !!config &&
-        validPlan(optimized, panel, config, dotDiameter, editable.count)));
-  const manualButton = document.getElementById('manualLayout') as HTMLButtonElement | null;
-  if (manualButton) manualButton.disabled = !optimized;
+    !layoutElements.editable?.error && !problem && (!editable || (!!optimized && !!config));
 
   // Track physical size for scrolling without changing the user's zoom.
   const MM_TO_PX = 96 / 25.4;
@@ -278,6 +282,9 @@ export function renderLayout(
   const layoutHpx = layoutHmm * MM_TO_PX;
   state.lastLayoutWpx = layoutWpx;
   state.lastLayoutHpx = layoutHpx;
+
+  const countLabel = document.getElementById('layoutPanelCount');
+  if (countLabel) countLabel.textContent = `${optimized?.placements.length ?? rows * cols} panels`;
 
   // Calculate and display material dimensions
   if (pageEl.dimensionsValue) {
@@ -323,6 +330,13 @@ export function renderLayout(
       padding,
       normalizeExportScale(layoutElements.exportScale?.value),
     );
+  showPatternFeedback(layoutElements, {
+    problem,
+    plan: optimized,
+    width: layoutWmm,
+    height: layoutHmm,
+    scale: normalizeExportScale(layoutElements.exportScale?.value) / 100,
+  });
   const validDimensions =
     editableSafe &&
     stockFits &&
@@ -340,7 +354,13 @@ export function renderLayout(
     message.textContent =
       layoutElements.editable?.error ??
       (!editableSafe
-        ? 'This edited layout does not meet its cutting gap or allowed rotations. Adjust the pattern, center spacing, rotation policy or gap before downloading.'
+        ? problem === 'design'
+          ? 'Saved placements no longer match the panel design. Optimize again or choose Grid layout.'
+          : problem === 'rotations'
+            ? 'This edited layout uses rotations outside its allowed policy. Adjust the highlighted rotation settings before downloading.'
+            : problem === 'outline'
+              ? 'The panel outline crosses itself. Adjust the panel design before downloading this pattern.'
+              : 'This edited layout does not meet its cutting gap. Adjust the highlighted center spacing, pattern or gap before downloading.'
         : !stockFits
           ? 'This arrangement exceeds the stock limits at the current export scale or padding. Reduce the export scale, search again, or choose Grid layout before downloading.'
           : 'Sheet width and height must be positive. Increase horizontal or vertical spacing, or sheet padding, to preview and download this layout.');
@@ -374,7 +394,6 @@ export function renderLayout(
   // content height: it can temporarily collapse while the preview is replaced.
   ui?.zoom?.apply(pageEl);
   ui?.zoom?.updateDisplay(pageEl);
-  state.isFirstLayoutRender = false;
 }
 
 /**

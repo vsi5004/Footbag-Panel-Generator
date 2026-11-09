@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { nestingCases } from './nesting-cases.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
@@ -134,12 +136,33 @@ test('nesting is deterministic, preserves count and safely packs all shape varia
       const c = { ...config, nSides, hexType, curvedEdges },
         panel = computePanel(c),
         source = designKey(c, 1, 6);
-      const plan = findNesting(panel, 6, 1, true, source, 10, 1, 3);
+      const plan = findNesting({
+        panel,
+        count: 6,
+        gap: 1,
+        rotations: 'quarter',
+        source,
+        padding: 10,
+        dot: 1,
+        currentCols: 3,
+      });
       assert.equal(plan.placements.length, 6);
       assert.ok(validPlan(plan, panel, c, 1, 6));
       // Independently re-flatten 10x more finely and check every pair without the search allowance.
       assert.ok(checkPlacements(flattenOutline(panel.outlinePath, 0.002), plan.placements, 1.001));
-      assert.deepEqual(plan, findNesting(panel, 6, 1, true, source, 10, 1, 3));
+      assert.deepEqual(
+        plan,
+        findNesting({
+          panel,
+          count: 6,
+          gap: 1,
+          rotations: 'quarter',
+          source,
+          padding: 10,
+          dot: 1,
+          currentCols: 3,
+        }),
+      );
       assert.equal(validPlan(plan, panel, { ...c, sideLen: 31 }, 1, 6), false);
       assert.equal(validPlan(plan, panel, c, 1, 9), false);
     }
@@ -147,7 +170,16 @@ test('nesting is deterministic, preserves count and safely packs all shape varia
 test('optimized SVG retains original paths/holes and scaled dimensions and bounds contain all marks', () => {
   fresh();
   const panel = computePanel(config),
-    plan = findNesting(panel, 9, 1, true, designKey(config, 1, 9), 10, 1, 3);
+    plan = findNesting({
+      panel,
+      count: 9,
+      gap: 1,
+      rotations: 'quarter',
+      source: designKey(config, 1, 9),
+      padding: 10,
+      dot: 1,
+      currentCols: 3,
+    });
   const svg = createLayoutSvg(panel, { ...opts, optimized: plan }),
     size = measurePlaced(panel, plan.placements, 1, 10);
   assert.equal(svg.querySelectorAll('path').length, 9);
@@ -191,7 +223,16 @@ test('optimized settings validate, round trip, and older files clear active arra
   layout.pageEl = page;
   const c = config,
     panel = computePanel(c),
-    plan = findNesting(panel, 9, 1, false, designKey(c, 1, 9), 10, 1, 3);
+    plan = findNesting({
+      panel,
+      count: 9,
+      gap: 1,
+      rotations: 'half',
+      source: designKey(c, 1, 9),
+      padding: 10,
+      dot: 1,
+      currentCols: 3,
+    });
   layout.nesting.active = plan;
   const saved = state.collect(el, layout);
   const schema = JSON.parse(
@@ -227,14 +268,7 @@ test('unsafe imported placements fall back to manual without exporting overlaps 
     gap: 1,
     placements: Array(9).fill({ x: 0, y: 0, angle: 0 }),
   };
-  renderLayout(
-    panel,
-    1,
-    page,
-    layout,
-    { lastLayoutWpx: 0, lastLayoutHpx: 0, isFirstLayoutRender: true },
-    config,
-  );
+  renderLayout(panel, 1, page, layout, { lastLayoutWpx: 0, lastLayoutHpx: 0 }, config);
   assert.equal(layout.nesting.active, undefined);
   assert.match(document.getElementById('nestingStatus').textContent, /Manual layout restored/);
   assert.equal(page.svgHost.querySelectorAll('path').length, 9);
@@ -242,7 +276,16 @@ test('unsafe imported placements fall back to manual without exporting overlaps 
 test('maximum panel count and zero gap retain conservative collision clearance', () => {
   const c = { ...config, nSides: 4, stitchCount: 0 },
     panel = computePanel(c);
-  const plan = findNesting(panel, 144, 0, false, designKey(c, 1, 144), 10, 1, 12);
+  const plan = findNesting({
+    panel,
+    count: 144,
+    gap: 0,
+    rotations: 'half',
+    source: designKey(c, 1, 144),
+    padding: 10,
+    dot: 1,
+    currentCols: 12,
+  });
   assert.equal(plan.placements.length, 144);
   assert.ok(
     checkPlacements(
@@ -259,8 +302,72 @@ test('staggered hexagons improve on an already tight grid, not just excess manua
   // Six rows/columns, zero spacing, 1 mm dot allowance.
   const gridWidth = 6 * (60 + 1) + 20;
   const gridHeight = 6 * (30 * Math.sqrt(3) + 1) + 20;
-  const plan = findNesting(panel, 36, 1, false, designKey(c, 1, 36), 10, 1, 6);
+  const plan = findNesting({
+    panel,
+    count: 36,
+    gap: 1,
+    rotations: 'half',
+    source: designKey(c, 1, 36),
+    padding: 10,
+    dot: 1,
+    currentCols: 6,
+  });
   const size = measurePlaced(panel, plan.placements, 1, 10);
   assert.ok(size.width * size.height < 0.9 * gridWidth * gridHeight);
   assert.ok(checkPlacements(flattenOutline(panel.outlinePath, 0.002), plan.placements, 1.001));
+});
+
+test('search cleanup preserves the merged engine output across all shapes, stock modes and capacity', () => {
+  const baseline = JSON.parse(
+    readFileSync(new URL('./fixtures/nesting-baseline.json', import.meta.url), 'utf8'),
+  );
+  for (const { name, config, ...options } of nestingCases) {
+    const panel = computePanel(config);
+    const plan = findNesting({ panel, ...options });
+    assert.equal(
+      createHash('sha256').update(JSON.stringify(plan)).digest('hex'),
+      baseline[name],
+      name,
+    );
+    assert.ok(
+      checkPlacements(
+        flattenOutline(panel.outlinePath, 0.002),
+        plan.placements,
+        options.gap + 0.001,
+      ),
+      name,
+    );
+  }
+});
+
+test('clearance reuse across marking changes still rejects changed positions, gaps and outlines', () => {
+  const c = { ...config, nSides: 4 },
+    panel = computePanel(c);
+  const plan = findNesting({
+    panel,
+    count: 4,
+    gap: 1,
+    rotations: 'half',
+    source: designKey(c, 1, 4),
+    padding: 10,
+    dot: 1,
+    currentCols: 2,
+  });
+  assert.ok(validPlan(plan, panel, c, 1, 4));
+  const marked = { ...c, stitchCount: 11, seamOffset: 3 };
+  const markedPanel = computePanel(marked);
+  assert.equal(markedPanel.outlinePath, panel.outlinePath);
+  plan.source = designKey(marked, 1, 4);
+  assert.ok(validPlan(plan, markedPanel, marked, 1, 4));
+  const original = { ...plan.placements[1] };
+  Object.assign(plan.placements[1], plan.placements[0]);
+  assert.equal(validPlan(plan, markedPanel, marked, 1, 4), false);
+  Object.assign(plan.placements[1], original);
+  assert.ok(validPlan(plan, markedPanel, marked, 1, 4));
+  plan.gap = 20;
+  assert.equal(validPlan(plan, markedPanel, marked, 1, 4), false);
+  plan.gap = 1;
+  assert.ok(validPlan(plan, markedPanel, marked, 1, 4));
+  const crossed = { ...markedPanel, outlinePath: 'M 0 0 L 10 10 L 0 10 L 10 0 Z' };
+  assert.equal(validPlan(plan, crossed, marked, 1, 4), false);
 });

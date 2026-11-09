@@ -1,6 +1,7 @@
+import { designKey } from './lib/nesting-types';
 import { initializeEditableLayout } from './lib/editable-layout';
 import type { Panel, PanelElements, PageElements, PanelConfig } from './types';
-import { normalizeExportScale } from './lib/export';
+import { normalizeExportScale, syncExportScaleControls } from './lib/export';
 import {
   createMainElements,
   createPageElements,
@@ -49,7 +50,6 @@ function initializeApp(): void {
   const layoutState = {
     lastLayoutWpx: 0,
     lastLayoutHpx: 0,
-    isFirstLayoutRender: true,
   };
 
   const layoutFrame = createFrameScheduler(() => {
@@ -58,6 +58,21 @@ function initializeApp(): void {
   });
   function createLayoutRenderFunction() {
     return (panel: Panel | null, dotSize: number, config?: PanelConfig) => {
+      const active = layoutElements.nesting?.active;
+      const count =
+        Number(layoutElements.pageRows?.value ?? 3) * Number(layoutElements.pageCols?.value ?? 3);
+      // Markings can change without changing the cut outline. Keep legacy
+      // explicit positions, while the renderer still checks their stock bounds.
+      if (
+        active &&
+        panel &&
+        config &&
+        lastPanelConfig &&
+        lastPanel?.outlinePath === panel.outlinePath &&
+        active.source === designKey(lastPanelConfig, lastDotSize, count)
+      ) {
+        layoutElements.nesting!.active = { ...active, source: designKey(config, dotSize, count) };
+      }
       lastPanel = panel;
       lastDotSize = dotSize;
       if (config) lastPanelConfig = config;
@@ -146,18 +161,19 @@ function initializeApp(): void {
   function bindExportControls(): void {
     const readExportScale = (): number => {
       const scale = normalizeExportScale(el.exportScale?.value);
-      if (el.exportScale) el.exportScale.value = String(scale);
+      syncExportScaleControls(scale);
       return scale;
     };
-    el.exportScale?.addEventListener('input', () => {
-      if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
-        renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
-    });
-    el.exportScale?.addEventListener('change', () => {
-      readExportScale();
-      if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
-        renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
-    });
+    for (const field of document.querySelectorAll<HTMLInputElement>('[data-export-scale]')) {
+      for (const event of ['input', 'change'])
+        field.addEventListener(event, () => {
+          syncExportScaleControls(
+            event === 'change' ? normalizeExportScale(field.value) : field.value,
+          );
+          if (layoutElements.nesting?.active?.stock || layoutElements.editable?.current?.stock)
+            renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig ?? undefined);
+        });
+    }
 
     el.downloadSvg?.addEventListener('click', () => {
       flushRenders();
@@ -184,17 +200,17 @@ function initializeApp(): void {
 
   function bindLayoutControls(): void {
     const { pageInvert, nestingOffsetRow } = layoutElements;
-    const refreshLayout = () => {
-      if (layoutElements.nesting) layoutElements.nesting.active = undefined;
+    const refreshLayout = (paddingOnly = false) => {
+      if (!paddingOnly && layoutElements.nesting) layoutElements.nesting.active = undefined;
       renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined);
     };
     for (const [range, display] of layoutControlPairs(layoutElements)) {
-      UI.syncPair(range, display, refreshLayout);
+      UI.syncPair(range, display, () => refreshLayout(range === layoutElements.pagePadding));
     }
     initializeEditableLayout(
       layoutElements,
       () => ({ panel: lastPanel, dot: lastDotSize }),
-      refreshLayout,
+      () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined),
     );
     pageInvert?.addEventListener('change', () => {
       if (layoutElements.nesting) layoutElements.nesting.active = undefined;

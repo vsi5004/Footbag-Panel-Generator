@@ -8,7 +8,7 @@ import {
   computeGeometry,
   updateDynamicConstraints,
 } from './validation';
-import { normalizeExportScale } from './export';
+import { normalizeExportScale, syncExportScaleControls } from './export';
 import { normalizeSetting } from './settings';
 import { readImportedSettings } from './import-settings';
 import { panelControlPairs } from './controls';
@@ -123,15 +123,13 @@ function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElemen
   const s = readImportedSettings(data);
   if (layoutEl) applyEditableLayout(layoutEl, s.layout?.editable);
   // Older files always restore the manual layout, never a previous optimization.
-  if (layoutEl?.nesting) layoutEl.nesting.active = s.layout?.optimized;
+  if (layoutEl?.nesting) {
+    layoutEl.nesting.active = s.layout?.optimized;
+    layoutEl.nesting.constraintsEdited = false;
+  }
 
   if (layoutEl)
-    applyNestingPreferences(
-      layoutEl,
-      s.layout?.nesting,
-      s.layout?.optimized,
-      s.layout?.editable?.gap,
-    );
+    applyNestingPreferences(layoutEl, s.layout?.nesting, s.layout?.optimized, s.layout?.editable);
 
   const set = (input: HTMLInputElement | null, value: unknown) => {
     if (input == null || typeof value !== 'number' || !Number.isFinite(value)) return;
@@ -150,6 +148,7 @@ function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElemen
 
   // Missing export settings in older files must reset a previously selected scale.
   set(el.exportScale, normalizeExportScale(s.export?.scalePercent));
+  syncExportScaleControls(normalizeExportScale(s.export?.scalePercent));
 
   // Panel settings
   if (typeof s.shape === 'number' && el.shape) el.shape.value = String(s.shape);
@@ -262,6 +261,7 @@ function apply(el: PanelElements, data: unknown, layoutEl?: LayoutSettingsElemen
       layoutEl.pageEl.showGrid.checked = !!s.layout.showGrid;
     }
   }
+  document.dispatchEvent(new window.Event('layout-settings-applied'));
 }
 
 export const state = { collect, apply };

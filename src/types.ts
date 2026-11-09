@@ -199,7 +199,6 @@ export interface LayoutElements {
 export interface LayoutRenderState {
   lastLayoutWpx: number;
   lastLayoutHpx: number;
-  isFirstLayoutRender: boolean;
 }
 
 export type LayoutSettingsElements = LayoutElements & {

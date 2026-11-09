@@ -1,11 +1,13 @@
+import { constraintFields, readConstraints, validateConstraints } from './cutting-constraints';
+import { focusFirstError } from './field-feedback';
+import { syncNestingControls } from './nesting-preferences';
 import { showNestingOverlay, clearNestingOverlay } from './nesting-overlay';
 import { adoptPlan } from './lattice';
-import { applyEditableLayout, editablePlan } from './editable-layout';
+import { applyEditableLayout, editablePlan, patternFields } from './editable-layout';
 import type { Panel, PanelConfig, PageElements, LayoutElements } from '../types';
 import { manualPlacements, measureLayoutSvg, type LayoutSvgOptions } from './layout';
 import { normalizeExportScale } from './export';
-import { readStock, readRotations } from './stock-nesting';
-import type { StockConstraint } from './nesting-types';
+import { fitsStock } from './stock-nesting';
 import { designKey, measurePlaced, type NestingPlan } from './nesting-types';
 
 export function initializeNesting(
@@ -15,275 +17,419 @@ export function initializeNesting(
   flush: () => void,
   refresh: () => void,
 ): void {
-  const optimize = document.getElementById('optimizeLayout') as HTMLButtonElement;
-  const check = document.getElementById('checkClearance') as HTMLButtonElement;
-  const apply = document.getElementById('applyNesting') as HTMLButtonElement;
-  const manual = document.getElementById('manualLayout') as HTMLButtonElement;
-  const cancel = document.getElementById('cancelNesting') as HTMLButtonElement;
-  const gapInput = document.getElementById('nestingGap') as HTMLInputElement;
-  const rotation = document.getElementById('nestingRotation') as HTMLSelectElement;
-  const mode = document.getElementById('nestingMode') as HTMLSelectElement;
-  const stockWidth = document.getElementById('nestingStockWidth') as HTMLInputElement;
-  const stockHeight = document.getElementById('nestingStockHeight') as HTMLInputElement;
-  const status = document.getElementById('nestingStatus')!;
+  const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const optimize = element<HTMLButtonElement>('optimizeLayout');
+  const apply = element<HTMLButtonElement>('applyNesting');
+  const cancel = element<HTMLButtonElement>('cancelNesting');
+  const dialog = element<HTMLDialogElement>('nestingDialog');
+  const mode = element<HTMLSelectElement>('nestingMode');
+  const status = element('nestingStatus');
+  const clearanceStatus = element('clearanceStatus');
   let worker: Worker | undefined, candidate: NestingPlan | undefined;
-  const stop = () => {
-    if (page.svgHost) clearNestingOverlay(page.svgHost);
+  let searchBaselineKey = '';
+  let clearanceKey = '',
+    checkedKey = '';
+  let checkedResult: { safe?: boolean; error?: string } | undefined;
+  let markingTimer: ReturnType<typeof setTimeout> | undefined;
+  let searchGeneration = 0,
+    clearanceGeneration = 0;
+  let clearanceWorker: Worker | undefined,
+    clearanceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const phase = (value: 'idle' | 'searching' | 'candidate') => {
+    element('optimizeEntry').classList.toggle('hidden', value !== 'idle');
+    element('nestingActions').classList.toggle('hidden', value === 'idle');
+    apply.hidden = value !== 'candidate';
+    apply.disabled = value !== 'candidate';
+    cancel.disabled = value === 'idle';
+    cancel.textContent = value === 'candidate' ? 'Discard' : 'Cancel';
+  };
+  const announce = (message: string) => {
+    status.textContent = message;
+    element('nestingComparison').classList.toggle('hidden', !message);
+  };
+  const stopClearance = () => {
+    clearTimeout(clearanceTimer);
+    clearanceWorker?.terminate();
+    clearanceWorker = undefined;
+    clearanceGeneration++;
+    clearanceKey = '';
+  };
+  const stopSearch = () => {
+    searchGeneration++;
     worker?.terminate();
     worker = undefined;
     candidate = undefined;
-    optimize.disabled = false;
-    check.disabled = false;
-    cancel.disabled = true;
-    cancel.textContent = 'Cancel search';
-    apply.disabled = true;
+    searchBaselineKey = '';
+    if (page.svgHost) clearNestingOverlay(page.svgHost);
+    phase('idle');
   };
-  const options = (): LayoutSvgOptions => ({
-    rows: layout.editable?.current
-      ? Math.ceil(layout.editable.current.count / layout.editable.current.columns)
-      : Number(layout.pageRows?.value ?? 3),
-    cols: layout.editable?.current?.columns ?? Number(layout.pageCols?.value ?? 3),
-    hSpace: Number(layout.pageHSpaceNumber?.value ?? 0),
-    vSpace: Number(layout.pageVSpace?.value ?? 1),
-    invertOdd: !!layout.pageInvert?.checked,
-    nestingVerticalOffset: Number(layout.nestingOffset?.value ?? 0),
-    dotDiameter: getPanel().dot,
-    padding: Number(layout.pagePadding?.value ?? 10),
-    showGrid: !!page.showGrid?.checked,
-    optimized:
-      layout.editable?.current && getPanel().config
-        ? editablePlan(layout.editable.current, getPanel().config!, getPanel().dot)
-        : layout.nesting?.active,
+  const options = (): LayoutSvgOptions => {
+    const model = layout.editable?.current,
+      current = getPanel();
+    return {
+      rows: model ? Math.ceil(model.count / model.columns) : Number(layout.pageRows?.value ?? 3),
+      cols: model?.columns ?? Number(layout.pageCols?.value ?? 3),
+      hSpace: Number(layout.pageHSpaceNumber?.value ?? 0),
+      vSpace: Number(layout.pageVSpace?.value ?? 1),
+      invertOdd: !!layout.pageInvert?.checked,
+      nestingVerticalOffset: Number(layout.nestingOffset?.value ?? 0),
+      dotDiameter: current.dot,
+      padding: Number(layout.pagePadding?.value ?? 10),
+      showGrid: !!page.showGrid?.checked,
+      optimized:
+        model && current.config
+          ? editablePlan(model, current.config, current.dot)
+          : layout.nesting?.active,
+    };
+  };
+
+  const currentSearchKey = () => {
+    const current = getPanel(),
+      opts = options();
+    return JSON.stringify([
+      current.panel?.outlinePath,
+      opts.optimized?.placements ?? (current.panel ? manualPlacements(current.panel, opts) : []),
+      readConstraints(layout),
+      normalizeExportScale(layout.exportScale?.value),
+    ]);
+  };
+  const displayClearance = (result: { safe?: boolean; error?: string }) => {
+    const { panel } = getPanel();
+    if (!panel || validateConstraints(layout, 'free', false).length || layout.editable?.error) {
+      clearanceStatus.textContent = 'Check highlighted settings';
+      return;
+    }
+    const opts = options(),
+      constraints = readConstraints(layout);
+    const size = measureLayoutSvg(panel, opts),
+      scale = normalizeExportScale(layout.exportScale?.value) / 100;
+    const outside =
+      constraints.stock &&
+      (size.width * scale > constraints.stock.width + 1e-8 ||
+        (constraints.stock.height !== undefined &&
+          size.height * scale > constraints.stock.height + 1e-8));
+    clearanceStatus.textContent = result.error
+      ? 'Clearance check unavailable'
+      : (result.safe ? 'Clearance OK' : 'Overlaps or insufficient gap') +
+        (outside ? ' · Outside material limits' : '');
+    clearanceStatus.classList.toggle('warning', !result.safe || !!outside);
+  };
+  // Compare the actual cut geometry after edits settle. Markings, padding and
+  // export scale can change drawing bounds without changing collision geometry.
+  const clearanceRequest = () => {
+    const current = getPanel(),
+      opts = options();
+    const placements =
+      opts.optimized?.placements ?? (current.panel ? manualPlacements(current.panel, opts) : []);
+    const gap = Number(layout.nestingGap?.value ?? 1);
+    return {
+      panel: current.panel,
+      placements,
+      gap,
+      key: JSON.stringify([current.panel?.outlinePath, placements, gap]),
+    };
+  };
+  const scheduleClearance = () => {
+    clearTimeout(clearanceTimer);
+    if (worker || candidate) return;
+    clearanceTimer = setTimeout(() => {
+      flush();
+      const errors = validateConstraints(layout, 'free', false);
+      if (errors.length) validateConstraints(layout);
+      if (errors.length || layout.editable?.error) {
+        clearanceStatus.textContent = 'Check highlighted settings';
+        return;
+      }
+      const request = clearanceRequest();
+      if (!request.panel) return;
+      if (request.key === checkedKey && checkedResult) {
+        displayClearance(checkedResult);
+        return;
+      }
+      if (request.key === clearanceKey && clearanceWorker) return;
+      stopClearance();
+      clearanceKey = request.key;
+      const generation = clearanceGeneration;
+      clearanceStatus.textContent = 'Checking clearance…';
+      clearanceStatus.classList.remove('warning');
+      const fail = () => {
+        if (generation !== clearanceGeneration) return;
+        clearanceWorker?.terminate();
+        clearanceWorker = undefined;
+        clearanceStatus.textContent = 'Clearance check unavailable';
+      };
+      try {
+        clearanceWorker = new Worker(new URL('./nesting-worker.ts', import.meta.url), {
+          type: 'module',
+        });
+        clearanceWorker.onerror = (event) => {
+          event.preventDefault();
+          fail();
+        };
+        clearanceWorker.onmessage = (event: MessageEvent<{ safe?: boolean; error?: string }>) => {
+          if (generation !== clearanceGeneration) return;
+          clearanceWorker?.terminate();
+          clearanceWorker = undefined;
+          flush();
+          if (clearanceRequest().key !== request.key) {
+            scheduleClearance();
+            return;
+          }
+          checkedKey = request.key;
+          checkedResult = event.data;
+          displayClearance(event.data);
+        };
+        clearanceWorker.postMessage({
+          panel: request.panel,
+          gap: request.gap,
+          placements: request.placements,
+        });
+      } catch {
+        fail();
+      }
+    }, 200);
+  };
+  const updateCandidate = (): boolean => {
+    if (!candidate) return false;
+    if (page.svgHost) clearNestingOverlay(page.svgHost);
+    flush();
+    const { panel, config, dot } = getPanel(),
+      opts = options();
+    if (!panel || !config || currentSearchKey() !== searchBaselineKey) {
+      stopSearch();
+      announce('Settings changed. Optimize again.');
+      scheduleClearance();
+      return false;
+    }
+    candidate = {
+      ...candidate,
+      source: designKey(config, dot, layout.editable?.current?.count ?? opts.rows * opts.cols),
+    };
+    if (page.svgHost) showNestingOverlay(page.svgHost, panel, candidate, dot, opts.padding ?? 10);
+    const size = measurePlaced(panel, candidate.placements, dot, opts.padding ?? 10);
+    const current = measureLayoutSvg(panel, opts);
+    const percent = (1 - (size.width * size.height) / (current.width * current.height)) * 100;
+    const comparison =
+      Number.isFinite(percent) && current.width > 0 && current.height > 0
+        ? ` · ${Math.abs(percent).toFixed(1)}% ${percent >= 0 ? 'less' : 'more'} sheet area`
+        : '';
+    const scalePercent = normalizeExportScale(layout.exportScale?.value),
+      scale = scalePercent / 100;
+    const fits = fitsStock(panel, candidate, dot, opts.padding ?? 10, scalePercent);
+    apply.disabled = !fits;
+    announce(
+      `${candidate.placements.length} panels · ${(size.width * scale).toFixed(1)} × ${(size.height * scale).toFixed(1)} mm at ${scalePercent}%${comparison}` +
+        (candidate.stock?.mode === 'capacity' ? ' · Best found, up to 144' : '') +
+        (fits ? '' : ' · Exceeds material limits; reduce padding or adjust limits'),
+    );
+    return fits;
+  };
+
+  const searchSummary = () => {
+    syncNestingControls(layout);
+    element('nestingSearchSummary').textContent =
+      `Gap ${layout.nestingGap?.value || '—'} mm · ${layout.nestingRotation?.selectedOptions[0]?.textContent ?? ''} · ` +
+      (layout.nestingStockWidth?.value
+        ? `Stock ${layout.nestingStockWidth.value}${layout.nestingStockHeight?.value ? ' × ' + layout.nestingStockHeight.value : ' wide'} mm`
+        : 'No material limits');
+  };
+  optimize.addEventListener('click', () => {
+    searchSummary();
+    dialog.showModal();
   });
-  const start = (checkOnly: boolean) => {
-    stop();
+  const closeDialog = () => {
+    dialog.close();
+    optimize.focus();
+  };
+  element('closeNestingDialog').addEventListener('click', closeDialog);
+  dialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    closeDialog();
+  });
+  element('editNestingSettings').addEventListener('click', () => {
+    dialog.close();
+    layout.nestingGap?.focus();
+  });
+  mode.addEventListener('change', searchSummary);
+
+  element('startNesting').addEventListener('click', () => {
+    dialog.close();
+    stopSearch();
+    stopClearance();
     flush();
     const { panel, config, dot } = getPanel();
     if (!panel || !config) return;
-    const gap = Number(gapInput.value);
-    if (gapInput.value.trim() === '' || !Number.isFinite(gap) || gap < 0 || gap > 20) {
-      status.textContent = 'Enter a minimum gap from 0 to 20 mm.';
+    const errors = validateConstraints(layout, mode.value);
+    if (errors.length || layout.editable?.error) {
+      announce(errors.join(' ') || layout.editable?.error || 'Check highlighted settings');
+      focusFirstError([...patternFields, ...constraintFields]);
       return;
     }
-    let stock: StockConstraint | undefined;
-    if (!checkOnly && mode.value !== 'free') {
-      try {
-        stock = readStock({
-          mode: mode.value,
-          width: Number(stockWidth.value),
-          ...(stockHeight.value.trim() !== '' ? { height: Number(stockHeight.value) } : {}),
-        });
-      } catch {
-        status.textContent =
-          'Enter stock width from 1 to 10000 mm, and height in that range when supplied. Capacity mode requires both.';
-        return;
-      }
-    }
+    const constraints = readConstraints(layout),
+      opts = options();
+    const stock = constraints.stock
+      ? {
+          ...constraints.stock,
+          mode: mode.value === 'capacity' ? ('capacity' as const) : ('fit' as const),
+        }
+      : undefined;
+    const count = layout.editable?.current?.count ?? opts.rows * opts.cols;
+    const source = designKey(config, dot, count),
+      generation = searchGeneration;
     const scalePercent = normalizeExportScale(layout.exportScale?.value);
-    const opts = options(),
-      count = layout.editable?.current?.count ?? opts.rows * opts.cols,
-      source = designKey(config, dot, count);
-    const current = measureLayoutSvg(panel, opts);
-    optimize.disabled = true;
-    check.disabled = true;
-    cancel.disabled = false;
-    status.textContent = checkOnly
-      ? 'Checking clearance...'
-      : 'Searching aligned, alternating and staggered layouts...';
-    const workerFailed = (error: unknown) => {
-      stop();
+    searchBaselineKey = currentSearchKey();
+    phase('searching');
+    cancel.focus();
+    announce('Searching…');
+    clearanceStatus.textContent = '';
+    const fail = (error: unknown) => {
+      if (generation !== searchGeneration) return;
+      stopSearch();
       console.error('Nesting worker failed:', error);
-      status.textContent =
-        'The app could not load or run the background nesting worker. Your current layout is unchanged. Reload the page and retry; local previews require the server to stay running.';
+      announce(
+        'Could not load or run the background nesting worker. Reload and retry; keep the local preview server running.',
+      );
     };
     try {
       worker = new Worker(new URL('./nesting-worker.ts', import.meta.url), { type: 'module' });
+      worker.onerror = (event) => {
+        event.preventDefault();
+        fail(event.message);
+      };
+      worker.onmessage = (event: MessageEvent<{ plan?: NestingPlan; error?: string }>) => {
+        if (generation !== searchGeneration) return;
+        worker?.terminate();
+        worker = undefined;
+        if (event.data.error || !event.data.plan) {
+          phase('idle');
+          announce(event.data.error ?? 'No arrangement found.');
+          return;
+        }
+        candidate = event.data.plan;
+        const focusResult = document.activeElement === cancel;
+        phase('candidate');
+        updateCandidate();
+        if (focusResult && !apply.disabled) apply.focus();
+      };
+      worker.postMessage({
+        panel,
+        count,
+        ...constraints,
+        ...(stock ? { stock } : {}),
+        scalePercent,
+        source,
+        padding: opts.padding ?? 10,
+        dot,
+        cols: opts.cols,
+      });
     } catch (error) {
-      workerFailed(error);
-      return;
+      fail(error);
     }
-    worker.onerror = (event) => {
-      event.preventDefault();
-      workerFailed(event.message || 'Worker script could not be loaded.');
-    };
-    worker.onmessage = (
-      event: MessageEvent<{ plan?: NestingPlan; safe?: boolean; error?: string }>,
-    ) => {
-      worker?.terminate();
-      worker = undefined;
-      optimize.disabled = false;
-      check.disabled = false;
-      cancel.disabled = true;
-      const latest = getPanel(),
-        now = options();
-      if (
-        !latest.config ||
-        designKey(
-          latest.config,
-          latest.dot,
-          layout.editable?.current?.count ?? now.rows * now.cols,
-        ) !== source
-      ) {
-        stop();
-        status.textContent = 'Design changed. Run the search again.';
-        return;
-      }
-      if (event.data.error) {
-        status.textContent = event.data.error;
-        return;
-      }
-      if (checkOnly) {
-        status.textContent = event.data.safe
-          ? 'All cut outlines meet the requested gap, including a conservative curve allowance.'
-          : 'Some cut outlines overlap, touch, or are too close for the requested gap (including the curve allowance). This check does not change the placement settings.';
-        return;
-      }
-      candidate = event.data.plan;
-      if (!candidate) return;
-      if (page.svgHost) showNestingOverlay(page.svgHost, panel, candidate, dot, opts.padding ?? 10);
-      cancel.disabled = false;
-      cancel.textContent = 'Reject candidate';
-      const previewHint =
-        ' Translucent green shows the candidate over the current sheet. Apply or reject to finish the comparison.';
-      const size = measurePlaced(panel, candidate.placements, dot, opts.padding ?? 10);
-      if (candidate.stock) {
-        const s = candidate.stock,
-          scale = scalePercent / 100;
-        status.textContent =
-          (s.mode === 'capacity' ? 'Best capacity found: ' : 'Candidate: ') +
-          candidate.placements.length +
-          ' panels, ' +
-          (size.width * scale).toFixed(1) +
-          ' × ' +
-          (size.height * scale).toFixed(1) +
-          ' mm at ' +
-          scalePercent +
-          '% export. Fits stock ' +
-          s.width +
-          ' mm wide' +
-          (s.height !== undefined ? ' × ' + s.height + ' mm high' : '') +
-          (s.mode === 'capacity' ? '. Search limit: 144 panels; not a proven maximum.' : '.') +
-          ' Apply to use this arrangement.' +
-          previewHint;
-        apply.disabled = false;
-        return;
-      }
-      const percent = (1 - (size.width * size.height) / (current.width * current.height)) * 100;
-      const comparison =
-        Number.isFinite(percent) && current.width > 0 && current.height > 0
-          ? ' (' +
-            Math.abs(percent).toFixed(1) +
-            '% ' +
-            (percent >= 0 ? 'less' : 'more') +
-            ' sheet area than the current layout)'
-          : '';
-      status.textContent =
-        'Candidate: ' +
-        size.width.toFixed(1) +
-        ' × ' +
-        size.height.toFixed(1) +
-        ' mm' +
-        comparison +
-        '. ' +
-        candidate.placements.length +
-        ' panels, minimum gap ' +
-        gap +
-        ' mm at 100% export. Apply to use this arrangement.' +
-        previewHint;
-      apply.disabled = false;
-    };
-    worker.postMessage({
-      panel,
-      count,
-      gap,
-      rotations: readRotations(rotation.value),
-      scalePercent,
-      ...(stock ? { stock } : {}),
-      source,
-      padding: opts.padding ?? 10,
-      dot,
-      cols: opts.cols,
-      ...(checkOnly
-        ? { placements: opts.optimized?.placements ?? manualPlacements(panel, opts) }
-        : {}),
-    });
-  };
-  optimize.addEventListener('click', () => start(false));
-  check.addEventListener('click', () => start(true));
+  });
+
   apply.addEventListener('click', () => {
+    if (!updateCandidate()) return;
     flush();
-    const { config, dot } = getPanel(),
+    const current = getPanel(),
       opts = options();
     if (
       !candidate ||
-      !config ||
+      !current.config ||
       candidate.source !==
-        designKey(config, dot, layout.editable?.current?.count ?? opts.rows * opts.cols)
+        designKey(
+          current.config,
+          current.dot,
+          layout.editable?.current?.count ?? opts.rows * opts.cols,
+        )
     ) {
-      stop();
+      stopSearch();
+      announce('Settings changed. Optimize again.');
       return;
     }
     try {
       applyEditableLayout(layout, adoptPlan(candidate));
     } catch (error) {
-      stop();
-      status.textContent =
-        error instanceof Error ? error.message : 'Unable to adopt this arrangement.';
+      stopSearch();
+      announce(error instanceof Error ? error.message : 'Unable to apply layout.');
       return;
     }
-    if (layout.nesting) layout.nesting.active = undefined;
-    const gap = candidate.gap,
-      stock = candidate.stock,
-      count = candidate.placements.length;
-    stop();
+    if (layout.nesting) {
+      layout.nesting.active = undefined;
+      layout.nesting.constraintsEdited = false;
+    }
+    stopSearch();
     refresh();
-    status.textContent =
-      (stock
-        ? (stock.mode === 'capacity' ? 'Capacity layout applied: ' : 'Stock layout applied: ') +
-          count +
-          ' panels, stock ' +
-          stock.width +
-          ' mm wide' +
-          (stock.height !== undefined ? ' × ' + stock.height + ' mm high' : '') +
-          '. '
-        : 'Optimized layout applied. ') +
-      'Minimum gap ' +
-      gap +
-      ' mm at 100% export. Pattern layout settings now contain this arrangement and remain editable.';
-  });
-  manual.addEventListener('click', () => {
-    stop();
-    if (layout.nesting) layout.nesting.active = undefined;
-    applyEditableLayout(layout);
-    refresh();
-    status.textContent = 'Grid layout selected.';
+    announce('Layout applied');
+    scheduleClearance();
+    optimize.focus();
   });
   cancel.addEventListener('click', () => {
-    const rejected = !!candidate;
-    stop();
-    status.textContent = rejected
-      ? 'Candidate rejected. Current layout unchanged.'
-      : 'Search cancelled. Current layout unchanged.';
+    const discarded = !!candidate;
+    stopSearch();
+    announce(discarded ? 'Candidate discarded' : 'Search cancelled');
+    scheduleClearance();
+    optimize.focus();
   });
-  for (const id of ['resetPanelSettings', 'resetLayoutSettings'])
-    document.getElementById(id)?.addEventListener('click', () => {
-      if (worker || candidate) {
-        stop();
-        status.textContent = 'Settings reset. Run the search again.';
-      }
-    });
+  const changed = () => {
+    clearTimeout(markingTimer);
+    const pending = !!worker || !!candidate;
+    stopSearch();
+    announce(pending ? 'Settings changed. Optimize again.' : '');
+    scheduleClearance();
+  };
   for (const event of ['input', 'change'])
     document.addEventListener(event, (e) => {
-      if (['zoom', 'pageZoom'].includes((e.target as HTMLElement)?.id)) return;
-      if (worker || candidate) {
-        stop();
-        status.textContent = 'Settings changed. Run the search or clearance check again.';
-      } else if (
-        (layout.nesting?.active || layout.editable?.current) &&
-        [rotation, mode, stockWidth, stockHeight, gapInput].includes(e.target as HTMLInputElement)
-      ) {
-        status.textContent =
-          'Search options changed. The current Pattern layout keeps its settings. Apply a new candidate to replace them.';
+      const id = (e.target as HTMLElement)?.id ?? '';
+      if (
+        ['zoom', 'pageZoom', 'showGrid', 'pageShowGrid', 'nestingMode', 'importFile'].includes(id)
+      )
+        return;
+      if (['pagePadding', 'pagePaddingNumber'].includes(id)) {
+        if (candidate) updateCandidate();
+        else {
+          flush();
+          if (!worker) {
+            if (checkedResult && checkedKey === clearanceRequest().key)
+              displayClearance(checkedResult);
+            else scheduleClearance();
+          }
+        }
+        return;
       }
+      const name = id.replace(/Number$/, '');
+      if (
+        [
+          'stitches',
+          'seam',
+          'holeSpacing',
+          'holeBunching',
+          'cornerMargin',
+          'cornerStitchSpacing',
+          'cornerStitchDistance',
+          'starRootOffset',
+          'showHoles',
+          'dotSize',
+        ].includes(name)
+      ) {
+        clearTimeout(markingTimer);
+        markingTimer = setTimeout(() => {
+          flush();
+          if (candidate) updateCandidate();
+          else if (worker && currentSearchKey() !== searchBaselineKey) changed();
+          else if (!worker) scheduleClearance();
+        }, 100);
+        return;
+      }
+      changed();
     });
+  for (const id of ['resetPanelSettings', 'resetLayoutSettings'])
+    element(id).addEventListener('click', changed);
+  document.addEventListener('layout-settings-applied', () => {
+    if (dialog.open) dialog.close();
+    changed();
+  });
+  syncNestingControls(layout);
+  phase('idle');
+  scheduleClearance();
 }

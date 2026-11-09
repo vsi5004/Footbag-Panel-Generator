@@ -1,4 +1,4 @@
-import type { Lattice } from './lattice';
+import { latticePlacements, type Lattice } from './lattice';
 import type { Panel } from '../types';
 import {
   bounds,
@@ -12,18 +12,31 @@ import {
 } from './nesting-types';
 import { flattenOutline, checkPlacements, isSimple } from './nesting-geometry';
 
-export function findNesting(
-  panel: Panel,
-  count: number,
-  gap: number,
-  quarterTurn: boolean | RotationMode,
-  source: string,
-  padding: number,
-  dot: number,
-  currentCols: number,
-  stock?: StockSize,
+export interface NestingRequest {
+  panel: Panel;
+  count: number;
+  gap: number;
+  rotations: RotationMode;
+  source: string;
+  padding: number;
+  dot: number;
+  currentCols: number;
+  stock?: StockSize;
+  capacity?: boolean;
+}
+
+export function findNesting({
+  panel,
+  count,
+  gap,
+  rotations,
+  source,
+  padding,
+  dot,
+  currentCols,
+  stock,
   capacity = false,
-): NestingPlan {
+}: NestingRequest): NestingPlan {
   if (
     !Number.isFinite(padding) ||
     padding < 0 ||
@@ -40,8 +53,6 @@ export function findNesting(
     gap > 20
   )
     throw new Error('Invalid nesting request');
-  const rotations =
-    typeof quarterTurn === 'boolean' ? (quarterTurn ? 'quarter' : 'half') : quarterTurn;
   if (!['none', 'half', 'quarter'].includes(rotations)) throw new Error('Invalid rotations');
   if (
     stock &&
@@ -77,20 +88,17 @@ export function findNesting(
         let px = box.width + clearance + 0.01,
           py = box.height + clearance + 0.01;
         const build = (length = count, columns = cols): Placement[] =>
-          Array.from({ length }, (_, i) => {
-            const row = Math.floor(i / columns),
-              col = i % columns;
-            return {
-              x: Number(((col + (pattern === 2 && row % 2 ? 0.5 : 0)) * px).toFixed(4)),
-              y: Number(((row + (pattern === 4 && col % 2 ? 0.5 : 0)) * py).toFixed(4)),
-              angle: (angle +
-                (rotations !== 'none' &&
-                (((pattern === 1 || pattern === 2) && row % 2) ||
-                  ((pattern === 3 || pattern === 4) && col % 2))
-                  ? 180
-                  : 0)) as Placement['angle'],
-            };
-          });
+          latticePlacements(
+            {
+              columns,
+              pitchX: px,
+              pitchY: py,
+              pattern: pattern as Lattice['pattern'],
+              angle,
+              rotateAlternates: rotations !== 'none',
+            },
+            length,
+          );
         if (pattern > 0) {
           px = 2 * Math.max(Math.abs(box.minX), Math.abs(box.maxX)) + clearance + 0.01;
           py = 2 * Math.max(Math.abs(box.minY), Math.abs(box.maxY)) + clearance + 0.01;
@@ -173,13 +181,7 @@ export function findNesting(
 }
 
 export function findCapacity(
-  panel: Panel,
-  gap: number,
-  rotations: RotationMode,
-  source: string,
-  padding: number,
-  dot: number,
-  stock: StockSize,
+  request: Omit<NestingRequest, 'count' | 'currentCols' | 'capacity'> & { stock: StockSize },
 ): NestingPlan {
-  return findNesting(panel, 144, gap, rotations, source, padding, dot, 12, stock, true);
+  return findNesting({ ...request, count: 144, currentCols: 12, capacity: true });
 }
