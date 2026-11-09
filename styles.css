@@ -16,6 +16,7 @@
 .gcode-stale button { margin-left: auto; padding: 6px 10px; background: #efb15c; color: #251a0c; }
 #gcodeSettings textarea, #gcodeCode { width: 100%; background: #0f1117; color: var(--text); border: 1px solid #364064; border-radius: 6px; padding: 10px; font: 12px/1.5 monospace; resize: vertical; }
 #gcodeSettings .export-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#gcodeSettings > details.advanced { margin-bottom: 14px; }
 .preview-inner.gcode-preview-inner { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .gcode-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .preview-toolbar.gcode-toolbar { justify-content: flex-start; }
