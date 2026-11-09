@@ -1,67 +1,41 @@
-export interface GcodeSettings {
-  startCode: string;
-  endCode: string;
-  powerMax: number;
-  cutPower: number;
-  kerf: number;
-  cutSpeed: number;
-  segmentLength: number;
-  stitchMode: 'slit' | 'outline';
-  cutOrder: 'all-stitches-first' | 'panel-by-panel' | 'optimized';
-  origin: 'lower-left' | 'lower-right' | 'upper-left' | 'upper-right' | 'center';
-  includeSettings: boolean;
-}
-
-export const GCODE_DEFAULTS: GcodeSettings = {
-  startCode:
-    'G21         ; Set units to mm\nG90         ; Absolute positioning\nM4 S0       ; Enable Laser/Spindle (0 power)',
-  endCode: 'M5          ; Disable Laser/Spindle\nM2          ; End',
-  powerMax: 1000,
-  cutPower: 100,
-  kerf: 0.1,
-  cutSpeed: 1000,
-  segmentLength: 0.2,
-  stitchMode: 'slit',
-  cutOrder: 'all-stitches-first',
-  origin: 'lower-left',
-  includeSettings: false,
-};
-
-export const GCODE_LIMITS = {
-  powerMax: [0.001, 1000000],
-  cutPower: [0, 100],
-  kerf: [0, 10],
-  cutSpeed: [1, 100000],
-  segmentLength: [0.01, 5],
-} as const;
+import { GCODE_DEFINITIONS, type GcodeSettings } from './gcode-definitions';
+export type { GcodeSettings } from './gcode-definitions';
+export const GCODE_DEFAULTS = Object.fromEntries(
+  Object.entries(GCODE_DEFINITIONS).map(([key, d]) => [key, d.default]),
+) as unknown as GcodeSettings;
+type Definitions = typeof GCODE_DEFINITIONS;
+type NumericGcodeKey = {
+  [K in keyof Definitions]: Definitions[K] extends { type: 'number' } ? K : never;
+}[keyof Definitions];
+export const GCODE_LIMITS = Object.fromEntries(
+  Object.entries(GCODE_DEFINITIONS).flatMap(([key, d]) =>
+    'minimum' in d ? [[key, [d.minimum, d.maximum]]] : [],
+  ),
+) as unknown as Record<NumericGcodeKey, readonly [number, number]>;
 
 /** Strict validation happens before any imported design controls are changed. */
 export function readGcodeSettings(value: unknown): GcodeSettings {
   if (value === undefined) return { ...GCODE_DEFAULTS };
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('Invalid GCode settings');
-  const raw = value as Record<string, unknown>;
-  const result = { ...GCODE_DEFAULTS, ...raw } as GcodeSettings;
-  if (typeof result.includeSettings !== 'boolean') throw new Error('Invalid GCode includeSettings');
-  if (!['lower-left', 'lower-right', 'upper-left', 'upper-right', 'center'].includes(result.origin))
-    throw new Error('Invalid GCode origin');
-  for (const [key, [min, max]] of Object.entries(GCODE_LIMITS)) {
-    const v = result[key as keyof typeof GCODE_LIMITS];
-    if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max)
-      throw new Error(`Invalid GCode ${key} (${min}–${max})`);
+  const result = { ...GCODE_DEFAULTS, ...value } as GcodeSettings;
+  for (const [key, d] of Object.entries(GCODE_DEFINITIONS)) {
+    const v = result[key as keyof GcodeSettings];
+    if ('enum' in d) {
+      if (!(d.enum as readonly unknown[]).includes(v)) throw new Error(`Invalid GCode ${key}`);
+    } else if (
+      typeof v !== d.type ||
+      ('minimum' in d &&
+        (typeof v !== 'number' || !Number.isFinite(v) || v < d.minimum || v > d.maximum))
+    ) {
+      throw new Error(`Invalid GCode ${key}`);
+    } else if (
+      'maxLength' in d &&
+      (typeof v !== 'string' || v.length > d.maxLength || /[^\x09\x0a\x0d\x20-\x7e]/.test(v))
+    ) {
+      throw new Error(`Invalid GCode ${key}: use ASCII text, up to ${d.maxLength} characters`);
+    }
   }
-  for (const key of ['startCode', 'endCode'] as const)
-    if (
-      typeof result[key] !== 'string' ||
-      result[key].length > 20000 ||
-      /[^\x09\x0a\x0d\x20-\x7e]/.test(result[key])
-    )
-      throw new Error(`Invalid GCode ${key}: use ASCII text, up to 20,000 characters`);
-  if (
-    !['slit', 'outline'].includes(result.stitchMode) ||
-    !['all-stitches-first', 'panel-by-panel', 'optimized'].includes(result.cutOrder)
-  )
-    throw new Error('Invalid GCode stitch settings');
   return Object.fromEntries(
     Object.keys(GCODE_DEFAULTS).map((key) => [key, result[key as keyof GcodeSettings]]),
   ) as unknown as GcodeSettings;

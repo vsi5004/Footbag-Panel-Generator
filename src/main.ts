@@ -1,3 +1,4 @@
+import type { CutLayout } from './lib/gcode-job';
 import { designKey } from './lib/nesting-types';
 import { initializeGcode } from './lib/gcode-ui';
 import { state } from './lib/state';
@@ -54,8 +55,20 @@ function initializeApp(): void {
     lastLayoutHpx: 0,
   };
 
+  let cutLayout: CutLayout | undefined;
   const layoutFrame = createFrameScheduler(() => {
-    renderLayout(lastPanel, lastDotSize, pageEl, layoutElements, layoutState, lastPanelConfig);
+    renderLayout(
+      lastPanel,
+      lastDotSize,
+      pageEl,
+      layoutElements,
+      layoutState,
+      lastPanelConfig,
+      (model) => {
+        cutLayout = model;
+        document.dispatchEvent(new Event('cut-layout-changed'));
+      },
+    );
     requestAnimationFrame(() => updatePageOverflow(pageEl, layoutState));
   });
   function createLayoutRenderFunction() {
@@ -309,13 +322,13 @@ function initializeApp(): void {
   );
   initializeTooltips();
   initializeGcode(
-    pageEl,
     flushRenders,
     () => {
       // Revalidate synchronously even when geometry/scale was edited in the same task.
       render();
       flushRenders();
     },
+    () => cutLayout,
     () => state.collect(el, { ...layoutElements, pageEl }),
   );
 } // End of initializeApp

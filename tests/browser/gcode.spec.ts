@@ -366,3 +366,81 @@ test('phone layout contains preview, readable controls, and code view without pa
   await expect(page.locator('#gcodeCode')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 });
+
+test('compact program-end commands fail before starting a worker', async ({ page }) => {
+  await page.locator('#gcodeSettings details').evaluate((e: HTMLDetailsElement) => (e.open = true));
+  await page.locator('#gcode-startCode').fill('G21\nM2G90');
+  await page.locator('#generateGcode').click();
+  await expect(page.locator('#gcodeStatus')).toContainText('program-end command');
+  await expect(page.locator('#exportGcode')).toBeDisabled();
+  await expect(page.locator('#gcodeCode')).toHaveValue('');
+});
+
+test('generation is cancellable, obsolete responses stay stale, and export reuses the ready job', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const NativeWorker = window.Worker;
+    const jobs: { terminated: boolean; replay?: () => void }[] = [];
+    (window as unknown as { gcodeJobs: typeof jobs }).gcodeJobs = jobs;
+    window.Worker = class extends NativeWorker {
+      tracked?: (typeof jobs)[number];
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options);
+        if (String(url).includes('gcode-worker')) {
+          this.tracked = { terminated: false };
+          jobs.push(this.tracked);
+        }
+      }
+      postMessage(message: unknown) {
+        if (this.tracked && jobs.length === 1) {
+          const callback = this.onmessage;
+          this.tracked.replay = () =>
+            callback?.call(
+              this,
+              new MessageEvent('message', { data: { result: { code: 'obsolete' } } }),
+            );
+          return; // Hold the first job so cancellation has deterministic timing.
+        }
+        super.postMessage(message);
+      }
+      terminate() {
+        if (this.tracked) this.tracked.terminated = true;
+        super.terminate();
+      }
+    };
+  });
+  await page.locator('#generateGcode').click();
+  await expect(page.locator('#gcodeFreshnessText')).toContainText('Generating');
+  await expect(page.locator('#exportGcode')).toBeDisabled();
+  await page.locator('#gcodeView').selectOption('code');
+  await expect(page.locator('#gcodeCode')).toBeVisible();
+  await page.locator('#gcode-cutPower').fill('35');
+  await expect(page.locator('#gcodeFreshnessText')).toContainText('Stale');
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { gcodeJobs: { terminated: boolean }[] }).gcodeJobs[0].terminated,
+    ),
+  ).toBe(true);
+  await generate(page);
+  const code = await page.locator('#gcodeCode').inputValue();
+  expect(code).toContain('S350 F1000');
+  await page.evaluate(() =>
+    (window as unknown as { gcodeJobs: { replay?: () => void }[] }).gcodeJobs[0].replay?.(),
+  );
+  await expect(page.locator('#gcodeCode')).toHaveValue(code);
+  expect((await downloadText(page, '#exportGcode')).text).toBe(code);
+  expect(
+    await page.evaluate(() => (window as unknown as { gcodeJobs: unknown[] }).gcodeJobs.length),
+  ).toBe(2);
+  let downloads = 0;
+  page.on('download', () => downloads++);
+  await page.evaluate(() => {
+    // No input/change event: export must still synchronously compare current inputs.
+    (document.getElementById('gcode-cutPower') as HTMLInputElement).value = '36';
+    document.getElementById('exportGcode')!.click();
+  });
+  await expect(page.locator('#exportGcode')).toBeDisabled();
+  await expect(page.locator('#gcodeCode')).toHaveValue('');
+  expect(downloads).toBe(0);
+});

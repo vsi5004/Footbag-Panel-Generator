@@ -484,45 +484,54 @@
       "type": "object",
       "properties": {
         "startCode": {
+          "default": "G21         ; Set units to mm\nG90         ; Absolute positioning\nM4 S0       ; Enable Laser/Spindle (0 power)",
           "type": "string",
           "maxLength": 20000
         },
         "endCode": {
+          "default": "M5          ; Disable Laser/Spindle\nM2          ; End",
           "type": "string",
           "maxLength": 20000
         },
         "powerMax": {
+          "default": 1000,
           "type": "number",
           "minimum": 0.001,
           "maximum": 1000000
         },
         "cutPower": {
+          "default": 100,
           "type": "number",
           "minimum": 0,
           "maximum": 100
         },
         "kerf": {
+          "default": 0.1,
           "type": "number",
           "minimum": 0,
           "maximum": 10
         },
         "cutSpeed": {
+          "default": 1000,
           "type": "number",
           "minimum": 1,
           "maximum": 100000
         },
         "segmentLength": {
+          "default": 0.2,
           "type": "number",
           "minimum": 0.01,
           "maximum": 5
         },
         "stitchMode": {
+          "default": "slit",
           "enum": [
             "slit",
             "outline"
           ]
         },
         "cutOrder": {
+          "default": "all-stitches-first",
           "enum": [
             "all-stitches-first",
             "panel-by-panel",
@@ -530,6 +539,7 @@
           ]
         },
         "origin": {
+          "default": "lower-left",
           "enum": [
             "lower-left",
             "lower-right",
@@ -539,6 +549,7 @@
           ]
         },
         "includeSettings": {
+          "default": false,
           "type": "boolean"
         }
       },

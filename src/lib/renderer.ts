@@ -1,3 +1,4 @@
+import type { LayoutSvgOptions } from './layout';
 import { editablePlan, showPatternFeedback } from './editable-layout';
 // Rendering system for the footbag panel generator
 // Handles SVG rendering to DOM and render pipeline coordination
@@ -209,9 +210,11 @@ export function renderLayout(
   layoutElements: LayoutElements,
   state: LayoutRenderState,
   config?: PanelConfig | null,
+  onLayout?: (model?: { panel: Panel; opts: LayoutSvgOptions }) => void,
 ): void {
   if (!pageEl.svgHost) return;
   if (!panel) {
+    onLayout?.();
     pageEl.svgHost.innerHTML = '';
     if (pageEl.downloadSvg) pageEl.downloadSvg.disabled = true;
     if (pageEl.materialInfoContainer) pageEl.materialInfoContainer.style.display = 'none';
@@ -346,6 +349,7 @@ export function renderLayout(
     layoutHmm > 0;
   if (pageEl.downloadSvg) pageEl.downloadSvg.disabled = !validDimensions;
   if (!validDimensions) {
+    onLayout?.();
     pageEl.svgHost.replaceChildren();
     state.lastLayoutWpx = 0;
     state.lastLayoutHpx = 0;
@@ -367,10 +371,9 @@ export function renderLayout(
     pageEl.svgHost.appendChild(message);
     return;
   }
-  const existing = pageEl.svgHost.querySelector('svg');
-  const svg = updateLayoutPreview(
+  const cutLayout = {
     panel,
-    {
+    opts: {
       rows,
       cols,
       hSpace,
@@ -382,8 +385,10 @@ export function renderLayout(
       padding,
       optimized,
     },
-    existing,
-  );
+  };
+  onLayout?.(cutLayout);
+  const existing = pageEl.svgHost.querySelector('svg');
+  const svg = updateLayoutPreview(panel, cutLayout.opts, existing);
   if (svg !== existing) {
     const wrap = document.createElement('div');
     wrap.className = 'svg-wrap';

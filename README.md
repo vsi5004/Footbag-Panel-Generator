@@ -241,3 +241,16 @@ Coordinates are mm, X right and Y up. Select the origin at any of the four sheet
 GCode generation rejects invalid layouts, self-crossing outlines, overlapping/insufficiently separated panels, compensated contours that cross, collapsed holes, and cuts outside sheet bounds. It uses the same accepted/manual placement data as the layout preview and revalidates synchronously before export. Test a small sample on your machine to confirm kerf, power and speed for the material.
 
 Enable **Include panel settings and layout details in header** to add semicolon-prefixed JSON comments containing base panel settings, layout parameters, actual placements, scaled sheet dimensions and hole diameter. These comments appear before the start snippet and do not change the cutting commands. The choice is saved with machine settings; older files default to off.
+
+### GCode implementation and extension points
+
+GCode jobs are built from the renderer's validated layout model, independently of SVG elements and export buttons. `gcode-job.ts` copies and freezes the accepted geometry, placements, physical scale, machine settings, and optional header data. Its key excludes preview grids and optimizer search preferences. Generation and export flush pending edits and compare this key; export reuses the ready job instead of running CAM a second time.
+
+- `gcode.ts` orchestrates geometry validation and physical coordinate transforms. `gcode-geometry.ts` samples curves and applies kerf offsets; `gcode-routing.ts` enforces cut-order dependencies and uses an in-place median spatial index for deterministic nearest-entry routing.
+- `gcode-metadata.ts` builds header comments, `gcode-serialize.ts` writes machine commands, and `gcode-dialect.ts` shares word parsing and program-end recognition with `gcode-preview.ts`.
+- `gcode-runner.ts` generates code, parses its actual moves, and prepares SVG path strings inside `gcode-worker.ts`. Only code, preview strings and summary data return to the UI. `gcode-service.ts` terminates completed, failed, cancelled, or superseded workers. The UI also checks the job identity before publishing results.
+- `gcode-ui.ts` controls empty, generating, ready, stale, and failed states. `gcode-viewport.ts` owns SVG rendering, zoom, pan, and travel visibility.
+
+Edit `schema/gcode-controls.json` to change setting defaults, limits, enum choices and labels. Run `npm run settings:sync` to update generated TypeScript definitions, JSON schema, and HTML control defaults/options. Add any new control and its help text in `index.html`; do not edit `gcode-definitions.ts` manually. `npm run settings:check` detects drift.
+
+Run `npm run check` and `npm run test:browser` before submitting changes. Byte-for-byte pre-refactor fixtures in `tests/fixtures/gcode.json` cover straight, curved, star, rotated/flipped, scaled, power, origin and ordering combinations; semantic tests additionally check safety constraints and header metadata. Worker tests cover cancellation, stale responses, failure recovery, and cached export. Use `npm run benchmark:gcode` for repeatable 9-panel and 144-panel generation/preview timing; timings are diagnostic, not CI pass/fail thresholds.

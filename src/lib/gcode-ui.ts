@@ -1,62 +1,79 @@
-import type { PageElements } from '../types';
-import { layoutPreviewSource } from './layout-preview';
+import type { GcodeJobResult } from './gcode-runner';
 import { normalizeExportScale } from './export';
-import { generateGcode, gcodeNumber } from './gcode';
 import { applyGcodeSettings, collectGcodeSettings } from './gcode-settings';
-import { parseGcode } from './gcode-preview';
+import { createJobSnapshot, type CutLayout, type JobSnapshot } from './gcode-job';
+import { GcodeService } from './gcode-service';
+import { createGcodeViewport } from './gcode-viewport';
 import type { SettingsData } from './state';
 
+type GcodeState =
+  | { kind: 'empty' | 'stale' | 'failed' }
+  | { kind: 'generating'; snapshot: JobSnapshot }
+  | { kind: 'ready'; snapshot: JobSnapshot; result: GcodeJobResult };
+
 export function initializeGcode(
-  page: PageElements,
   flush: () => void,
   revalidate: () => void,
+  getLayout: () => CutLayout | undefined,
   getSettings: () => SettingsData,
 ) {
   const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const generate = byId<HTMLButtonElement>('generateGcode'),
     download = byId<HTMLButtonElement>('exportGcode');
-  const status = byId<HTMLParagraphElement>('gcodeStatus'),
-    stats = byId<HTMLParagraphElement>('gcodeStats');
+  if (!generate) return;
+  const status = byId('gcodeStatus'),
+    stats = byId('gcodeStats');
   const code = byId<HTMLTextAreaElement>('gcodeCode'),
     host = byId<HTMLDivElement>('gcodeViewport');
   const view = byId<HTMLSelectElement>('gcodeView'),
     travel = byId<HTMLInputElement>('gcodeShowTravel');
-  const freshness = byId<HTMLDivElement>('gcodeFreshness');
-  const freshnessText = byId<HTMLSpanElement>('gcodeFreshnessText');
-  const regenerate = byId<HTMLButtonElement>('gcodeRegenerate');
-  if (!generate || !page.svgHost) return;
+  const freshness = byId('gcodeFreshness'),
+    freshnessText = byId('gcodeFreshnessText'),
+    regenerate = byId<HTMLButtonElement>('gcodeRegenerate');
+  const viewport = createGcodeViewport(host, travel),
+    service = new GcodeService();
+  let state: GcodeState = { kind: 'empty' };
   applyGcodeSettings();
-  let result: ReturnType<typeof generateGcode> | undefined;
-  let generatedLayoutKey = '';
-  let svg: SVGSVGElement | undefined;
-  let original = [0, 0, 100, 100],
-    box = original.slice();
-  const layoutKey = () => {
-    const sourceSvg = page.svgHost?.querySelector<SVGElement>('svg');
-    const source = sourceSvg && layoutPreviewSource(sourceSvg);
-    if (!source || page.downloadSvg?.disabled) return '';
-    // Candidate overlays, comparison-canvas sizing and preview grids do not change the cut job.
-    return JSON.stringify([source.panel, { ...source.opts, showGrid: undefined }]);
-  };
-  const observer = new MutationObserver(() => {
-    if (result && layoutKey() !== generatedLayoutKey) invalidate();
-  });
-  observer.observe(page.svgHost, { subtree: true, childList: true, attributes: true });
-  regenerate.addEventListener('click', () => generate.click());
-  function invalidate() {
-    if (!result) return;
-    result = undefined;
+  function snapshot(validate = false) {
+    if (validate) {
+      flush();
+      revalidate();
+    }
+    const settings = collectGcodeSettings();
+    return createJobSnapshot(
+      getLayout(),
+      normalizeExportScale(document.querySelector<HTMLInputElement>('[data-export-scale]')?.value),
+      settings,
+      settings.includeSettings ? getSettings() : undefined,
+    );
+  }
+  function clear() {
     download.disabled = true;
     code.value = '';
-    host.replaceChildren();
-    svg = undefined;
+    viewport.clear();
     stats.textContent = '';
+  }
+  function invalidate() {
+    if (state.kind !== 'ready' && state.kind !== 'generating') return;
+    service.cancel();
+    state = { kind: 'stale' };
+    clear();
     freshness.hidden = false;
     freshnessText.textContent = 'Stale - needs regeneration';
     regenerate.textContent = 'Regenerate';
     status.textContent =
       'Layout or settings changed. Generate GCode to update the preview and export.';
   }
+  // Model notifications replace observing SVG mutations. Temporary optimizer
+  // candidates and preview-only interactions never change this snapshot.
+  document.addEventListener('cut-layout-changed', () => {
+    if (state.kind !== 'ready' && state.kind !== 'generating') return;
+    try {
+      if (snapshot().key !== state.snapshot.key) invalidate();
+    } catch {
+      invalidate();
+    }
+  });
   for (const event of ['input', 'change'])
     document.addEventListener(event, (e) => {
       const target = e.target as HTMLElement;
@@ -75,149 +92,41 @@ export function initializeGcode(
     byId('gcodeToolpathControls').hidden = view.value === 'code';
   };
   view.addEventListener('change', showView);
-  travel.addEventListener('change', () =>
-    svg?.querySelector('[data-travel]')?.classList.toggle('hidden', !travel.checked),
-  );
-  const setBox = () => {
-    svg?.setAttribute('viewBox', box.join(' '));
-    byId('gcodeZoomLabel').textContent = `${Math.round((original[2] / box[2]) * 100)}%`;
-  };
-  function zoom(factor: number) {
-    const w = Math.min(original[2] * 5, Math.max(original[2] / 30, box[2] * factor));
-    const h = (w * original[3]) / original[2];
-    box = [box[0] + (box[2] - w) / 2, box[1] + (box[3] - h) / 2, w, h];
-    setBox();
-  }
-  byId('gcodeZoomIn').addEventListener('click', () => zoom(0.8));
-  byId('gcodeZoomOut').addEventListener('click', () => zoom(1.25));
-  byId('gcodeZoomReset').addEventListener('click', () => {
-    box = original.slice();
-    setBox();
-  });
-  host.addEventListener(
-    'wheel',
-    (e) => {
-      if (svg) {
-        e.preventDefault();
-        zoom(e.deltaY > 0 ? 1.15 : 1 / 1.15);
-      }
-    },
-    { passive: false },
-  );
-  let drag: { x: number; y: number; box: number[] } | undefined;
-  host.addEventListener('pointerdown', (e) => {
-    if (svg) {
-      drag = { x: e.clientX, y: e.clientY, box: box.slice() };
-      host.setPointerCapture(e.pointerId);
-    }
-  });
-  host.addEventListener('pointermove', (e) => {
-    if (!drag || !svg) return;
-    const rect = svg.getBoundingClientRect(),
-      pixels = Math.min(rect.width / drag.box[2], rect.height / drag.box[3]);
-    box[0] = drag.box[0] - (e.clientX - drag.x) / pixels;
-    box[1] = drag.box[1] - (e.clientY - drag.y) / pixels;
-    setBox();
-  });
-  for (const event of ['pointerup', 'pointercancel', 'lostpointercapture'])
-    host.addEventListener(event, () => {
-      drag = undefined;
-    });
-
-  function build() {
-    flush();
-    revalidate();
-    const sourceSvg = page.svgHost?.querySelector<SVGElement>('svg');
-    const source = sourceSvg && layoutPreviewSource(sourceSvg);
-    if (!source || page.downloadSvg?.disabled)
-      throw new Error('Fix the lasercutter layout before generating GCode.');
-    const settings = collectGcodeSettings();
-    if (
-      /\bM(?:0?2|30)\b/i.test(settings.startCode.replace(/\([^)]*\)/g, '').replace(/;[^\n]*/g, ''))
-    )
-      throw new Error('Start GCode contains a program-end command (M2/M30). Move it to End GCode.');
-    const generated = generateGcode(
-      source.panel,
-      source.opts,
-      normalizeExportScale(document.querySelector<HTMLInputElement>('[data-export-scale]')?.value),
-      settings,
-      settings.includeSettings ? getSettings() : undefined,
-    );
-    observer.takeRecords();
-    generatedLayoutKey = layoutKey();
-    return generated;
-  }
-  generate.addEventListener('click', () => {
-    invalidate();
+  regenerate.addEventListener('click', () => generate.click());
+  generate.addEventListener('click', async () => {
+    service.cancel();
+    state = { kind: 'empty' };
+    clear();
+    let requested: JobSnapshot | undefined;
     try {
-      result = build();
-      code.value = result.code;
-      const preview = parseGcode(result.code);
-      const ns = 'http://www.w3.org/2000/svg';
-      svg = document.createElementNS(ns, 'svg');
-      svg.setAttribute('role', 'img');
-      svg.setAttribute('aria-label', 'Laser cutting and travel toolpaths, origin marked at X0 Y0');
-      let x0 = Math.min(0, result.sheet.minX),
-        y0 = Math.min(0, result.sheet.minY),
-        x1 = Math.max(0, result.sheet.minX + result.sheet.width),
-        y1 = Math.max(0, result.sheet.minY + result.sheet.height);
-      for (const move of preview.moves)
-        for (const p of [move.from, move.to]) {
-          x0 = Math.min(x0, p.x);
-          y0 = Math.min(y0, p.y);
-          x1 = Math.max(x1, p.x);
-          y1 = Math.max(y1, p.y);
-        }
-      const margin = Math.max(x1 - x0, y1 - y0) * 0.03 + 1;
-      original = [x0 - margin, -y1 - margin, x1 - x0 + 2 * margin, y1 - y0 + 2 * margin];
-      box = original.slice();
-      setBox();
-      const sheet = document.createElementNS(ns, 'rect');
-      for (const [key, value] of Object.entries({
-        x: result.sheet.minX,
-        y: -(result.sheet.minY + result.sheet.height),
-        width: result.sheet.width,
-        height: result.sheet.height,
-      }))
-        sheet.setAttribute(key, String(value));
-      sheet.setAttribute('class', 'gcode-sheet');
-      svg.append(sheet);
-      for (const cut of [false, true]) {
-        const path = document.createElementNS(ns, 'path');
-        path.setAttribute(
-          'd',
-          preview.moves
-            .filter((m) => m.cut === cut)
-            .map(
-              (m) =>
-                `M${gcodeNumber(m.from.x)} ${gcodeNumber(-m.from.y)}L${gcodeNumber(m.to.x)} ${gcodeNumber(-m.to.y)}`,
-            )
-            .join(' '),
-        );
-        path.setAttribute('class', cut ? 'gcode-cut' : 'gcode-travel');
-        if (!cut) {
-          path.dataset.travel = '';
-          path.classList.toggle('hidden', !travel.checked);
-        }
-        svg.append(path);
+      requested = snapshot(true);
+      state = { kind: 'generating', snapshot: requested };
+      freshness.hidden = false;
+      freshnessText.textContent = 'Generating GCode…';
+      regenerate.textContent = 'Restart';
+      status.textContent = 'Generating cutting paths…';
+      const result = await service.generate(requested);
+      if (state.kind !== 'generating' || state.snapshot !== requested) return;
+      // Flush same-task/debounced edits before publishing a worker response.
+      const current = snapshot(true);
+      if (current.key !== requested.key) {
+        invalidate();
+        return;
       }
-      const origin = document.createElementNS(ns, 'path');
-      origin.setAttribute('d', 'M-2 0H2M0 -2V2');
-      origin.setAttribute('class', 'gcode-origin');
-      const title = document.createElementNS(ns, 'title');
-      title.textContent = 'Origin (X0 Y0)';
-      origin.append(title);
-      svg.append(origin);
-      host.replaceChildren(svg);
-      stats.textContent = `${result.sheet.width.toFixed(2)} × ${result.sheet.height.toFixed(2)} mm · ${result.paths.length} cuts · Cut: ${preview.cutDistance.toFixed(1)} mm · Travel: ${preview.travelDistance.toFixed(1)} mm`;
-      status.textContent = preview.warnings.length
-        ? `Generated. Custom commands not simulated: ${preview.warnings.join(', ')}. Verify these on your machine; displayed distances exclude unsupported motion.`
+      state = { kind: 'ready', snapshot: requested, result };
+      code.value = result.code;
+      viewport.render(result.preview);
+      stats.textContent = `${result.sheet.width.toFixed(2)} × ${result.sheet.height.toFixed(2)} mm · ${result.cutCount} cuts · Cut: ${result.cutDistance.toFixed(1)} mm · Travel: ${result.travelDistance.toFixed(1)} mm`;
+      status.textContent = result.warnings.length
+        ? `Generated. Custom commands not simulated: ${result.warnings.join(', ')}. Verify these on your machine; displayed distances exclude unsupported motion.`
         : 'Ready to export. Toolpath includes start/end linear moves; initial position assumed X0 Y0.';
       download.disabled = false;
       freshness.hidden = true;
     } catch (error) {
-      result = undefined;
-      download.disabled = true;
+      if (error instanceof Error && error.name === 'AbortError') return;
+      if (requested && (state.kind !== 'generating' || state.snapshot !== requested)) return;
+      state = { kind: 'failed' };
+      clear();
       freshness.hidden = false;
       freshnessText.textContent = 'Generation failed - check settings';
       regenerate.textContent = 'Try again';
@@ -225,17 +134,18 @@ export function initializeGcode(
     }
   });
   download.addEventListener('click', () => {
-    if (!result) return;
+    if (state.kind !== 'ready') return;
+    const ready = state;
     try {
-      const current = build();
-      if (current.code !== result.code) {
+      const current = snapshot(true);
+      if (current.key !== ready.snapshot.key) {
         invalidate();
         return;
       }
-      const url = URL.createObjectURL(new Blob([result.code], { type: 'text/plain' }));
+      const url = URL.createObjectURL(new Blob([ready.result.code], { type: 'text/plain' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `footbag-layout-${result.paths.filter((p) => p.kind === 'panel').length}panels.gcode`;
+      a.download = `footbag-layout-${ready.result.panelCount}panels.gcode`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {

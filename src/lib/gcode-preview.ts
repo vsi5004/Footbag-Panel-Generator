@@ -1,3 +1,4 @@
+import { gcodeWords, isProgramEnd } from './gcode-dialect';
 import type { Point } from '../types';
 
 export interface ToolMove {
@@ -21,16 +22,13 @@ export function parseGcode(code: string) {
   let terminated = false,
     positionKnown = true;
   for (const raw of code.split(/\r?\n/)) {
-    const line = raw
-      .replace(/\([^)]*\)/g, '')
-      .split(';')[0]
-      .trim();
-    if (!line || terminated) continue;
-    const words = [...line.toUpperCase().matchAll(/([A-Z])\s*([-+]?(?:\d+\.?\d*|\.\d+))/g)];
-    const values = new Map(words.map((m) => [m[1], Number(m[2])]));
+    if (terminated) break;
+    const words = gcodeWords(raw);
+    if (!words.length) continue;
+    const values = new Map(words);
     let resetPosition = false,
       unsupportedMotion = false;
-    for (const [, letter, number] of words) {
+    for (const [letter, number] of words) {
       const n = Number(number);
       if (letter === 'G') {
         if (n === 0 || n === 1) motion = n;
@@ -51,7 +49,7 @@ export function parseGcode(code: string) {
       if (letter === 'M') {
         if (n === 3 || n === 4) enabled = true;
         else if (n === 5) enabled = false;
-        else if (n === 2 || n === 30) terminated = true;
+        else if (isProgramEnd(letter, n)) terminated = true;
         else warnings.add(`M${n}`);
       }
     }

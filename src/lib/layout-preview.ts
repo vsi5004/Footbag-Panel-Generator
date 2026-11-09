@@ -12,8 +12,6 @@ interface Preview {
   gridKey: string;
 }
 const previews = new WeakMap<SVGElement, Preview>();
-const sources = new WeakMap<SVGElement, { panel: Panel; opts: LayoutSvgOptions }>();
-export const layoutPreviewSource = (svg: SVGElement) => sources.get(svg);
 
 function frame(panel: Panel, opts: LayoutSvgOptions) {
   if (opts.optimized) {
@@ -60,7 +58,6 @@ export function updateLayoutPreview(
     previous.groups.length !== count
   ) {
     const svg = createLayoutSvg(panel, opts);
-    sources.set(svg, { panel, opts });
     previews.set(svg, {
       panel,
       dot: opts.dotDiameter,
@@ -71,7 +68,6 @@ export function updateLayoutPreview(
     return svg;
   }
   attribute(existing, 'width', box.width + 'mm');
-  sources.set(existing, { panel, opts });
   attribute(existing, 'height', box.height + 'mm');
   attribute(
     existing,
