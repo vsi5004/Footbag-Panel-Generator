@@ -27,10 +27,20 @@ export function initializeGcode(
   if (!generate || !page.svgHost) return;
   applyGcodeSettings();
   let result: ReturnType<typeof generateGcode> | undefined;
+  let generatedLayoutKey = '';
   let svg: SVGSVGElement | undefined;
   let original = [0, 0, 100, 100],
     box = original.slice();
-  const observer = new MutationObserver(() => invalidate());
+  const layoutKey = () => {
+    const sourceSvg = page.svgHost?.querySelector<SVGElement>('svg');
+    const source = sourceSvg && layoutPreviewSource(sourceSvg);
+    if (!source || page.downloadSvg?.disabled) return '';
+    // Candidate overlays, comparison-canvas sizing and preview grids do not change the cut job.
+    return JSON.stringify([source.panel, { ...source.opts, showGrid: undefined }]);
+  };
+  const observer = new MutationObserver(() => {
+    if (result && layoutKey() !== generatedLayoutKey) invalidate();
+  });
   observer.observe(page.svgHost, { subtree: true, childList: true, attributes: true });
   regenerate.addEventListener('click', () => generate.click());
   function invalidate() {
@@ -50,7 +60,12 @@ export function initializeGcode(
   for (const event of ['input', 'change'])
     document.addEventListener(event, (e) => {
       const target = e.target as HTMLElement;
-      if (target.closest('#gcodePreview') || target.closest('.preview')) return;
+      if (
+        target.closest('#gcodePreview') ||
+        target.closest('.preview') ||
+        target.closest('#nestingDialog')
+      )
+        return;
       invalidate();
     });
   document.addEventListener('layout-settings-applied', invalidate);
@@ -63,7 +78,10 @@ export function initializeGcode(
   travel.addEventListener('change', () =>
     svg?.querySelector('[data-travel]')?.classList.toggle('hidden', !travel.checked),
   );
-  const setBox = () => svg?.setAttribute('viewBox', box.join(' '));
+  const setBox = () => {
+    svg?.setAttribute('viewBox', box.join(' '));
+    byId('gcodeZoomLabel').textContent = `${Math.round((original[2] / box[2]) * 100)}%`;
+  };
   function zoom(factor: number) {
     const w = Math.min(original[2] * 5, Math.max(original[2] / 30, box[2] * factor));
     const h = (w * original[3]) / original[2];
@@ -126,6 +144,7 @@ export function initializeGcode(
       settings.includeSettings ? getSettings() : undefined,
     );
     observer.takeRecords();
+    generatedLayoutKey = layoutKey();
     return generated;
   }
   generate.addEventListener('click', () => {

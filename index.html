@@ -548,11 +548,10 @@
         </div>
       </section>
     </main>
-    </div>
 
     <main class="app app--gcode">
       <section id="gcodeSettings" class="controls" aria-label="GCode Settings">
-        <div class="section-header"><h3>Lasercutter GCode Generation</h3><button id="resetGcodeSettings" type="button" class="reset-button">Reset</button></div>
+        <div class="section-header"><h3>Lasercutter GCode Generation</h3><button id="resetGcodeSettings" type="button" class="reset-button" title="Reset GCode settings to default values"><span class="reset-icon" aria-hidden="true">↻</span> Reset</button></div>
         <p class="gcode-note">Uses the current lasercutter layout and shared export scale. Coordinates run X right, Y up.</p>
         <div class="control"><div class="tooltip-container"><label for="gcode-origin">GCode origin (X0 Y0)</label><button type="button" class="tooltip-icon" aria-label="About GCode origin (X0 Y0)" aria-describedby="gcode-origin-help">?</button><div id="gcode-origin-help" class="tooltip-content" role="tooltip">Corners reference the layout sheet, including padding. Center uses the bounding box of all cut paths. Right, upper and center origins produce negative coordinates. Custom start/end GCode stays unchanged.</div></div><select id="gcode-origin"><option value="lower-left">Lower-left corner</option><option value="lower-right">Lower-right corner</option><option value="upper-left">Upper-left corner</option><option value="upper-right">Upper-right corner</option><option value="center">Center of design</option></select></div>
         <div class="control"><div class="tooltip-container"><label for="gcode-cutPower">Cut power (%)</label><button type="button" class="tooltip-icon" aria-label="About Cut power (%)" aria-describedby="gcode-cutPower-help">?</button><div id="gcode-cutPower-help" class="tooltip-content" role="tooltip">Percentage of the configured laser S-value maximum. Zero produces laser-off moves.</div></div><input id="gcode-cutPower" type="number" min="0" max="100" step="any" value="100" /></div>
@@ -574,17 +573,18 @@ M2          ; End</textarea></div>
         <p id="gcodeStatus" role="status" aria-live="polite">Generate GCode to preview the current layout.</p>
       </section>
       <section id="gcodePreview" class="preview" aria-label="GCode Preview">
-        <div class="gcode-preview-inner">
+        <div class="preview-inner gcode-preview-inner">
           <div class="gcode-toolbar"><label for="gcodeView">Preview</label><select id="gcodeView"><option value="toolpath">Cut / move lines</option><option value="code">GCode</option></select></div>
           <div id="gcodeFreshness" class="gcode-stale" role="status"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 7v5h-5M4 17v-5h5M6 8a7 7 0 0 1 12-2l2 3M4 15l2 3a7 7 0 0 0 12-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg><span id="gcodeFreshnessText">Needs generation</span><button id="gcodeRegenerate" type="button">Generate GCode</button></div>
           <p id="gcodeStats" class="gcode-note"></p>
-          <div id="gcodeToolpathControls" class="gcode-toolbar"><button id="gcodeZoomOut" type="button" aria-label="Zoom out toolpath">−</button><button id="gcodeZoomIn" type="button" aria-label="Zoom in toolpath">+</button><button id="gcodeZoomReset" type="button">Fit</button><div class="switch-row"><span class="switch-label">Show travel</span><span class="switch-label">Off</span><label class="switch" aria-label="Show travel"><input id="gcodeShowTravel" type="checkbox" checked /><span class="slider"></span></label><span class="switch-label">On</span></div><span class="gcode-cut-key">━ Cut</span><span class="gcode-travel-key">┄ Travel</span><span class="gcode-origin-key">+ Origin</span></div>
+          <div id="gcodeToolpathControls" class="preview-toolbar gcode-toolbar"><button id="gcodeZoomOut" type="button" title="Zoom out" aria-label="Zoom out toolpath">-</button><button id="gcodeZoomIn" type="button" title="Zoom in" aria-label="Zoom in toolpath">+</button><button id="gcodeZoomReset" type="button" title="Fit toolpath to preview (100%)">Fit</button><span id="gcodeZoomLabel" class="zoom-label">100%</span><div class="switch-row"><span class="switch-label">Show travel</span><span class="switch-label">Off</span><label class="switch" aria-label="Show travel"><input id="gcodeShowTravel" type="checkbox" checked /><span class="slider"></span></label><span class="switch-label">On</span></div><span class="gcode-cut-key">━ Cut</span><span class="gcode-travel-key">┄ Travel</span><span class="gcode-origin-key">+ Origin</span></div>
           <div id="gcodeViewport" tabindex="0" aria-label="Toolpath; drag to pan, scroll to zoom"></div>
           <textarea id="gcodeCode" aria-label="Generated GCode" readonly spellcheck="false" hidden></textarea>
           <p class="gcode-note">Drag to pan; scroll or use buttons to zoom. Code view shows the exact exported file.</p>
         </div>
       </section>
     </main>
+    </div>
 
     <dialog id="nestingDialog" aria-labelledby="nestingDialogTitle">
       <h2 id="nestingDialogTitle">Optimize layout</h2>

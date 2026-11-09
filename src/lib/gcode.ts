@@ -252,6 +252,8 @@ export function generateGcode(
     const layoutSettings = { ...designSettings?.layout };
     delete layoutSettings.optimized;
     delete layoutSettings.showGrid;
+    // A rejected search goal must not change the header of the accepted cutting job.
+    delete layoutSettings.nesting;
     const metadata = {
       panelSettings,
       layout: {

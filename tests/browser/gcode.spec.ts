@@ -17,6 +17,55 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
 });
 
+test('GCode section matches shared reset, card, toolbar and responsive alignment styles', async ({
+  page,
+}) => {
+  const reset = page.locator('#resetGcodeSettings');
+  await expect(reset.locator('.reset-icon')).toHaveText('↻');
+  await expect(reset).toHaveAttribute('title', 'Reset GCode settings to default values');
+  const style = (selector: string, properties: string[]) =>
+    page.locator(selector).evaluate((node, keys) => {
+      const css = getComputedStyle(node);
+      return keys.map((key) => css.getPropertyValue(key));
+    }, properties);
+  for (const [left, right, properties] of [
+    [
+      '#resetGcodeSettings',
+      '#resetPanelSettings',
+      ['padding', 'border', 'border-radius', 'background-color', 'font-weight'],
+    ],
+    [
+      '#gcodeZoomOut',
+      '#pageZoomOut',
+      ['padding', 'border', 'border-radius', 'background-color', 'font-weight'],
+    ],
+    [
+      '#gcodePreview .preview-inner',
+      '.preview--panel .preview-inner',
+      ['padding', 'border-radius', 'background-color', 'gap'],
+    ],
+    ['#gcodeView', '#shape', ['padding', 'border', 'border-radius', 'background-color']],
+  ] as [string, string, string[]][])
+    expect(await style(left, properties)).toEqual(await style(right, properties));
+  for (const width of [1280, 390, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    const original = await page.locator('[aria-label="Panel Settings"]').boundingBox();
+    const current = await page.locator('#gcodeSettings').boundingBox();
+    expect(current!.x).toBeCloseTo(original!.x);
+    expect(current!.width).toBeCloseTo(original!.width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
+      false,
+    );
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await generate(page);
+  await expect(page.locator('#gcodeZoomLabel')).toHaveText('100%');
+  await page.locator('#gcodeZoomIn').click();
+  await expect(page.locator('#gcodeZoomLabel')).toHaveText('125%');
+  await page.locator('#gcodeZoomReset').click();
+  await expect(page.locator('#gcodeZoomLabel')).toHaveText('100%');
+});
+
 test('preview freshness indicator covers initial, stale, failed and regenerated output in either view', async ({
   page,
 }) => {
@@ -271,6 +320,38 @@ test('accepted optimized layouts feed GCode and pending candidates do not', asyn
   await generate(page);
   expect(await page.locator('#gcodeCode').inputValue()).not.toBe(original);
 });
+
+for (const includeHeader of [false, true])
+  test(`discarded optimization preserves fresh GCode (header details ${includeHeader})`, async ({
+    page,
+  }) => {
+    await page
+      .locator('#nestingStockControls')
+      .evaluate((e: HTMLDetailsElement) => (e.open = true));
+    await page.locator('#nestingStockWidth').fill('300');
+    await page.locator('#nestingStockHeight').fill('300');
+    if (includeHeader) await page.locator('label.switch:has(#gcode-includeSettings)').click();
+    await generate(page);
+    const code = await page.locator('#gcodeCode').inputValue();
+    const cut = await page.locator('.gcode-cut').getAttribute('d');
+    await page.locator('#optimizeLayout').click();
+    await page.locator('#nestingMode').selectOption('fit');
+    await page.locator('#closeNestingDialog').click();
+    await expect(page.locator('#exportGcode')).toBeEnabled();
+    await page.locator('#optimizeLayout').click();
+    await page.locator('#startNesting').click();
+    await expect(page.locator('#applyNesting')).toBeEnabled();
+    await expect(page.locator('#gcodeFreshness')).toBeHidden();
+    await expect(page.locator('#exportGcode')).toBeEnabled();
+    expect(await page.locator('#gcodeCode').inputValue()).toBe(code);
+    await page.locator('#cancelNesting').click();
+    await expect(page.locator('img[data-nesting-preview]')).toHaveCount(0);
+    await expect(page.locator('#gcodeFreshness')).toBeHidden();
+    await expect(page.locator('#exportGcode')).toBeEnabled();
+    expect(await page.locator('#gcodeCode').inputValue()).toBe(code);
+    expect(await page.locator('.gcode-cut').getAttribute('d')).toBe(cut);
+    expect((await downloadText(page, '#exportGcode')).text).toBe(code);
+  });
 
 test('phone layout contains preview, readable controls, and code view without page overflow', async ({
   page,

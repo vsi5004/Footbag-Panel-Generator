@@ -7,7 +7,7 @@
   --accent: #4ea1ff;
 }
 
-.app--gcode { margin: 0 16px 16px; padding: 16px 0; }
+.app--gcode { grid-column: 1 / -1; }
 .app--gcode > * { min-width: 0; }
 .gcode-note { color: var(--muted); font-size: 13px; line-height: 1.5; }
 .gcode-stale { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border: 1px solid #80613b; background: #2a2118; color: #efb15c; border-radius: 6px; padding: 8px 10px; }
@@ -16,10 +16,10 @@
 .gcode-stale button { margin-left: auto; padding: 6px 10px; background: #efb15c; color: #251a0c; }
 #gcodeSettings textarea, #gcodeCode { width: 100%; background: #0f1117; color: var(--text); border: 1px solid #364064; border-radius: 6px; padding: 10px; font: 12px/1.5 monospace; resize: vertical; }
 #gcodeSettings .export-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.gcode-preview-inner { display: flex; flex-direction: column; gap: 10px; }
-.gcode-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.gcode-toolbar select { background: var(--card); color: var(--text); border: 1px solid #364064; padding: 8px; border-radius: 6px; }
-.gcode-toolbar button { background: #2a2f43; color: var(--text); padding: 6px 12px; }
+.preview-inner.gcode-preview-inner { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.gcode-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.preview-toolbar.gcode-toolbar { justify-content: flex-start; }
+.gcode-toolbar select { background: #0f1117; color: var(--text); border: 1px solid #2a2f43; padding: 6px 8px; border-radius: 6px; }
 .gcode-toolbar[hidden], #gcodeViewport[hidden], #gcodeCode[hidden] { display: none; }
 #gcodeViewport { height: 60vh; min-height: 300px; background: #0a0b0f; border-radius: 8px; touch-action: none; cursor: grab; overflow: hidden; }
 #gcodeViewport:active { cursor: grabbing; }
@@ -91,7 +91,8 @@ body {
 
 .control { margin-bottom: 14px; }
 .section-header { 
-  display: flex; 
+  display: flex;
+  gap: 12px;
   justify-content: space-between; 
   align-items: center; 
   margin-bottom: 20px; 
@@ -105,7 +106,9 @@ body {
   font-weight: 600; 
 }
 .reset-button { 
-  display: flex; 
+  display: flex;
+  flex-shrink: 0;
+  white-space: nowrap;
   align-items: center; 
   gap: 6px; 
   background: #2a2f43; 
