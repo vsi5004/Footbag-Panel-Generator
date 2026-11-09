@@ -1348,6 +1348,19 @@ test('readable spacing preserves exact geometry through unrelated edits and impo
   const saved = await settingsDownload(page);
   const model = saved.layout.editable;
   await expect(page.locator('#patternAdvanced')).not.toHaveAttribute('open');
+  const summary = page.locator('#patternAdvanced > summary');
+  await expect(summary).toHaveText('Advanced parameters');
+  const patternBounds = await page.locator('#layoutPattern').boundingBox();
+  const advancedBounds = await page.locator('#patternAdvanced').boundingBox();
+  expect(advancedBounds!.y - (patternBounds!.y + patternBounds!.height)).toBeGreaterThanOrEqual(12);
+  expect(advancedBounds!.x).toBeCloseTo(patternBounds!.x, 0);
+  expect(advancedBounds!.width).toBeCloseTo(patternBounds!.width, 0);
+  await summary.focus();
+  await summary.press('Enter');
+  await expect(page.locator('#layoutAngle')).toBeVisible();
+  await summary.press('Space');
+  await expect(page.locator('#layoutAngle')).toBeHidden();
+
   for (const [id, exact] of [
     ['layoutPitchX', model.pitchX],
     ['layoutPitchY', model.pitchY],
