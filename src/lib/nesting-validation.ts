@@ -2,7 +2,8 @@ import type { Panel, PanelConfig } from '../types';
 import { flattenOutline, checkPlacements, isSimple } from './nesting-geometry';
 import { designKey, CLEARANCE_ALLOWANCE, type NestingPlan } from './nesting-types';
 
-const verified = new WeakMap<NestingPlan, string>();
+// Bounded by actual cut geometry so new stitch configurations reuse clearance.
+const verified = new Map<string, 'outline' | 'clearance' | null>();
 export type PlanProblem = 'design' | 'rotations' | 'outline' | 'clearance';
 export function planProblem(
   plan: NestingPlan,
@@ -24,13 +25,17 @@ export function planProblem(
     )
   )
     return 'rotations';
-  if (verified.get(plan) === key) return undefined;
+  const geometryKey = JSON.stringify([panel.outlinePath, plan.placements, plan.gap]);
+  if (verified.has(geometryKey)) return verified.get(geometryKey) ?? undefined;
   const outline = flattenOutline(panel.outlinePath);
-  if (!isSimple(outline)) return 'outline';
-  if (!checkPlacements(outline, plan.placements, plan.gap + CLEARANCE_ALLOWANCE))
-    return 'clearance';
-  verified.set(plan, key);
-  return undefined;
+  const problem = !isSimple(outline)
+    ? 'outline'
+    : !checkPlacements(outline, plan.placements, plan.gap + CLEARANCE_ALLOWANCE)
+      ? 'clearance'
+      : null;
+  verified.set(geometryKey, problem);
+  if (verified.size > 32) verified.delete(verified.keys().next().value!);
+  return problem ?? undefined;
 }
 
 export function validPlan(

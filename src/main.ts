@@ -1,3 +1,4 @@
+import { designKey } from './lib/nesting-types';
 import { initializeEditableLayout } from './lib/editable-layout';
 import type { Panel, PanelElements, PageElements, PanelConfig } from './types';
 import { normalizeExportScale, syncExportScaleControls } from './lib/export';
@@ -57,6 +58,21 @@ function initializeApp(): void {
   });
   function createLayoutRenderFunction() {
     return (panel: Panel | null, dotSize: number, config?: PanelConfig) => {
+      const active = layoutElements.nesting?.active;
+      const count =
+        Number(layoutElements.pageRows?.value ?? 3) * Number(layoutElements.pageCols?.value ?? 3);
+      // Markings can change without changing the cut outline. Keep legacy
+      // explicit positions, while the renderer still checks their stock bounds.
+      if (
+        active &&
+        panel &&
+        config &&
+        lastPanelConfig &&
+        lastPanel?.outlinePath === panel.outlinePath &&
+        active.source === designKey(lastPanelConfig, lastDotSize, count)
+      ) {
+        layoutElements.nesting!.active = { ...active, source: designKey(config, dotSize, count) };
+      }
       lastPanel = panel;
       lastDotSize = dotSize;
       if (config) lastPanelConfig = config;
@@ -184,12 +200,12 @@ function initializeApp(): void {
 
   function bindLayoutControls(): void {
     const { pageInvert, nestingOffsetRow } = layoutElements;
-    const refreshLayout = () => {
-      if (layoutElements.nesting) layoutElements.nesting.active = undefined;
+    const refreshLayout = (paddingOnly = false) => {
+      if (!paddingOnly && layoutElements.nesting) layoutElements.nesting.active = undefined;
       renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined);
     };
     for (const [range, display] of layoutControlPairs(layoutElements)) {
-      UI.syncPair(range, display, refreshLayout);
+      UI.syncPair(range, display, () => refreshLayout(range === layoutElements.pagePadding));
     }
     initializeEditableLayout(
       layoutElements,

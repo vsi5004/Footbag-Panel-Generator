@@ -18,6 +18,32 @@ async function setStock(page: Page, id: string, value: string) {
   await page.locator(id).fill(value);
 }
 
+async function trackNestingRequests(page: Page) {
+  await expect(page.locator('#clearanceStatus')).toHaveText(
+    /Clearance OK|Overlaps or insufficient gap/,
+  );
+  await page.evaluate(() => {
+    const counts = { search: 0, clearance: 0 };
+    (window as unknown as { nestingRequests: typeof counts }).nestingRequests = counts;
+    const original = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function (
+      this: Worker,
+      message: { placements?: unknown },
+      options?: Transferable[] | StructuredSerializeOptions,
+    ) {
+      if (message.placements) counts.clearance++;
+      else counts.search++;
+      return Reflect.apply(original, this, options === undefined ? [message] : [message, options]);
+    };
+  });
+  return () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { nestingRequests: { search: number; clearance: number } })
+          .nestingRequests,
+    );
+}
+
 async function settingsDownload(page: Page) {
   const pending = page.waitForEvent('download');
   await page.locator('#exportSettings').click();
@@ -1635,4 +1661,117 @@ test('optimization dialog and candidate actions follow a single keyboard-accessi
   await expect(page.locator('#optimizeLayout')).toBeFocused();
   await expect(page.locator('#applyNesting')).toBeHidden();
   await expect(page.locator('img[data-nesting-preview]')).toHaveCount(0);
+});
+
+test('padding resizes candidate and accepted borders without searching again, including stock limits', async ({
+  page,
+}) => {
+  const initial = await settingsDownload(page);
+  await importSettings(page, { ...initial, shape: 4, curved: false });
+  const requests = await trackNestingRequests(page);
+  await setGoal(page, 'fit');
+  await setStock(page, '#nestingStockWidth', '150');
+  await setStock(page, '#nestingStockHeight', '150');
+  await page.evaluate(() => {
+    document.getElementById('optimizeLayout')!.click();
+    document.getElementById('startNesting')!.click();
+    const padding = document.querySelector<HTMLInputElement>('#pagePaddingNumber')!;
+    padding.value = '5';
+    padding.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  const overlay = page.locator('img[data-nesting-preview]');
+  const candidateTransforms = () =>
+    overlay.evaluate((image: HTMLImageElement) => {
+      const svg = new DOMParser().parseFromString(
+        decodeURIComponent(image.src.split(',').slice(1).join(',')),
+        'image/svg+xml',
+      );
+      return [...svg.querySelectorAll('g[transform]')].map((group) =>
+        group.getAttribute('transform'),
+      );
+    });
+  const positions = await candidateTransforms();
+  await page.locator('#pagePaddingNumber').fill('40');
+  await expect(overlay).toHaveCount(1);
+  await expect(page.locator('#applyNesting')).toBeDisabled();
+  await expect(page.locator('#nestingStatus')).toContainText('Exceeds material limits');
+  expect(await candidateTransforms()).toEqual(positions);
+  await page.locator('#pagePaddingNumber').fill('5');
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  expect(await candidateTransforms()).toEqual(positions);
+  expect((await requests()).search).toBe(1);
+  await page.locator('#applyNesting').click();
+  const accepted = await settingsDownload(page);
+  const width = parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!);
+  await page.locator('#pagePaddingNumber').fill('40');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  expect((await settingsDownload(page)).layout.editable).toEqual(accepted.layout.editable);
+  await page.locator('#pagePaddingNumber').fill('10');
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await expect
+    .poll(async () => parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!))
+    .toBeCloseTo(width + 10, 8);
+  expect((await requests()).search).toBe(1);
+});
+
+test('stitch-only edits reuse clearance results and keep the candidate while actual cut changes recheck', async ({
+  page,
+}) => {
+  const requests = await trackNestingRequests(page);
+  const outline = await page.locator('#svgHost path').getAttribute('d');
+  await page.locator('#stitchesNumber').fill('10');
+  await page.locator('#seamNumber').fill('3');
+  await expect(page.locator('#svgHost circle')).toHaveCount(50);
+  await page.waitForTimeout(450);
+  expect((await requests()).clearance).toBe(0);
+  await expect(page.locator('#svgHost path')).toHaveAttribute('d', outline!);
+  await optimizeLayout(page);
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#stitchesNumber').fill('9');
+  await expect(page.locator('#svgHost circle')).toHaveCount(45);
+  await page.waitForTimeout(450);
+  await expect(page.locator('img[data-nesting-preview]')).toHaveCount(1);
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  expect(await requests()).toEqual({ search: 1, clearance: 0 });
+  // Apply in the same task as a stitch edit must refresh marks and keep the proposal.
+  await page.evaluate(() => {
+    const stitches = document.querySelector<HTMLInputElement>('#stitchesNumber')!;
+    stitches.value = '8';
+    stitches.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('applyNesting')!.click();
+  });
+  await expect(page.locator('#layoutMode')).toHaveValue('pattern');
+  await expect(page.locator('#pageSvgHost circle')).toHaveCount(360);
+  await expect(page.locator('#clearanceStatus')).toHaveText('Clearance OK');
+  const count = (await requests()).clearance;
+  await page.locator('#stitchesNumber').fill('11');
+  await expect(page.locator('#pageSvgHost circle')).toHaveCount(495);
+  await page.waitForTimeout(450);
+  expect((await requests()).clearance).toBe(count);
+  await page.locator('#nestingGap').fill('2');
+  await expect.poll(async () => (await requests()).clearance).toBeGreaterThan(count);
+  const afterGap = (await requests()).clearance;
+  await page.locator('#sideNumber').fill('31');
+  await expect.poll(async () => (await requests()).clearance).toBeGreaterThan(afterGap);
+});
+
+test('legacy accepted placements survive padding and stitch changes', async ({ page }) => {
+  const saved = JSON.parse(
+    await readFile(new URL('../fixtures/legacy-nested.json', import.meta.url), 'utf8'),
+  );
+  await importSettings(page, saved);
+  const width = parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!);
+  await page.locator('#pagePaddingNumber').fill('30');
+  await expect
+    .poll(async () => parseFloat((await page.locator('#pageSvgHost svg').getAttribute('width'))!))
+    .toBeCloseTo(width + 40, 8);
+  expect((await settingsDownload(page)).layout.optimized).toEqual(saved.layout.optimized);
+  await page.locator('#stitchesNumber').fill('10');
+  await expect(page.locator('#pageSvgHost circle')).toHaveCount(450);
+  const changed = await settingsDownload(page);
+  expect(changed.layout.optimized.placements).toEqual(saved.layout.optimized.placements);
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  await importSettings(page, changed);
+  expect((await settingsDownload(page)).layout.optimized).toEqual(changed.layout.optimized);
 });

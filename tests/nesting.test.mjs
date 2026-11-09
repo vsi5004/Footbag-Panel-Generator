@@ -339,3 +339,35 @@ test('search cleanup preserves the merged engine output across all shapes, stock
     );
   }
 });
+
+test('clearance reuse across marking changes still rejects changed positions, gaps and outlines', () => {
+  const c = { ...config, nSides: 4 },
+    panel = computePanel(c);
+  const plan = findNesting({
+    panel,
+    count: 4,
+    gap: 1,
+    rotations: 'half',
+    source: designKey(c, 1, 4),
+    padding: 10,
+    dot: 1,
+    currentCols: 2,
+  });
+  assert.ok(validPlan(plan, panel, c, 1, 4));
+  const marked = { ...c, stitchCount: 11, seamOffset: 3 };
+  const markedPanel = computePanel(marked);
+  assert.equal(markedPanel.outlinePath, panel.outlinePath);
+  plan.source = designKey(marked, 1, 4);
+  assert.ok(validPlan(plan, markedPanel, marked, 1, 4));
+  const original = { ...plan.placements[1] };
+  Object.assign(plan.placements[1], plan.placements[0]);
+  assert.equal(validPlan(plan, markedPanel, marked, 1, 4), false);
+  Object.assign(plan.placements[1], original);
+  assert.ok(validPlan(plan, markedPanel, marked, 1, 4));
+  plan.gap = 20;
+  assert.equal(validPlan(plan, markedPanel, marked, 1, 4), false);
+  plan.gap = 1;
+  assert.ok(validPlan(plan, markedPanel, marked, 1, 4));
+  const crossed = { ...markedPanel, outlinePath: 'M 0 0 L 10 10 L 0 10 L 10 0 Z' };
+  assert.equal(validPlan(plan, crossed, marked, 1, 4), false);
+});

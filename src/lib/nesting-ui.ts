@@ -7,6 +7,7 @@ import { applyEditableLayout, editablePlan, patternFields } from './editable-lay
 import type { Panel, PanelConfig, PageElements, LayoutElements } from '../types';
 import { manualPlacements, measureLayoutSvg, type LayoutSvgOptions } from './layout';
 import { normalizeExportScale } from './export';
+import { fitsStock } from './stock-nesting';
 import { designKey, measurePlaced, type NestingPlan } from './nesting-types';
 
 export function initializeNesting(
@@ -25,6 +26,11 @@ export function initializeNesting(
   const status = element('nestingStatus');
   const clearanceStatus = element('clearanceStatus');
   let worker: Worker | undefined, candidate: NestingPlan | undefined;
+  let searchBaselineKey = '';
+  let clearanceKey = '',
+    checkedKey = '';
+  let checkedResult: { safe?: boolean; error?: string } | undefined;
+  let markingTimer: ReturnType<typeof setTimeout> | undefined;
   let searchGeneration = 0,
     clearanceGeneration = 0;
   let clearanceWorker: Worker | undefined,
@@ -47,12 +53,14 @@ export function initializeNesting(
     clearanceWorker?.terminate();
     clearanceWorker = undefined;
     clearanceGeneration++;
+    clearanceKey = '';
   };
   const stopSearch = () => {
     searchGeneration++;
     worker?.terminate();
     worker = undefined;
     candidate = undefined;
+    searchBaselineKey = '';
     if (page.svgHost) clearNestingOverlay(page.svgHost);
     phase('idle');
   };
@@ -76,33 +84,75 @@ export function initializeNesting(
     };
   };
 
-  // Advisory checks run off-thread after edits settle. Pattern SVG exports keep
-  // the synchronous safety guard in the renderer and download flush.
+  const currentSearchKey = () => {
+    const current = getPanel(),
+      opts = options();
+    return JSON.stringify([
+      current.panel?.outlinePath,
+      opts.optimized?.placements ?? (current.panel ? manualPlacements(current.panel, opts) : []),
+      readConstraints(layout),
+      normalizeExportScale(layout.exportScale?.value),
+    ]);
+  };
+  const displayClearance = (result: { safe?: boolean; error?: string }) => {
+    const { panel } = getPanel();
+    if (!panel || validateConstraints(layout, 'free', false).length || layout.editable?.error) {
+      clearanceStatus.textContent = 'Check highlighted settings';
+      return;
+    }
+    const opts = options(),
+      constraints = readConstraints(layout);
+    const size = measureLayoutSvg(panel, opts),
+      scale = normalizeExportScale(layout.exportScale?.value) / 100;
+    const outside =
+      constraints.stock &&
+      (size.width * scale > constraints.stock.width + 1e-8 ||
+        (constraints.stock.height !== undefined &&
+          size.height * scale > constraints.stock.height + 1e-8));
+    clearanceStatus.textContent = result.error
+      ? 'Clearance check unavailable'
+      : (result.safe ? 'Clearance OK' : 'Overlaps or insufficient gap') +
+        (outside ? ' · Outside material limits' : '');
+    clearanceStatus.classList.toggle('warning', !result.safe || !!outside);
+  };
+  // Compare the actual cut geometry after edits settle. Markings, padding and
+  // export scale can change drawing bounds without changing collision geometry.
+  const clearanceRequest = () => {
+    const current = getPanel(),
+      opts = options();
+    const placements =
+      opts.optimized?.placements ?? (current.panel ? manualPlacements(current.panel, opts) : []);
+    const gap = Number(layout.nestingGap?.value ?? 1);
+    return {
+      panel: current.panel,
+      placements,
+      gap,
+      key: JSON.stringify([current.panel?.outlinePath, placements, gap]),
+    };
+  };
   const scheduleClearance = () => {
-    stopClearance();
+    clearTimeout(clearanceTimer);
     if (worker || candidate) return;
-    clearanceStatus.textContent = 'Checking clearance…';
-    clearanceStatus.classList.remove('warning');
-    const generation = clearanceGeneration;
     clearanceTimer = setTimeout(() => {
       flush();
-      const { panel, config } = getPanel();
-      if (!panel || !config) return;
-      const constraintErrors = validateConstraints(layout, 'free', false);
-      if (constraintErrors.length) validateConstraints(layout);
-      if (constraintErrors.length || layout.editable?.error) {
+      const errors = validateConstraints(layout, 'free', false);
+      if (errors.length) validateConstraints(layout);
+      if (errors.length || layout.editable?.error) {
         clearanceStatus.textContent = 'Check highlighted settings';
         return;
       }
-      const opts = options(),
-        constraints = readConstraints(layout);
-      const size = measureLayoutSvg(panel, opts),
-        scale = normalizeExportScale(layout.exportScale?.value) / 100;
-      const outside =
-        constraints.stock &&
-        (size.width * scale > constraints.stock.width + 1e-8 ||
-          (constraints.stock.height !== undefined &&
-            size.height * scale > constraints.stock.height + 1e-8));
+      const request = clearanceRequest();
+      if (!request.panel) return;
+      if (request.key === checkedKey && checkedResult) {
+        displayClearance(checkedResult);
+        return;
+      }
+      if (request.key === clearanceKey && clearanceWorker) return;
+      stopClearance();
+      clearanceKey = request.key;
+      const generation = clearanceGeneration;
+      clearanceStatus.textContent = 'Checking clearance…';
+      clearanceStatus.classList.remove('warning');
       const fail = () => {
         if (generation !== clearanceGeneration) return;
         clearanceWorker?.terminate();
@@ -121,21 +171,59 @@ export function initializeNesting(
           if (generation !== clearanceGeneration) return;
           clearanceWorker?.terminate();
           clearanceWorker = undefined;
-          clearanceStatus.textContent = event.data.error
-            ? 'Clearance check unavailable'
-            : (event.data.safe ? 'Clearance OK' : 'Overlaps or insufficient gap') +
-              (outside ? ' · Outside material limits' : '');
-          clearanceStatus.classList.toggle('warning', !event.data.safe || !!outside);
+          flush();
+          if (clearanceRequest().key !== request.key) {
+            scheduleClearance();
+            return;
+          }
+          checkedKey = request.key;
+          checkedResult = event.data;
+          displayClearance(event.data);
         };
         clearanceWorker.postMessage({
-          panel,
-          gap: constraints.gap,
-          placements: opts.optimized?.placements ?? manualPlacements(panel, opts),
+          panel: request.panel,
+          gap: request.gap,
+          placements: request.placements,
         });
       } catch {
         fail();
       }
     }, 200);
+  };
+  const updateCandidate = (): boolean => {
+    if (!candidate) return false;
+    if (page.svgHost) clearNestingOverlay(page.svgHost);
+    flush();
+    const { panel, config, dot } = getPanel(),
+      opts = options();
+    if (!panel || !config || currentSearchKey() !== searchBaselineKey) {
+      stopSearch();
+      announce('Settings changed. Optimize again.');
+      scheduleClearance();
+      return false;
+    }
+    candidate = {
+      ...candidate,
+      source: designKey(config, dot, layout.editable?.current?.count ?? opts.rows * opts.cols),
+    };
+    if (page.svgHost) showNestingOverlay(page.svgHost, panel, candidate, dot, opts.padding ?? 10);
+    const size = measurePlaced(panel, candidate.placements, dot, opts.padding ?? 10);
+    const current = measureLayoutSvg(panel, opts);
+    const percent = (1 - (size.width * size.height) / (current.width * current.height)) * 100;
+    const comparison =
+      Number.isFinite(percent) && current.width > 0 && current.height > 0
+        ? ` · ${Math.abs(percent).toFixed(1)}% ${percent >= 0 ? 'less' : 'more'} sheet area`
+        : '';
+    const scalePercent = normalizeExportScale(layout.exportScale?.value),
+      scale = scalePercent / 100;
+    const fits = fitsStock(panel, candidate, dot, opts.padding ?? 10, scalePercent);
+    apply.disabled = !fits;
+    announce(
+      `${candidate.placements.length} panels · ${(size.width * scale).toFixed(1)} × ${(size.height * scale).toFixed(1)} mm at ${scalePercent}%${comparison}` +
+        (candidate.stock?.mode === 'capacity' ? ' · Best found, up to 144' : '') +
+        (fits ? '' : ' · Exceeds material limits; reduce padding or adjust limits'),
+    );
+    return fits;
   };
 
   const searchSummary = () => {
@@ -189,8 +277,8 @@ export function initializeNesting(
     const count = layout.editable?.current?.count ?? opts.rows * opts.cols;
     const source = designKey(config, dot, count),
       generation = searchGeneration;
-    const current = measureLayoutSvg(panel, opts),
-      scalePercent = normalizeExportScale(layout.exportScale?.value);
+    const scalePercent = normalizeExportScale(layout.exportScale?.value);
+    searchBaselineKey = currentSearchKey();
     phase('searching');
     cancel.focus();
     announce('Searching…');
@@ -219,22 +307,10 @@ export function initializeNesting(
           return;
         }
         candidate = event.data.plan;
-        if (page.svgHost)
-          showNestingOverlay(page.svgHost, panel, candidate, dot, opts.padding ?? 10);
         const focusResult = document.activeElement === cancel;
         phase('candidate');
-        if (focusResult) apply.focus();
-        const size = measurePlaced(panel, candidate.placements, dot, opts.padding ?? 10);
-        const percent = (1 - (size.width * size.height) / (current.width * current.height)) * 100;
-        const comparison =
-          Number.isFinite(percent) && current.width > 0 && current.height > 0
-            ? ` · ${Math.abs(percent).toFixed(1)}% ${percent >= 0 ? 'less' : 'more'} sheet area`
-            : '';
-        const scale = scalePercent / 100;
-        announce(
-          `${candidate.placements.length} panels · ${(size.width * scale).toFixed(1)} × ${(size.height * scale).toFixed(1)} mm at ${scalePercent}%${comparison}` +
-            (candidate.stock?.mode === 'capacity' ? ' · Best found, up to 144' : ''),
-        );
+        updateCandidate();
+        if (focusResult && !apply.disabled) apply.focus();
       };
       worker.postMessage({
         panel,
@@ -253,6 +329,7 @@ export function initializeNesting(
   });
 
   apply.addEventListener('click', () => {
+    if (!updateCandidate()) return;
     flush();
     const current = getPanel(),
       opts = options();
@@ -295,6 +372,7 @@ export function initializeNesting(
     optimize.focus();
   });
   const changed = () => {
+    clearTimeout(markingTimer);
     const pending = !!worker || !!candidate;
     stopSearch();
     announce(pending ? 'Settings changed. Optimize again.' : '');
@@ -302,12 +380,47 @@ export function initializeNesting(
   };
   for (const event of ['input', 'change'])
     document.addEventListener(event, (e) => {
+      const id = (e.target as HTMLElement)?.id ?? '';
       if (
-        ['zoom', 'pageZoom', 'showGrid', 'pageShowGrid', 'nestingMode', 'importFile'].includes(
-          (e.target as HTMLElement)?.id,
-        )
+        ['zoom', 'pageZoom', 'showGrid', 'pageShowGrid', 'nestingMode', 'importFile'].includes(id)
       )
         return;
+      if (['pagePadding', 'pagePaddingNumber'].includes(id)) {
+        if (candidate) updateCandidate();
+        else {
+          flush();
+          if (!worker) {
+            if (checkedResult && checkedKey === clearanceRequest().key)
+              displayClearance(checkedResult);
+            else scheduleClearance();
+          }
+        }
+        return;
+      }
+      const name = id.replace(/Number$/, '');
+      if (
+        [
+          'stitches',
+          'seam',
+          'holeSpacing',
+          'holeBunching',
+          'cornerMargin',
+          'cornerStitchSpacing',
+          'cornerStitchDistance',
+          'starRootOffset',
+          'showHoles',
+          'dotSize',
+        ].includes(name)
+      ) {
+        clearTimeout(markingTimer);
+        markingTimer = setTimeout(() => {
+          flush();
+          if (candidate) updateCandidate();
+          else if (worker && currentSearchKey() !== searchBaselineKey) changed();
+          else if (!worker) scheduleClearance();
+        }, 100);
+        return;
+      }
       changed();
     });
   for (const id of ['resetPanelSettings', 'resetLayoutSettings'])
