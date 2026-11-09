@@ -231,6 +231,7 @@ test('settings JSON round trips, old files reset defaults, invalid GCode imports
   document.getElementById('gcode-startCode').value = 'G21\nG90\nM4 S0\n; Custom header';
   document.getElementById('gcode-cutOrder').value = 'panel-by-panel';
   document.getElementById('gcode-powerMax').value = '1';
+  document.getElementById('gcode-origin').value = 'center';
   const saved = JSON.parse(JSON.stringify(state.collect(el, layout)));
   const schema = JSON.parse(
     readFileSync(new URL('../schema/settings.schema.json', import.meta.url), 'utf8'),
@@ -239,15 +240,85 @@ test('settings JSON round trips, old files reset defaults, invalid GCode imports
   applyGcodeSettings();
   state.apply(el, JSON.parse(JSON.stringify(saved)), layout);
   assert.deepEqual(state.collect(el, layout).gcode, saved.gcode);
+  const withoutOrigin = JSON.parse(JSON.stringify(saved));
+  delete withoutOrigin.gcode.origin;
+  state.apply(el, withoutOrigin, layout);
+  assert.equal(state.collect(el, layout).gcode.origin, 'lower-left');
+  state.apply(el, saved, layout);
   const before = state.collect(el, layout);
   assert.throws(
     () => state.apply(el, { ...saved, side: 60, gcode: { ...saved.gcode, cutSpeed: -1 } }, layout),
     /cutSpeed/,
   );
   assert.deepEqual(state.collect(el, layout), before);
+  assert.throws(
+    () => state.apply(el, { ...saved, gcode: { ...saved.gcode, origin: 'invalid' } }, layout),
+    /origin/,
+  );
+  assert.deepEqual(state.collect(el, layout), before);
   delete saved.gcode;
   state.apply(el, saved, layout);
   assert.deepEqual(state.collect(el, layout).gcode, GCODE_DEFAULTS);
+});
+
+test('five origins translate every cut without mirroring or changing physical geometry', () => {
+  const panel = computePanel({ ...config, nSides: 6, curvedEdges: true });
+  for (const options of [
+    opts,
+    {
+      ...opts,
+      optimized: {
+        placements: [
+          { x: 70, y: 50, angle: 90, flipY: true },
+          { x: 160, y: 60, angle: 180 },
+        ],
+      },
+    },
+  ]) {
+    const original = generateGcode(panel, options, 125, GCODE_DEFAULTS);
+    const signature = (paths, dx = 0, dy = 0) =>
+      paths
+        .flatMap((p) =>
+          p.points.map((q) => ({ key: `${p.panel}:${p.kind}`, x: q.x + dx, y: q.y + dy })),
+        )
+        .sort(
+          (a, b) =>
+            a.key.localeCompare(b.key) || (Math.abs(a.x - b.x) > 1e-8 ? a.x - b.x : a.y - b.y),
+        );
+    for (const origin of ['lower-left', 'lower-right', 'upper-left', 'upper-right', 'center']) {
+      const result = generateGcode(panel, options, 125, { ...GCODE_DEFAULTS, origin });
+      const offset = {
+        x:
+          origin === 'center'
+            ? (original.extent.minX + original.extent.maxX) / 2
+            : origin.endsWith('right')
+              ? original.sheet.width
+              : 0,
+        y:
+          origin === 'center'
+            ? (original.extent.minY + original.extent.maxY) / 2
+            : origin.startsWith('upper')
+              ? original.sheet.height
+              : 0,
+      };
+      const actual = signature(result.paths, offset.x, offset.y),
+        expected = signature(original.paths);
+      assert.equal(actual.length, expected.length);
+      actual.forEach((p, i) => {
+        assert.equal(p.key, expected[i].key);
+        assert.ok(Math.hypot(p.x - expected[i].x, p.y - expected[i].y) < 1e-8);
+      });
+      assert.ok(Math.abs(result.sheet.minX + offset.x) < 1e-8);
+      assert.ok(Math.abs(result.sheet.minY + offset.y) < 1e-8);
+      assert.match(result.code, new RegExp(`; Origin: ${origin}`));
+      assert.ok(result.code.includes(GCODE_DEFAULTS.startCode));
+      assert.ok(result.code.includes(GCODE_DEFAULTS.endCode));
+      if (origin === 'center') {
+        assert.ok(Math.abs(result.extent.minX + result.extent.maxX) < 1e-8);
+        assert.ok(Math.abs(result.extent.minY + result.extent.maxY) < 1e-8);
+      }
+    }
+  }
 });
 
 test('preview reads modal power and travel, custom linear moves, units and program end from actual text', () => {

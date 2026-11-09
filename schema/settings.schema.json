@@ -528,6 +528,15 @@
             "panel-by-panel",
             "optimized"
           ]
+        },
+        "origin": {
+          "enum": [
+            "lower-left",
+            "lower-right",
+            "upper-left",
+            "upper-right",
+            "center"
+          ]
         }
       },
       "additionalProperties": false

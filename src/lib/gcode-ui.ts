@@ -122,11 +122,11 @@ export function initializeGcode(page: PageElements, flush: () => void, revalidat
       const ns = 'http://www.w3.org/2000/svg';
       svg = document.createElementNS(ns, 'svg');
       svg.setAttribute('role', 'img');
-      svg.setAttribute('aria-label', 'Laser cutting and travel toolpaths, origin at lower-left');
-      let x0 = 0,
-        y0 = 0,
-        x1 = result.sheet.width,
-        y1 = result.sheet.height;
+      svg.setAttribute('aria-label', 'Laser cutting and travel toolpaths, origin marked at X0 Y0');
+      let x0 = Math.min(0, result.sheet.minX),
+        y0 = Math.min(0, result.sheet.minY),
+        x1 = Math.max(0, result.sheet.minX + result.sheet.width),
+        y1 = Math.max(0, result.sheet.minY + result.sheet.height);
       for (const move of preview.moves)
         for (const p of [move.from, move.to]) {
           x0 = Math.min(x0, p.x);
@@ -140,8 +140,8 @@ export function initializeGcode(page: PageElements, flush: () => void, revalidat
       setBox();
       const sheet = document.createElementNS(ns, 'rect');
       for (const [key, value] of Object.entries({
-        x: 0,
-        y: -result.sheet.height,
+        x: result.sheet.minX,
+        y: -(result.sheet.minY + result.sheet.height),
         width: result.sheet.width,
         height: result.sheet.height,
       }))
@@ -167,6 +167,13 @@ export function initializeGcode(page: PageElements, flush: () => void, revalidat
         }
         svg.append(path);
       }
+      const origin = document.createElementNS(ns, 'path');
+      origin.setAttribute('d', 'M-2 0H2M0 -2V2');
+      origin.setAttribute('class', 'gcode-origin');
+      const title = document.createElementNS(ns, 'title');
+      title.textContent = 'Origin (X0 Y0)';
+      origin.append(title);
+      svg.append(origin);
       host.replaceChildren(svg);
       stats.textContent = `${result.sheet.width.toFixed(2)} × ${result.sheet.height.toFixed(2)} mm · ${result.paths.length} cuts · Cut: ${preview.cutDistance.toFixed(1)} mm · Travel: ${preview.travelDistance.toFixed(1)} mm`;
       status.textContent = preview.warnings.length

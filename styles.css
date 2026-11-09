@@ -28,6 +28,8 @@
 .gcode-travel { stroke: #efb15c; stroke-dasharray: 3 3; opacity: .65; }
 .gcode-cut-key { color: #56dec0; }
 .gcode-travel-key { color: #efb15c; }
+.gcode-origin { fill: none; stroke: #fb87c6; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.gcode-origin-key { color: #fb87c6; }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }

@@ -553,7 +553,8 @@
     <main class="app app--gcode">
       <section id="gcodeSettings" class="controls" aria-label="GCode Settings">
         <div class="section-header"><h3>Lasercutter GCode Generation</h3><button id="resetGcodeSettings" type="button" class="reset-button">Reset</button></div>
-        <p class="gcode-note">Uses the current lasercutter layout and shared export scale. Origin is the lower-left corner of the sheet (X right, Y up).</p>
+        <p class="gcode-note">Uses the current lasercutter layout and shared export scale. Coordinates run X right, Y up.</p>
+        <div class="control"><label for="gcode-origin">GCode origin (X0 Y0)</label><select id="gcode-origin"><option value="lower-left">Lower-left corner</option><option value="lower-right">Lower-right corner</option><option value="upper-left">Upper-left corner</option><option value="upper-right">Upper-right corner</option><option value="center">Center of design</option></select><small>Corners reference the layout sheet, including padding. Center uses the bounding box of all cut paths. Right, upper and center origins produce negative coordinates. Custom start/end GCode stays unchanged.</small></div>
         <div class="control"><label for="gcode-cutPower">Cut power (%)</label><input id="gcode-cutPower" type="number" min="0" max="100" step="any" value="100" /></div>
         <div class="control"><label for="gcode-cutSpeed">Cut speed (mm/min)</label><input id="gcode-cutSpeed" type="number" min="1" max="100000" step="any" value="1000" /></div>
         <div class="control"><label for="gcode-kerf">Laser kerf width (mm)</label><input id="gcode-kerf" type="number" min="0" max="10" step="any" value="0.1" /><small>Full width removed. Panel outlines offset outward by half; holes inward by half. Kerf stays in actual mm at every export scale.</small></div>
@@ -576,7 +577,7 @@ M2          ; End</textarea></div>
         <div class="gcode-preview-inner">
           <div class="gcode-toolbar"><label for="gcodeView">Preview</label><select id="gcodeView"><option value="toolpath">Cut / move lines</option><option value="code">GCode</option></select></div>
           <p id="gcodeStats" class="gcode-note"></p>
-          <div id="gcodeToolpathControls" class="gcode-toolbar"><button id="gcodeZoomOut" type="button" aria-label="Zoom out toolpath">−</button><button id="gcodeZoomIn" type="button" aria-label="Zoom in toolpath">+</button><button id="gcodeZoomReset" type="button">Fit</button><label><input id="gcodeShowTravel" type="checkbox" checked /> Show travel</label><span class="gcode-cut-key">━ Cut</span><span class="gcode-travel-key">┄ Travel</span></div>
+          <div id="gcodeToolpathControls" class="gcode-toolbar"><button id="gcodeZoomOut" type="button" aria-label="Zoom out toolpath">−</button><button id="gcodeZoomIn" type="button" aria-label="Zoom in toolpath">+</button><button id="gcodeZoomReset" type="button">Fit</button><label><input id="gcodeShowTravel" type="checkbox" checked /> Show travel</label><span class="gcode-cut-key">━ Cut</span><span class="gcode-travel-key">┄ Travel</span><span class="gcode-origin-key">+ Origin</span></div>
           <div id="gcodeViewport" tabindex="0" aria-label="Toolpath; drag to pan, scroll to zoom"></div>
           <textarea id="gcodeCode" aria-label="Generated GCode" readonly spellcheck="false" hidden></textarea>
           <p class="gcode-note">Drag to pan; scroll or use buttons to zoom. Code view shows the exact exported file.</p>

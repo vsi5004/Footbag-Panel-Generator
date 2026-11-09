@@ -79,11 +79,13 @@ test('settings persist machine code and cut order, while older imports restore d
   await page.locator('#gcode-powerMax').fill('1');
   await page.locator('#gcode-cutPower').fill('25');
   await page.locator('#gcode-cutOrder').selectOption('panel-by-panel');
+  await page.locator('#gcode-origin').selectOption('center');
   await generate(page);
   expect(await page.locator('#gcodeCode').inputValue()).toContain('S0.25 F1000');
   const { text } = await downloadText(page, '#exportSettings');
   const saved = JSON.parse(text);
   expect(saved.gcode.cutOrder).toBe('panel-by-panel');
+  expect(saved.gcode.origin).toBe('center');
   expect(saved.gcode.startCode).toContain('my laser');
   await page.locator('#resetGcodeSettings').click();
   await page.locator('#importFile').setInputFiles({
@@ -92,6 +94,15 @@ test('settings persist machine code and cut order, while older imports restore d
     buffer: Buffer.from(text),
   });
   await expect(page.locator('#gcode-powerMax')).toHaveValue('1');
+  await expect(page.locator('#gcode-origin')).toHaveValue('center');
+  const olderMachine = JSON.parse(text);
+  delete olderMachine.gcode.origin;
+  await page.locator('#importFile').setInputFiles({
+    name: 'older-machine.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(olderMachine)),
+  });
+  await expect(page.locator('#gcode-origin')).toHaveValue('lower-left');
   delete saved.gcode;
   await page.locator('#importFile').setInputFiles({
     name: 'old.json',
@@ -100,6 +111,38 @@ test('settings persist machine code and cut order, while older imports restore d
   });
   await expect(page.locator('#gcode-powerMax')).toHaveValue('1000');
   await expect(page.locator('#gcode-cutOrder')).toHaveValue('all-stitches-first');
+});
+
+test('each origin shifts GCode and preview sheet together and exports matching coordinates', async ({
+  page,
+}) => {
+  await generate(page);
+  for (const origin of ['upper-right', 'upper-left', 'lower-right', 'center', 'lower-left']) {
+    await page.locator('#gcode-origin').selectOption(origin);
+    await expect(page.locator('#exportGcode')).toBeDisabled();
+    await generate(page);
+    const code = await page.locator('#gcodeCode').inputValue();
+    expect(code).toContain(`; Origin: ${origin}`);
+    const sheet = page.locator('.gcode-sheet');
+    const x = Number(await sheet.getAttribute('x')),
+      y = Number(await sheet.getAttribute('y'));
+    const width = Number(await sheet.getAttribute('width')),
+      height = Number(await sheet.getAttribute('height'));
+    expect(x).toBeLessThanOrEqual(0);
+    expect(y).toBeLessThanOrEqual(0);
+    expect(x + width).toBeGreaterThanOrEqual(-0.000001);
+    expect(y + height).toBeGreaterThanOrEqual(-0.000001);
+    if (origin === 'upper-right') {
+      expect(x).toBeCloseTo(-width);
+      expect(y).toBeCloseTo(0);
+    }
+    if (origin === 'lower-left') {
+      expect(x).toBeCloseTo(0);
+      expect(y).toBeCloseTo(-height);
+    }
+    await expect(page.locator('.gcode-origin')).toHaveCount(1);
+    expect((await downloadText(page, '#exportGcode')).text).toBe(code);
+  }
 });
 
 test('all cut orders, scaled hole outlines and kerf errors are handled', async ({ page }) => {

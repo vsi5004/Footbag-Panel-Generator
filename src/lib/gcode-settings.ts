@@ -8,6 +8,7 @@ export interface GcodeSettings {
   segmentLength: number;
   stitchMode: 'slit' | 'outline';
   cutOrder: 'all-stitches-first' | 'panel-by-panel' | 'optimized';
+  origin: 'lower-left' | 'lower-right' | 'upper-left' | 'upper-right' | 'center';
 }
 
 export const GCODE_DEFAULTS: GcodeSettings = {
@@ -21,6 +22,7 @@ export const GCODE_DEFAULTS: GcodeSettings = {
   segmentLength: 0.2,
   stitchMode: 'slit',
   cutOrder: 'all-stitches-first',
+  origin: 'lower-left',
 };
 
 export const GCODE_LIMITS = {
@@ -38,6 +40,8 @@ export function readGcodeSettings(value: unknown): GcodeSettings {
     throw new Error('Invalid GCode settings');
   const raw = value as Record<string, unknown>;
   const result = { ...GCODE_DEFAULTS, ...raw } as GcodeSettings;
+  if (!['lower-left', 'lower-right', 'upper-left', 'upper-right', 'center'].includes(result.origin))
+    throw new Error('Invalid GCode origin');
   for (const [key, [min, max]] of Object.entries(GCODE_LIMITS)) {
     const v = result[key as keyof typeof GCODE_LIMITS];
     if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max)

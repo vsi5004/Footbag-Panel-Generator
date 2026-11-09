@@ -179,7 +179,7 @@ export function generateGcode(
   const paths: CutPath[] = [];
   for (let i = 0; i < placements.length; i++) {
     const at = { ...placements[i], x: placements[i].x * scale, y: placements[i].y * scale };
-    // SVG is Y-down; machine origin is the lower-left corner of the physical sheet.
+    // First build in lower-left sheet coordinates for physical bounds checks.
     const place = (p: Point) => {
       const q = transform(p, at);
       return { x: q.x - minX * scale, y: (minY + size.height) * scale - q.y };
@@ -218,12 +218,32 @@ export function generateGcode(
       )
         throw new Error('Kerf-compensated cuts exceed the sheet. Increase layout padding.');
     }
+  const design = bounds(paths.flatMap((p) => p.points));
+  const origin = {
+    x:
+      settings.origin === 'center'
+        ? (design.minX + design.maxX) / 2
+        : settings.origin.endsWith('right')
+          ? size.width * scale
+          : 0,
+    y:
+      settings.origin === 'center'
+        ? (design.minY + design.maxY) / 2
+        : settings.origin.startsWith('upper')
+          ? size.height * scale
+          : 0,
+  };
+  for (const path of paths)
+    for (const p of path.points) {
+      p.x -= origin.x;
+      p.y -= origin.y;
+    }
   const ordered = orderCuts(paths, settings.cutOrder),
     power = (settings.powerMax * settings.cutPower) / 100;
   const lines = [
     '; Footbag Panel Generator',
     `; Sheet ${gcodeNumber(size.width * scale)} x ${gcodeNumber(size.height * scale)} mm; scale ${scalePercent}%`,
-    '; Origin: lower-left of sheet; X right, Y up',
+    `; Origin: ${settings.origin}${settings.origin === 'center' ? ' of cut design' : ' of sheet'}; X right, Y up`,
     settings.startCode.trim(),
     '; Generated cuts (mm, absolute, feed per minute, dynamic laser)',
     'G21',
@@ -248,7 +268,12 @@ export function generateGcode(
   return {
     code: lines.filter(Boolean).join('\n') + '\n',
     paths: ordered,
-    sheet: { width: size.width * scale, height: size.height * scale },
+    sheet: {
+      width: size.width * scale,
+      height: size.height * scale,
+      minX: -origin.x,
+      minY: -origin.y,
+    },
     extent: bounds(paths.flatMap((p) => p.points)),
   };
 }
