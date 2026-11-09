@@ -17,6 +17,63 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
 });
 
+test('preview freshness indicator covers initial, stale, failed and regenerated output in either view', async ({
+  page,
+}) => {
+  const indicator = page.locator('#gcodeFreshness');
+  await expect(indicator).toBeVisible();
+  await expect(indicator).toContainText('Needs generation');
+  await page.locator('#gcodeRegenerate').click();
+  await expect(page.locator('#exportGcode')).toBeEnabled();
+  await expect(indicator).toBeHidden();
+  await page.locator('#gcode-cutPower').fill('45');
+  await expect(indicator).toBeVisible();
+  await expect(indicator).toContainText('Stale - needs regeneration');
+  await expect(page.locator('#exportGcode')).toBeDisabled();
+  await page.locator('#gcodeView').selectOption('code');
+  await expect(indicator).toBeVisible();
+  await page.locator('#gcodeRegenerate').click();
+  await expect(indicator).toBeHidden();
+  expect(await page.locator('#gcodeCode').inputValue()).toContain('S450 F1000');
+  await page.locator('#gcode-kerf').fill('3');
+  await page.locator('#gcodeRegenerate').click();
+  await expect(indicator).toContainText('Generation failed');
+  await page.locator('#gcode-kerf').fill('0.1');
+  await page.locator('#gcodeRegenerate').click();
+  await expect(indicator).toBeHidden();
+  await page.locator('#gcode-origin').selectOption('center');
+  await page.locator('#gcodeView').selectOption('toolpath');
+  await page.locator('#gcodePreview').screenshot({ path: '../gcode-stale.png' });
+});
+
+test('GCode field help uses shared tooltips and supports keyboard and phone tap dismissal', async ({
+  page,
+}) => {
+  await expect(page.locator('#gcodeSettings small')).toHaveCount(0);
+  await page.locator('#gcodeSettings details').evaluate((e: HTMLDetailsElement) => (e.open = true));
+  const icons = page.locator('#gcodeSettings .tooltip-icon');
+  await expect(icons).toHaveCount(11);
+  for (const icon of await icons.all()) {
+    const id = await icon.getAttribute('aria-describedby');
+    const tip = page.locator(`#${id}`);
+    await expect(tip).toHaveAttribute('role', 'tooltip');
+    await icon.focus();
+    await expect(tip).toBeVisible();
+    await icon.press('Escape');
+    await expect(tip).toBeHidden();
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  const icon = page.getByRole('button', { name: 'About Laser kerf width (mm)', exact: true });
+  const tip = page.locator('#gcode-kerf-help');
+  await icon.click();
+  await expect(tip).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await expect(tip).toHaveCSS('opacity', '1');
+  await page.screenshot({ path: '../gcode-tooltip-phone.png' });
+  await page.locator('#gcode-origin').click();
+  await expect(tip).toBeHidden();
+});
+
 test('GCode toolpath, code toggle and download agree; view controls preserve export', async ({
   page,
 }) => {

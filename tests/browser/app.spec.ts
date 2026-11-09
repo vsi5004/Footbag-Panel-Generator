@@ -606,7 +606,7 @@ test('every help icon is an accessible button and supports keyboard dismissal', 
   page,
 }) => {
   const icons = page.locator('.tooltip-icon');
-  expect(await icons.count()).toBe(23);
+  expect(await icons.count()).toBe(34);
   for (const icon of await icons.all()) {
     await expect(icon).toHaveAttribute('type', 'button');
     await expect(icon).toHaveAttribute('aria-label', /^About .+/);

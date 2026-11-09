@@ -9,8 +9,11 @@
 
 .app--gcode { margin: 0 16px 16px; padding: 16px 0; }
 .app--gcode > * { min-width: 0; }
-.gcode-note, #gcodeSettings small { color: var(--muted); font-size: 13px; line-height: 1.5; }
-#gcodeSettings small { display: block; margin-top: 6px; }
+.gcode-note { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.gcode-stale { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border: 1px solid #80613b; background: #2a2118; color: #efb15c; border-radius: 6px; padding: 8px 10px; }
+.gcode-stale[hidden] { display: none; }
+.gcode-stale svg { flex-shrink: 0; }
+.gcode-stale button { margin-left: auto; padding: 6px 10px; background: #efb15c; color: #251a0c; }
 #gcodeSettings textarea, #gcodeCode { width: 100%; background: #0f1117; color: var(--text); border: 1px solid #364064; border-radius: 6px; padding: 10px; font: 12px/1.5 monospace; resize: vertical; }
 #gcodeSettings .export-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .gcode-preview-inner { display: flex; flex-direction: column; gap: 10px; }

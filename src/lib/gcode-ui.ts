@@ -21,6 +21,9 @@ export function initializeGcode(
     host = byId<HTMLDivElement>('gcodeViewport');
   const view = byId<HTMLSelectElement>('gcodeView'),
     travel = byId<HTMLInputElement>('gcodeShowTravel');
+  const freshness = byId<HTMLDivElement>('gcodeFreshness');
+  const freshnessText = byId<HTMLSpanElement>('gcodeFreshnessText');
+  const regenerate = byId<HTMLButtonElement>('gcodeRegenerate');
   if (!generate || !page.svgHost) return;
   applyGcodeSettings();
   let result: ReturnType<typeof generateGcode> | undefined;
@@ -29,13 +32,18 @@ export function initializeGcode(
     box = original.slice();
   const observer = new MutationObserver(() => invalidate());
   observer.observe(page.svgHost, { subtree: true, childList: true, attributes: true });
+  regenerate.addEventListener('click', () => generate.click());
   function invalidate() {
     if (!result) return;
     result = undefined;
     download.disabled = true;
     code.value = '';
     host.replaceChildren();
+    svg = undefined;
     stats.textContent = '';
+    freshness.hidden = false;
+    freshnessText.textContent = 'Stale - needs regeneration';
+    regenerate.textContent = 'Regenerate';
     status.textContent =
       'Layout or settings changed. Generate GCode to update the preview and export.';
   }
@@ -187,9 +195,13 @@ export function initializeGcode(
         ? `Generated. Custom commands not simulated: ${preview.warnings.join(', ')}. Verify these on your machine; displayed distances exclude unsupported motion.`
         : 'Ready to export. Toolpath includes start/end linear moves; initial position assumed X0 Y0.';
       download.disabled = false;
+      freshness.hidden = true;
     } catch (error) {
       result = undefined;
       download.disabled = true;
+      freshness.hidden = false;
+      freshnessText.textContent = 'Generation failed - check settings';
+      regenerate.textContent = 'Try again';
       status.textContent = error instanceof Error ? error.message : 'Unable to generate GCode';
     }
   });
