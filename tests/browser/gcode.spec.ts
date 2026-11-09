@@ -53,9 +53,15 @@ test('GCode section matches shared reset, card, toolbar and responsive alignment
     const current = await page.locator('#gcodeSettings').boundingBox();
     expect(current!.x).toBeCloseTo(original!.x);
     expect(current!.width).toBeCloseTo(original!.width);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
-      false,
-    );
+    const dimensions = await page.evaluate(() => ({
+      viewport: innerWidth,
+      scroll: document.documentElement.scrollWidth,
+      sections: [...document.querySelectorAll('.app, .preview')].map((el) => ({
+        label: el.getAttribute('aria-label') || el.className,
+        right: el.getBoundingClientRect().right,
+      })),
+    }));
+    expect(dimensions.scroll, JSON.stringify(dimensions)).toBeLessThanOrEqual(width);
   }
   await page.setViewportSize({ width: 1280, height: 900 });
   await generate(page);
@@ -443,4 +449,30 @@ test('generation is cancellable, obsolete responses stay stale, and export reuse
   await expect(page.locator('#exportGcode')).toBeDisabled();
   await expect(page.locator('#gcodeCode')).toHaveValue('');
   expect(downloads).toBe(0);
+});
+
+test('wide preview grids contain larger platform font metrics and wrap toolbar controls', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 900 });
+  // Linux WebKit and Windows use different native/system font metrics. Exercise
+  // larger text without depending on a particular platform's installed fonts.
+  await page.addStyleTag({
+    content: '.preview-toolbar {font: 20px monospace} .preview-toolbar button {font: inherit}',
+  });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1920);
+  for (const selector of [
+    '.preview--panel .preview-toolbar',
+    '[aria-label="Layout Preview"] .preview-toolbar',
+    '#gcodeToolpathControls',
+  ]) {
+    const contained = await page.locator(selector).evaluate((toolbar) => {
+      const bounds = toolbar.getBoundingClientRect();
+      return [...toolbar.children].every((child) => {
+        const rect = child.getBoundingClientRect();
+        return rect.width === 0 || (rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1);
+      });
+    });
+    expect(contained, selector).toBe(true);
+  }
 });
