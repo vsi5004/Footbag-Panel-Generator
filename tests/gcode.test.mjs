@@ -232,6 +232,7 @@ test('settings JSON round trips, old files reset defaults, invalid GCode imports
   document.getElementById('gcode-cutOrder').value = 'panel-by-panel';
   document.getElementById('gcode-powerMax').value = '1';
   document.getElementById('gcode-origin').value = 'center';
+  document.getElementById('gcode-includeSettings').checked = true;
   const saved = JSON.parse(JSON.stringify(state.collect(el, layout)));
   const schema = JSON.parse(
     readFileSync(new URL('../schema/settings.schema.json', import.meta.url), 'utf8'),
@@ -244,6 +245,9 @@ test('settings JSON round trips, old files reset defaults, invalid GCode imports
   delete withoutOrigin.gcode.origin;
   state.apply(el, withoutOrigin, layout);
   assert.equal(state.collect(el, layout).gcode.origin, 'lower-left');
+  delete withoutOrigin.gcode.includeSettings;
+  state.apply(el, withoutOrigin, layout);
+  assert.equal(state.collect(el, layout).gcode.includeSettings, false);
   state.apply(el, saved, layout);
   const before = state.collect(el, layout);
   assert.throws(
@@ -252,6 +256,10 @@ test('settings JSON round trips, old files reset defaults, invalid GCode imports
   );
   assert.deepEqual(state.collect(el, layout), before);
   assert.throws(
+    () => readGcodeSettings({ ...GCODE_DEFAULTS, includeSettings: 'true' }),
+    /includeSettings/,
+  );
+  assert.throws(
     () => state.apply(el, { ...saved, gcode: { ...saved.gcode, origin: 'invalid' } }, layout),
     /origin/,
   );
@@ -259,6 +267,70 @@ test('settings JSON round trips, old files reset defaults, invalid GCode imports
   delete saved.gcode;
   state.apply(el, saved, layout);
   assert.deepEqual(state.collect(el, layout).gcode, GCODE_DEFAULTS);
+});
+
+test('optional header captures design settings and actual placements entirely as comments', () => {
+  const { el, layout } = fresh(),
+    saved = state.collect(el, layout),
+    panel = computePanel(config);
+  const without = generateGcode(panel, opts, 125, GCODE_DEFAULTS);
+  const withHeader = generateGcode(
+    panel,
+    opts,
+    125,
+    { ...GCODE_DEFAULTS, includeSettings: true },
+    saved,
+  );
+  assert.ok(!without.code.includes('; Panel settings and layout details'));
+  const block = withHeader.code
+    .split(
+      '; Panel settings and layout details (base design in mm; physical output dimensions noted)\n',
+    )[1]
+    .split('; End panel settings and layout details')[0];
+  assert.ok(
+    block
+      .trim()
+      .split('\n')
+      .every((line) => line.startsWith('; ')),
+  );
+  const metadata = JSON.parse(
+    block
+      .trimEnd()
+      .split('\n')
+      .map((line) => line.slice(2))
+      .join('\n'),
+  );
+  assert.equal(metadata.panelSettings.side, 30);
+  assert.equal(metadata.panelSettings.shape, 5);
+  assert.equal(metadata.layout.panelCount, 4);
+  assert.equal(metadata.layout.exportScalePercent, 125);
+  assert.equal(metadata.layout.placementsAt100Percent.length, 4);
+  assert.equal(metadata.layout.holeDiameterMm, 1.25);
+  assert.equal(metadata.layout.sheetSizeMm.width, withHeader.sheet.width);
+  assert.equal(metadata.panelSettings.gcode, undefined);
+  const executable = (code) =>
+    code
+      .split('\n')
+      .map((line) => line.split(';')[0].trim())
+      .filter(Boolean);
+  assert.deepEqual(executable(withHeader.code), executable(without.code));
+  assert.deepEqual(parseGcode(withHeader.code), parseGcode(without.code));
+  const optimized = {
+    placements: [
+      { x: 70, y: 50, angle: 90, flipY: true },
+      { x: 160, y: 60, angle: 180 },
+    ],
+  };
+  const nested = generateGcode(
+    panel,
+    { ...opts, optimized },
+    100,
+    { ...GCODE_DEFAULTS, includeSettings: true },
+    saved,
+  );
+  assert.ok(nested.code.includes(';     "mode": "accepted optimized layout"'));
+  assert.ok(nested.code.includes(';         "angle": 90'));
+  assert.ok(nested.code.includes(';     "panelCount": 2'));
 });
 
 test('five origins translate every cut without mirroring or changing physical geometry', () => {

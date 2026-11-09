@@ -9,6 +9,7 @@ export interface GcodeSettings {
   stitchMode: 'slit' | 'outline';
   cutOrder: 'all-stitches-first' | 'panel-by-panel' | 'optimized';
   origin: 'lower-left' | 'lower-right' | 'upper-left' | 'upper-right' | 'center';
+  includeSettings: boolean;
 }
 
 export const GCODE_DEFAULTS: GcodeSettings = {
@@ -23,6 +24,7 @@ export const GCODE_DEFAULTS: GcodeSettings = {
   stitchMode: 'slit',
   cutOrder: 'all-stitches-first',
   origin: 'lower-left',
+  includeSettings: false,
 };
 
 export const GCODE_LIMITS = {
@@ -40,6 +42,7 @@ export function readGcodeSettings(value: unknown): GcodeSettings {
     throw new Error('Invalid GCode settings');
   const raw = value as Record<string, unknown>;
   const result = { ...GCODE_DEFAULTS, ...raw } as GcodeSettings;
+  if (typeof result.includeSettings !== 'boolean') throw new Error('Invalid GCode includeSettings');
   if (!['lower-left', 'lower-right', 'upper-left', 'upper-right', 'center'].includes(result.origin))
     throw new Error('Invalid GCode origin');
   for (const [key, [min, max]] of Object.entries(GCODE_LIMITS)) {
@@ -70,7 +73,14 @@ export function collectGcodeSettings(): GcodeSettings {
     const el = document.getElementById(`gcode-${key}`) as
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
     if (!el) continue;
-    values[key] = key in GCODE_LIMITS ? (el.value.trim() ? Number(el.value) : NaN) : el.value;
+    values[key] =
+      typeof GCODE_DEFAULTS[key as keyof GcodeSettings] === 'boolean'
+        ? (el as HTMLInputElement).checked
+        : key in GCODE_LIMITS
+          ? el.value.trim()
+            ? Number(el.value)
+            : NaN
+          : el.value;
   }
   return readGcodeSettings(values);
 }

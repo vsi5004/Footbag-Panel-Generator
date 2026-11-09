@@ -537,6 +537,9 @@
             "upper-right",
             "center"
           ]
+        },
+        "includeSettings": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

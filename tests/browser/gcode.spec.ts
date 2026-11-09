@@ -145,6 +145,36 @@ test('each origin shifts GCode and preview sheet together and exports matching c
   }
 });
 
+test('header-details toggle adds current design comments, persists, and leaves toolpaths unchanged', async ({
+  page,
+}) => {
+  await generate(page);
+  const before = await page.locator('#gcodeCode').inputValue();
+  const cutBefore = await page.locator('.gcode-cut').getAttribute('d');
+  await page.locator('#gcode-includeSettings').check();
+  await expect(page.locator('#exportGcode')).toBeDisabled();
+  await generate(page);
+  const code = await page.locator('#gcodeCode').inputValue();
+  expect(code).toContain('; Panel settings and layout details');
+  expect(code).toContain(';     "side": 30');
+  expect(code).toContain(';     "panelCount": 9');
+  expect(await page.locator('.gcode-cut').getAttribute('d')).toBe(cutBefore);
+  expect((await downloadText(page, '#exportGcode')).text).toBe(code);
+  const saved = (await downloadText(page, '#exportSettings')).text;
+  expect(JSON.parse(saved).gcode.includeSettings).toBe(true);
+  await page.locator('#resetGcodeSettings').click();
+  await expect(page.locator('#gcode-includeSettings')).not.toBeChecked();
+  await page.locator('#importFile').setInputFiles({
+    name: 'header.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(saved),
+  });
+  await expect(page.locator('#gcode-includeSettings')).toBeChecked();
+  await page.locator('#gcode-includeSettings').uncheck();
+  await generate(page);
+  expect(await page.locator('#gcodeCode').inputValue()).toBe(before);
+});
+
 test('all cut orders, scaled hole outlines and kerf errors are handled', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

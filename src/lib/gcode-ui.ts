@@ -4,8 +4,14 @@ import { normalizeExportScale } from './export';
 import { generateGcode, gcodeNumber } from './gcode';
 import { applyGcodeSettings, collectGcodeSettings } from './gcode-settings';
 import { parseGcode } from './gcode-preview';
+import type { SettingsData } from './state';
 
-export function initializeGcode(page: PageElements, flush: () => void, revalidate: () => void) {
+export function initializeGcode(
+  page: PageElements,
+  flush: () => void,
+  revalidate: () => void,
+  getSettings: () => SettingsData,
+) {
   const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const generate = byId<HTMLButtonElement>('generateGcode'),
     download = byId<HTMLButtonElement>('exportGcode');
@@ -109,6 +115,7 @@ export function initializeGcode(page: PageElements, flush: () => void, revalidat
       source.opts,
       normalizeExportScale(document.querySelector<HTMLInputElement>('[data-export-scale]')?.value),
       settings,
+      settings.includeSettings ? getSettings() : undefined,
     );
     observer.takeRecords();
     return generated;

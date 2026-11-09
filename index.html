@@ -570,6 +570,7 @@ M4 S0       ; Enable Laser/Spindle (0 power)</textarea></div>
 M2          ; End</textarea></div>
           <p class="gcode-note">Defaults follow your M4 laser examples. The generated cutting body sets mm, absolute positioning, feed per minute, and M4 S0. Travel uses S0. Custom commands are preserved; unsupported preview commands are reported.</p>
         </div></details>
+        <div class="control"><label for="gcode-includeSettings"><input id="gcode-includeSettings" type="checkbox" /> Include panel settings and layout details in header</label><small>Adds commented design settings, export scale, layout parameters and actual panel placements. Off by default.</small></div>
         <div class="export-actions"><button id="generateGcode" type="button">Generate GCode</button><button id="exportGcode" type="button" disabled>Export GCode</button></div>
         <p id="gcodeStatus" role="status" aria-live="polite">Generate GCode to preview the current layout.</p>
       </section>

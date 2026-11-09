@@ -6,6 +6,7 @@ import { checkPlacements, flattenOutline, isSimple } from './nesting-geometry';
 import { bounds, transform } from './nesting-types';
 import { readGcodeSettings, type GcodeSettings } from './gcode-settings';
 import { CutIndex } from './gcode-routing';
+import type { SettingsData } from './state';
 
 export interface CutPath {
   points: Point[];
@@ -133,9 +134,12 @@ export function generateGcode(
   opts: LayoutSvgOptions,
   scalePercent: number,
   raw: GcodeSettings,
+  designSettings?: SettingsData,
 ) {
   const settings = readGcodeSettings(raw),
     scale = scalePercent / 100;
+  if (settings.includeSettings && !designSettings)
+    throw new Error('Panel settings are required for detailed GCode header comments');
   if (!(scale >= 0.01 && scale <= 10)) throw new Error('Invalid export scale');
   const placements = opts.optimized?.placements ?? manualPlacements(panel, opts);
   const coarse = flattenOutline(panel.outlinePath, 0.002);
@@ -240,10 +244,56 @@ export function generateGcode(
     }
   const ordered = orderCuts(paths, settings.cutOrder),
     power = (settings.powerMax * settings.cutPower) / 100;
+  const header: string[] = [];
+  if (settings.includeSettings) {
+    const panelSettings: Record<string, unknown> = { ...designSettings };
+    for (const key of ['$schema', 'version', 'gcode', 'layout', 'export', 'showGrid'])
+      delete panelSettings[key];
+    const layoutSettings = { ...designSettings?.layout };
+    delete layoutSettings.optimized;
+    delete layoutSettings.showGrid;
+    const metadata = {
+      panelSettings,
+      layout: {
+        mode: designSettings?.layout.editable
+          ? 'editable pattern'
+          : opts.optimized
+            ? 'accepted optimized layout'
+            : 'grid',
+        settings: layoutSettings,
+        panelCount: placements.length,
+        exportScalePercent: scalePercent,
+        sheetSizeMm: { width: size.width * scale, height: size.height * scale },
+        holeDiameterMm: diameter,
+        paddingAt100PercentMm: opts.padding ?? 10,
+        ...(!opts.optimized
+          ? {
+              grid: {
+                rows: opts.rows,
+                cols: opts.cols,
+                horizontalSpacingMm: opts.hSpace,
+                verticalSpacingMm: opts.vSpace,
+                invertOddColumns: opts.invertOdd,
+                nestingVerticalOffsetMm: opts.nestingVerticalOffset,
+              },
+            }
+          : {}),
+        placementsAt100Percent: placements,
+      },
+    };
+    header.push(
+      '; Panel settings and layout details (base design in mm; physical output dimensions noted)',
+      ...JSON.stringify(metadata, null, 2)
+        .split('\n')
+        .map((line) => `; ${line}`),
+      '; End panel settings and layout details',
+    );
+  }
   const lines = [
     '; Footbag Panel Generator',
     `; Sheet ${gcodeNumber(size.width * scale)} x ${gcodeNumber(size.height * scale)} mm; scale ${scalePercent}%`,
     `; Origin: ${settings.origin}${settings.origin === 'center' ? ' of cut design' : ' of sheet'}; X right, Y up`,
+    ...header,
     settings.startCode.trim(),
     '; Generated cuts (mm, absolute, feed per minute, dynamic laser)',
     'G21',

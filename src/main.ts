@@ -1,5 +1,6 @@
 import { designKey } from './lib/nesting-types';
 import { initializeGcode } from './lib/gcode-ui';
+import { state } from './lib/state';
 import { initializeEditableLayout } from './lib/editable-layout';
 import type { Panel, PanelElements, PageElements, PanelConfig } from './types';
 import { normalizeExportScale, syncExportScaleControls } from './lib/export';
@@ -307,11 +308,16 @@ function initializeApp(): void {
     () => renderLayoutFn(lastPanel, lastDotSize, lastPanelConfig || undefined),
   );
   initializeTooltips();
-  initializeGcode(pageEl, flushRenders, () => {
-    // Revalidate synchronously even when geometry/scale was edited in the same task.
-    render();
-    flushRenders();
-  });
+  initializeGcode(
+    pageEl,
+    flushRenders,
+    () => {
+      // Revalidate synchronously even when geometry/scale was edited in the same task.
+      render();
+      flushRenders();
+    },
+    () => state.collect(el, { ...layoutElements, pageEl }),
+  );
 } // End of initializeApp
 
 initializeApp();
