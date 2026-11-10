@@ -1,0 +1,114 @@
+{
+  "3-regular-straight-half": {
+    "count": 7,
+    "area": 9089.5139541
+  },
+  "3-regular-straight-quarter": {
+    "count": 7,
+    "area": 8959.368577250001
+  },
+  "3-regular-curved-half": {
+    "count": 7,
+    "area": 10119.55631797426
+  },
+  "3-regular-curved-quarter": {
+    "count": 7,
+    "area": 10119.55631797426
+  },
+  "4-regular-straight-half": {
+    "count": 7,
+    "area": 11642.385375
+  },
+  "4-regular-straight-quarter": {
+    "count": 7,
+    "area": 11642.385375
+  },
+  "4-regular-curved-half": {
+    "count": 7,
+    "area": 14088.93204643967
+  },
+  "4-regular-curved-quarter": {
+    "count": 7,
+    "area": 14088.93204643967
+  },
+  "5-regular-straight-half": {
+    "count": 7,
+    "area": 23557.05695574
+  },
+  "5-regular-straight-quarter": {
+    "count": 7,
+    "area": 23557.05695574
+  },
+  "5-regular-curved-half": {
+    "count": 7,
+    "area": 25077.44706655104
+  },
+  "5-regular-curved-quarter": {
+    "count": 7,
+    "area": 25077.44706655104
+  },
+  "6-regular-straight-half": {
+    "count": 7,
+    "area": 31285.1378268
+  },
+  "6-regular-straight-quarter": {
+    "count": 7,
+    "area": 31285.1378268
+  },
+  "6-regular-curved-half": {
+    "count": 7,
+    "area": 33423.55762553646
+  },
+  "6-regular-curved-quarter": {
+    "count": 7,
+    "area": 33423.55762553646
+  },
+  "6-truncated-straight-half": {
+    "count": 7,
+    "area": 20503.029093120003
+  },
+  "6-truncated-straight-quarter": {
+    "count": 7,
+    "area": 20481.05759715
+  },
+  "6-truncated-curved-half": {
+    "count": 7,
+    "area": 21950.189569243394
+  },
+  "6-truncated-curved-quarter": {
+    "count": 7,
+    "area": 21950.189569243394
+  },
+  "10-regular-straight-half": {
+    "count": 7,
+    "area": 25908.80061952
+  },
+  "10-regular-straight-quarter": {
+    "count": 7,
+    "area": 25908.80061952
+  },
+  "10-regular-curved-half": {
+    "count": 7,
+    "area": 26084.2085721
+  },
+  "10-regular-curved-quarter": {
+    "count": 7,
+    "area": 26084.2085721
+  },
+  "hexagon-36": {
+    "count": 36,
+    "area": 112653.97117374999
+  },
+  "curved-stock-fit": {
+    "count": 9,
+    "area": 21532.069842049998
+  },
+  "square-capacity-144": {
+    "count": 144,
+    "area": 144989.600625
+  },
+  "curved-star-capacity": {
+    "count": 4,
+    "area": 15757.414552700002
+  }
+}

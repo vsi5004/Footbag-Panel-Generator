@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { nestingCases } from './nesting-cases.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -317,19 +316,17 @@ test('staggered hexagons improve on an already tight grid, not just excess manua
   assert.ok(checkPlacements(flattenOutline(panel.outlinePath, 0.002), plan.placements, 1.001));
 });
 
-test('convex free search preserves frozen outputs; all searches retain safe fit and capacity', () => {
+test('expanded search never regresses merged-main area or capacity across shape families', () => {
   const baseline = JSON.parse(
-    readFileSync(new URL('./fixtures/nesting-baseline.json', import.meta.url), 'utf8'),
+    readFileSync(new URL('./fixtures/nesting-quality-2026-11-10.json', import.meta.url), 'utf8'),
   );
   for (const { name, config, ...options } of nestingCases) {
     const panel = computePanel(config);
     const plan = findNesting({ panel, ...options });
-    if (!options.stock && config.nSides !== 10)
-      assert.equal(
-        createHash('sha256').update(JSON.stringify(plan)).digest('hex'),
-        baseline[name],
-        name,
-      );
+    const size = measurePlaced(panel, plan.placements, options.dot, options.padding);
+    assert.ok(plan.placements.length >= baseline[name].count, name);
+    if (plan.placements.length === baseline[name].count)
+      assert.ok(size.width * size.height <= baseline[name].area + 1e-6, name);
     if (options.stock) {
       const size = measurePlaced(panel, plan.placements, options.dot, options.padding);
       assert.ok(size.width <= options.stock.width, name);

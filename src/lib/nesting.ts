@@ -1,3 +1,4 @@
+import { translationLattices } from './translation-nesting';
 import { latticePlacements, type Lattice } from './lattice';
 import type { Panel } from '../types';
 import {
@@ -80,6 +81,56 @@ export function findNesting({
   // Stock pitch checks use a periodic local sample. Many column counts have
   // exactly the same sample; solve it once, then validate each full candidate.
   const pitches = new Map<string, [number, number]>();
+  const envelopes = new Map<string, ReturnType<typeof measurePlaced>>();
+  const consider = (lattice: Lattice): void => {
+    const full = latticePlacements(lattice, stock?.height !== undefined ? 2 * count : count);
+    let candidate = full;
+    if (stock?.height !== undefined) {
+      // A staggered row can have one fewer panel than its neighbor. An
+      // overflowing panel must not discard every valid placement after it.
+      const boxes = full.map((at) => {
+        const key = `${at.angle},${!!at.flipY}`;
+        let box = envelopes.get(key);
+        if (!box) {
+          box = measurePlaced(panel, [{ ...at, x: 0, y: 0 }], dot, padding);
+          envelopes.set(key, box);
+        }
+        return { ...box, minX: box.minX + at.x, minY: box.minY + at.y };
+      });
+      const origin = {
+        minX: Math.min(...boxes.map((b) => b.minX)),
+        minY: Math.min(...boxes.map((b) => b.minY)),
+      };
+      candidate = full
+        .filter((_, index) => {
+          const box = boxes[index];
+          return (
+            box.minX >= origin.minX - 1e-8 &&
+            box.minY >= origin.minY - 1e-8 &&
+            box.minX + box.width <= origin.minX + stock.width + 1e-8 &&
+            box.minY + box.height <= origin.minY + stock.height! + 1e-8
+          );
+        })
+        .slice(0, count);
+      if (!candidate.length || candidate.length < best.length) return;
+    }
+    const size = measurePlaced(panel, candidate, dot, padding);
+    if (
+      stock &&
+      (size.width > stock.width || (stock.height !== undefined && size.height > stock.height))
+    )
+      return;
+
+    const score = stock && stock.height === undefined ? size.height : size.width * size.height;
+    if (
+      (candidate.length > best.length || (candidate.length === best.length && score < bestArea)) &&
+      checkPlacements(outline, candidate, clearance)
+    ) {
+      bestArea = score;
+      best = candidate;
+      bestLattice = candidate.every((at, i) => at === full[i]) ? lattice : undefined;
+    }
+  };
   const columns = stock
     ? Array.from({ length: count }, (_, i) => i + 1)
     : [
@@ -161,59 +212,19 @@ export function findNesting({
             if (pitchKey) pitches.set(pitchKey, [px, py]);
           }
           for (const finalPattern of stock && pattern === 4 ? [4, 5] : [pattern]) {
-            let candidate = latticePlacements(
-              {
-                columns: cols,
-                pitchX: px,
-                pitchY: py,
-                pattern: finalPattern as Lattice['pattern'],
-                angle,
-                rotateAlternates: rotations !== 'none',
-              },
-              count,
-            );
-            if (stock?.height !== undefined) {
-              // Prefix bounds are monotone for fixed placements. Find the largest
-              // prefix fitting this lattice; final clearance checks use all panels.
-              let low = 0,
-                high = count;
-              while (low < high) {
-                const n = Math.ceil((low + high) / 2);
-                const size = measurePlaced(panel, candidate.slice(0, n), dot, padding);
-                if (size.width <= stock.width && size.height <= stock.height!) low = n;
-                else high = n - 1;
-              }
-              candidate = candidate.slice(0, low);
-              if (!candidate.length || candidate.length < best.length) continue;
-            }
-            const size = measurePlaced(panel, candidate, dot, padding);
-            if (
-              stock &&
-              (size.width > stock.width ||
-                (stock.height !== undefined && size.height > stock.height))
-            )
-              continue;
-            if (!checkPlacements(outline, candidate, clearance)) continue;
-            const score =
-              stock && stock.height === undefined ? size.height : size.width * size.height;
-            if (
-              candidate.length > best.length ||
-              (candidate.length === best.length && score < bestArea)
-            ) {
-              bestArea = score;
-              best = candidate;
-              bestLattice = {
-                columns: cols,
-                pitchX: px,
-                pitchY: py,
-                pattern: finalPattern as Lattice['pattern'],
-                angle,
-                rotateAlternates: rotations !== 'none',
-              };
-            }
+            consider({
+              columns: cols,
+              pitchX: px,
+              pitchY: py,
+              pattern: finalPattern as Lattice['pattern'],
+              angle,
+              rotateAlternates: rotations !== 'none',
+            });
           }
         }
   }
+  for (const lattice of translationLattices(outline, count, clearance, rotations))
+    consider(lattice);
   if (stock?.height && best.length < count) {
     for (const seed of best.length ? [best, []] : [[]]) {
       const filled = fillStock(panel, seed, count, stock, rotations, clearance, dot, padding);

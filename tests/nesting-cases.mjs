@@ -90,13 +90,53 @@ export const nestingCases = [
     capacity: true,
   },
 ];
-export const benchmarkCases = nestingCases.filter((c) =>
-  [
-    '5-regular-curved-half',
-    '10-regular-curved-quarter',
-    'hexagon-36',
-    'curved-stock-fit',
-    'square-capacity-144',
-    'curved-star-capacity',
-  ].includes(c.name),
-);
+export const benchmarkCases = [
+  ...nestingCases.filter((c) =>
+    [
+      '5-regular-curved-half',
+      '10-regular-curved-quarter',
+      'hexagon-36',
+      'curved-stock-fit',
+      'square-capacity-144',
+      'curved-star-capacity',
+    ].includes(c.name),
+  ),
+  {
+    name: 'uneven-hexagon-40-144',
+    config: {
+      ...nestingConfig,
+      nSides: 6,
+      hexType: 'truncated',
+      hexLong: 20,
+      hexRatio: 0.4,
+      stitchCount: 0,
+    },
+    count: 144,
+    gap: 0.2,
+    rotations: 'quarter',
+    source: 'regression',
+    padding: 0,
+    dot: 0,
+    currentCols: 12,
+  },
+  {
+    name: 'uneven-hexagon-40-stock',
+    config: {
+      ...nestingConfig,
+      nSides: 6,
+      hexType: 'truncated',
+      hexLong: 20,
+      hexRatio: 0.4,
+      stitchCount: 0,
+    },
+    count: 144,
+    gap: 0.2,
+    rotations: 'quarter',
+    source: 'regression',
+    padding: 0,
+    dot: 0,
+    currentCols: 12,
+    stock: { width: 145, height: 230 },
+    capacity: true,
+  },
+];

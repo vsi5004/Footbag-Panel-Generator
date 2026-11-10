@@ -54,7 +54,7 @@ export function initializeGcode(
     stats.textContent = '';
   }
   function invalidate() {
-    if (state.kind !== 'ready' && state.kind !== 'generating') return;
+    if (state.kind !== 'ready' && state.kind !== 'generating' && state.kind !== 'failed') return;
     service.cancel();
     state = { kind: 'stale' };
     clear();
@@ -128,9 +128,21 @@ export function initializeGcode(
       state = { kind: 'failed' };
       clear();
       freshness.hidden = false;
-      freshnessText.textContent = 'Generation failed - check settings';
+      let reason = error instanceof Error ? error.message : 'Unable to generate GCode. Try again.';
+      const invalid = /^Invalid GCode (\w+)/.exec(reason);
+      if (invalid) {
+        const id = `gcode-${invalid[1]}`;
+        const field = document.getElementById(id) as HTMLInputElement | null;
+        const label =
+          document.querySelector(`label[for="${id}"]`)?.textContent?.trim() ?? invalid[1];
+        reason =
+          field?.type === 'number'
+            ? `${label}: enter a number between ${field.min} and ${field.max}.`
+            : `${label}: check this setting${reason.includes(':') ? ': ' + reason.split(':').slice(1).join(':').trim() : '.'}`;
+      }
+      freshnessText.textContent = `Generation failed: ${reason}`;
       regenerate.textContent = 'Try again';
-      status.textContent = error instanceof Error ? error.message : 'Unable to generate GCode';
+      status.textContent = reason;
     }
   });
   download.addEventListener('click', () => {

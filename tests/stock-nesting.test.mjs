@@ -348,7 +348,7 @@ test('19.8 mm pentagons fill the lower staggered gaps on 145 by 230 stock', () =
   assert.ok(size.width <= 145 && size.height <= 230);
   assert.ok(checkPlacements(flattenOutline(panel.outlinePath, 0.002), plan.placements, 0.201));
   const model = adoptPlan({ ...plan, rotations: 'quarter' });
-  assert.deepEqual(latticePlacements(model, model.count), plan.placements);
+  assert.deepEqual(model.placements ?? latticePlacements(model, model.count), plan.placements);
   applyEditableLayout(layout, model);
   const saved = state.collect(el, layout);
   const schema = JSON.parse(
@@ -469,7 +469,7 @@ test('capacity is deterministic, obeys full-outline clearance and caps results a
   });
   const adoptedStrip = adoptPlan({ ...strip, rotations: 'none' });
   assert.equal(adoptedStrip.count, 144);
-  assert.equal(adoptedStrip.columns, 144);
+  verify(panel, strip, { width: 6000, height: 55 }, [0]);
   assert.deepEqual(latticePlacements(adoptedStrip, 144), strip.placements);
   assert.deepEqual(
     plan,

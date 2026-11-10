@@ -17,6 +17,52 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
 });
 
+test('exact hexagon job accepts equal gap and kerf and explains recoverable failures in the preview', async ({
+  page,
+}) => {
+  await page.locator('#shape').selectOption('6');
+  await page.locator('#hexType').selectOption('truncated');
+  await page.locator('#hexLongNumber').fill('19.8');
+  await page.locator('#hexRatioNumber').fill('0.38');
+  await page.locator('label.switch:has(#showHoles)').click();
+  await page.locator('#pagePaddingNumber').fill('0');
+  await page.locator('#nestingGap').fill('0.2');
+  await page.locator('#nestingRotation').selectOption('half');
+  await page.locator('#nestingStockControls').evaluate((e: HTMLDetailsElement) => (e.open = true));
+  await page.locator('#nestingStockWidth').fill('250');
+  await page.locator('#nestingStockHeight').fill('140');
+  await page.locator('#optimizeLayout').click();
+  await page.locator('#nestingMode').selectOption('capacity');
+  await page.locator('#startNesting').click();
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  await expect(page.locator('#panelSideLengthValue')).toHaveText('19.8 mm');
+  await page.locator('#gcode-kerf').fill('0.2');
+  await generate(page);
+  expect((await downloadText(page, '#exportGcode')).text).not.toMatch(/NaN|Infinity/);
+  await page.locator('#gcode-kerf').fill('0.5');
+  await page.locator('#generateGcode').click();
+  const banner = page.locator('#gcodeFreshness');
+  await expect(banner).toContainText('Generation failed:');
+  await expect(banner).toContainText('0.500 mm');
+  await expect(banner).toContainText('Minimum cutting gap');
+  await expect(banner).toContainText('reduce Laser kerf width');
+  await expect(page.locator('#exportGcode')).toBeDisabled();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#gcodeView').selectOption('code');
+  await expect(banner).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await page.locator('#gcode-cutSpeed').fill('0');
+  await page.locator('#generateGcode').click();
+  await expect(banner).toContainText('Cut speed (mm/min)');
+  await expect(banner).toContainText('between 1 and 100000');
+  await page.locator('#gcode-cutSpeed').fill('1000');
+  await page.locator('#gcode-kerf').fill('0.2');
+  await page.locator('#generateGcode').click();
+  await expect(page.locator('#exportGcode')).toBeEnabled();
+  await expect(banner).toBeHidden();
+});
+
 test('GCode section matches shared reset, card, toolbar and responsive alignment styles', async ({
   page,
 }) => {
