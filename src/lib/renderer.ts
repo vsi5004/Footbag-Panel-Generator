@@ -187,8 +187,11 @@ export function renderSVGToDOM(
 
   // Update panel info if elements exist and config is provided
   if (config && el.panelInfoContainer && el.panelSideLengthValue && el.panelStitchedLengthValue) {
-    // Display the panel side length (from user input)
-    el.panelSideLengthValue.textContent = `${config.sideLen.toFixed(1)} mm`;
+    // Truncated hexagons use an independent long side; the regular polygon
+    // side input is hidden and may still contain an unrelated previous value.
+    const truncated = config.nSides === 6 && config.hexType === 'truncated';
+    const sideLength = truncated ? (config.hexLong ?? config.sideLen) : config.sideLen;
+    el.panelSideLengthValue.textContent = `${sideLength.toFixed(1)} mm`;
 
     // Calculate and display the stitched side length from seam path
     const stitchedLength = panel.stitchedSideLength ?? 0;

@@ -77,40 +77,59 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
 });
 
-test('40% uneven hexagons apply a dense unflipped layout and round trip it', async ({ page }) => {
-  await page.locator('#shape').selectOption('6');
-  await page.locator('#hexType').selectOption('truncated');
-  await page.locator('#hexLongNumber').fill('20');
-  await page.locator('#hexRatioNumber').fill('0.4');
-  await setChecked(page, '#showHoles', false);
-  await page.locator('#pageRowsNumber').fill('12');
-  await page.locator('#pageColsNumber').fill('12');
-  await page.locator('#pagePaddingNumber').fill('0');
-  await page.locator('#nestingGap').fill('0.2');
-  await page.locator('#nestingRotation').selectOption('quarter');
-  await optimizeLayout(page);
-  await expect(page.locator('#applyNesting')).toBeEnabled();
-  await page.locator('#applyNesting').click();
-  await expect(page.locator('#layoutCount')).toHaveValue('144');
-  await expect(page.locator('#layoutAlternate')).not.toBeChecked();
-  await expect
-    .poll(async () =>
-      Number((await page.locator('#utilizationValue').textContent())!.replace('%', '')),
-    )
-    .toBeGreaterThanOrEqual(85.5);
-  const saved = await settingsDownload(page);
-  expect(saved.layout.editable.rotateAlternates).toBe(false);
-  const placements = await page
-    .locator('#pageSvgHost svg > g[transform]')
-    .evaluateAll((nodes) => nodes.map((n) => n.getAttribute('transform')));
-  expect(placements).toHaveLength(144);
-  await importSettings(page, saved);
-  expect((await settingsDownload(page)).layout.editable).toEqual(saved.layout.editable);
-  const pending = page.waitForEvent('download');
-  await page.locator('#downloadPageSvg').click();
-  const svg = await readFile((await (await pending).path())!, 'utf8');
-  expect(svg.match(/<path /g) || []).toHaveLength(144);
-});
+for (const [long, ratio, minimum] of [
+  [20, 0.4, 85.5],
+  [19.8, 0.38, 85],
+] as const)
+  test(`Uneven hexagons ${long} mm / ${ratio} apply a dense exact layout and round trip it`, async ({
+    page,
+  }) => {
+    await page.locator('#shape').selectOption('6');
+    await page.locator('#hexType').selectOption('truncated');
+    await page.locator('#hexLongNumber').fill(String(long));
+    await page.locator('#hexRatioNumber').fill(String(ratio));
+    await setChecked(page, '#showHoles', false);
+    await page.locator('#pageRowsNumber').fill('12');
+    await page.locator('#pageColsNumber').fill('12');
+    await page.locator('#pagePaddingNumber').fill('0');
+    await page.locator('#nestingGap').fill('0.2');
+    await page.locator('#nestingRotation').selectOption('quarter');
+    await expect(page.locator('#panelSideLengthValue')).toHaveText(`${long.toFixed(1)} mm`);
+    const panelPath = await page.locator('#svgHost svg path').getAttribute('d');
+    await optimizeLayout(page);
+    await expect(page.locator('#applyNesting')).toBeEnabled();
+    await expect(page.locator('#panelSideLengthValue')).toHaveText(`${long.toFixed(1)} mm`);
+    await page.locator('#cancelNesting').click();
+    await expect(page.locator('#svgHost svg path')).toHaveAttribute('d', panelPath!);
+    await optimizeLayout(page);
+    await expect(page.locator('#applyNesting')).toBeEnabled();
+    await page.locator('#applyNesting').click();
+    await expect(page.locator('#panelSideLengthValue')).toHaveText(`${long.toFixed(1)} mm`);
+    await expect(page.locator('#svgHost svg path')).toHaveAttribute('d', panelPath!);
+    await expect(page.locator('#layoutCount')).toHaveValue('144');
+    await expect(page.locator('#layoutAlternate')).not.toBeChecked();
+    await expect
+      .poll(async () =>
+        Number((await page.locator('#utilizationValue').textContent())!.replace('%', '')),
+      )
+      .toBeGreaterThanOrEqual(minimum);
+    const saved = await settingsDownload(page);
+    expect(saved.layout.editable.rotateAlternates).toBe(false);
+    expect(saved.hex.long).toBe(long);
+    expect(saved.hex.ratio).toBe(ratio);
+    await expect(page.locator('#hexLong')).toHaveValue(String(long));
+    await expect(page.locator('#hexRatio')).toHaveValue(String(ratio));
+    const placements = await page
+      .locator('#pageSvgHost svg > g[transform]')
+      .evaluateAll((nodes) => nodes.map((n) => n.getAttribute('transform')));
+    expect(placements).toHaveLength(144);
+    await importSettings(page, saved);
+    expect((await settingsDownload(page)).layout.editable).toEqual(saved.layout.editable);
+    const pending = page.waitForEvent('download');
+    await page.locator('#downloadPageSvg').click();
+    const svg = await readFile((await (await pending).path())!, 'utf8');
+    expect(svg.match(/<path /g) || []).toHaveLength(144);
+  });
 
 test('individual placements edit, duplicate, remove, validate and round trip without losing positions', async ({
   page,

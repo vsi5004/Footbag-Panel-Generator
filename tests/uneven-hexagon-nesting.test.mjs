@@ -7,6 +7,7 @@ import { checkPlacements, flattenOutline } from '../src/lib/nesting-geometry.ts'
 import { measurePlaced } from '../src/lib/nesting-types.ts';
 import { calculateMaterialUtilization } from '../src/lib/layout.ts';
 import { adoptPlan, latticePlacements, readEditableLayout } from '../src/lib/lattice.ts';
+import { INPUT_VALIDATORS } from '../src/lib/validation.ts';
 
 const config = {
   ...nestingConfig,
@@ -18,6 +19,29 @@ const config = {
 };
 const panel = computePanel(config);
 const base = { panel, gap: 0.2, padding: 0, dot: 0, rotations: 'quarter', source: 'hex-40' };
+
+test('screenshot values 19.8 mm and 0.38 stay exact and produce safe dense layouts', () => {
+  assert.equal(INPUT_VALIDATORS.hexLong('19.8'), 19.8);
+  assert.equal(INPUT_VALIDATORS.hexRatio('0.38'), 0.38);
+  const exactConfig = { ...config, hexLong: 19.8, hexRatio: 0.38 };
+  const exactPanel = computePanel(exactConfig);
+  const request = { ...base, panel: exactPanel };
+  const plan = findNesting({ ...request, count: 144, currentCols: 12 });
+  const used = calculateMaterialUtilization(
+    exactPanel,
+    { optimized: plan, dotDiameter: 0, padding: 0 },
+    exactConfig,
+  );
+  assert.ok(used >= 85 && used < 100, `Actual utilization: ${used}`);
+  assert.ok(checkPlacements(flattenOutline(exactPanel.outlinePath, 0.002), plan.placements, 0.201));
+  const capacity = findCapacity({ ...request, stock: { width: 145, height: 230 } });
+  assert.ok(capacity.placements.length >= 56);
+  const size = measurePlaced(exactPanel, capacity.placements, 0, 0);
+  assert.ok(size.width <= 145 && size.height <= 230);
+  assert.ok(
+    checkPlacements(flattenOutline(exactPanel.outlinePath, 0.002), capacity.placements, 0.201),
+  );
+});
 function verify(plan, rotations = 'quarter') {
   assert.ok(checkPlacements(flattenOutline(panel.outlinePath, 0.002), plan.placements, 0.201));
   assert.ok(plan.placements.every((p) => !p.flipY && (rotations !== 'none' || p.angle === 0)));
