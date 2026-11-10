@@ -123,6 +123,20 @@ Panels that overlap are counted separately. A ratio over 100% remains visible an
 
 ### Layout workflow and cutting constraints
 
+The optimizer also tests staggered arrangements with every panel facing the same
+way, independently of the allowed rotation policy. Allowing 180° or 90° rotations
+does not require alternate panels to turn. These trials search every column count
+and several spacing starts, sharing equivalent periodic pitch checks. Complete
+candidates still undergo the same outline-clearance, stock and count validation;
+the original candidates remain fallbacks.
+
+This is particularly useful for uneven-sided hexagons. For a 20 mm long side,
+40% short-side ratio, 144 straight panels, a 0.2 mm gap and zero padding, automatic
+utilization rises to approximately 86%. Capacity on 145 × 230 mm stock increases
+from 45 to 52 panels for the same geometry. These are specific benchmark inputs,
+not a guarantee for other sizes, counts, curves, gaps or padding. Accepted patterns
+use the existing editable lattice and settings format; no migration is required.
+
 Stock searches explore several spacing starts for staggered patterns, retaining the
 original search as a fallback. The **Staggered columns, fill lower gaps** pattern
 places unshifted columns first in each row so partial final rows can use the shorter
@@ -194,7 +208,7 @@ The panel grid updates only the single-panel grid layer. Sheet grid toggles repl
 
 `npm run benchmark:nesting -- --runs=5` measures six fixed searches covering curved panels, a 36-panel hexagon arrangement, stock fitting, 144-panel capacity and curved-star capacity. Each search warms up once, then reports median elapsed time, panel count, physical dimensions, sheet area and a SHA-256 of the exact result. Construction and independent finer-outline clearance checks are outside the timed region. These Node measurements are advisory, without CI timing thresholds; they do not measure browser interaction or establish optimal packing. [Recorded before/after measurements](benchmarks/nesting-2026-11-08.json) include runtime, platform and CPU. The sample searches take roughly 10–40 ms, 123 ms for square capacity, and 2.5 s for curved-star capacity on that host. This cleanup makes no speedup claim: placement results and sheet areas are unchanged.
 
-The engine takes a typed `NestingRequest` with named fields, and the optimizer and manual pattern use the same lattice placement function. A frozen fixture captured from merged commit `9e4d4f3` records historical exact search outputs for 28 cases across every shape family, curvature, rotation policies and stock/capacity searches. Current tests retain exact convex free-search comparisons; intentional concave/stock changes are covered by independent finer-outline clearance, fit/capacity and new behavior regressions. Do not regenerate this fixture just to make a geometry change pass; inspect any output change and its safety/material effects explicitly. File schema versions and migrations are unchanged by this internal API cleanup.
+The engine takes a typed `NestingRequest` with named fields, and the optimizer and manual pattern use the same lattice placement function. A frozen fixture captured from merged commit `9e4d4f3` records historical exact search outputs for 28 cases across every shape family, curvature, rotation policies and stock/capacity searches. Current tests compare count and sheet area with a separate quality baseline captured from merged main 4484cf9, permitting changed placements while retaining or improving yield. Independent finer-outline clearance, stock fit, policy, save/import and export checks cover the expanded search. Do not regenerate this fixture just to make a geometry change pass; inspect any output change and its safety/material effects explicitly. File schema versions and migrations are unchanged by this internal API cleanup.
 
 `npm run benchmark:browser -- --runs=5 --out=work/browser-timings.json` measures the current production build in Chromium at 1280×900; run `npm run build` first and create the output directory if specifying one. The script starts/stops its own local preview on port 4322 and supports `--browser=firefox` or `--browser=webkit` when installed. Each workload has a warm-up and reports median handler time, time over two animation frames, sheet replacements and retained-node identity. Frame timing includes scheduling/rendering opportunities and is not a direct paint timestamp. Measurements are advisory, with no CI timing thresholds.
 

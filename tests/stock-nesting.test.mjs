@@ -469,7 +469,7 @@ test('capacity is deterministic, obeys full-outline clearance and caps results a
   });
   const adoptedStrip = adoptPlan({ ...strip, rotations: 'none' });
   assert.equal(adoptedStrip.count, 144);
-  assert.equal(adoptedStrip.columns, 144);
+  verify(panel, strip, { width: 6000, height: 55 }, [0]);
   assert.deepEqual(latticePlacements(adoptedStrip, 144), strip.placements);
   assert.deepEqual(
     plan,
