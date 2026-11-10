@@ -348,7 +348,7 @@ test('19.8 mm pentagons fill the lower staggered gaps on 145 by 230 stock', () =
   assert.ok(size.width <= 145 && size.height <= 230);
   assert.ok(checkPlacements(flattenOutline(panel.outlinePath, 0.002), plan.placements, 0.201));
   const model = adoptPlan({ ...plan, rotations: 'quarter' });
-  assert.deepEqual(latticePlacements(model, model.count), plan.placements);
+  assert.deepEqual(model.placements ?? latticePlacements(model, model.count), plan.placements);
   applyEditableLayout(layout, model);
   const saved = state.collect(el, layout);
   const schema = JSON.parse(

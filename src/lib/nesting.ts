@@ -81,20 +81,37 @@ export function findNesting({
   // Stock pitch checks use a periodic local sample. Many column counts have
   // exactly the same sample; solve it once, then validate each full candidate.
   const pitches = new Map<string, [number, number]>();
+  const envelopes = new Map<string, ReturnType<typeof measurePlaced>>();
   const consider = (lattice: Lattice): void => {
-    let candidate = latticePlacements(lattice, count);
+    const full = latticePlacements(lattice, stock?.height !== undefined ? 2 * count : count);
+    let candidate = full;
     if (stock?.height !== undefined) {
-      // Prefix bounds are monotone for fixed placements. Find the largest
-      // prefix fitting this lattice; final clearance checks use all panels.
-      let low = 0,
-        high = count;
-      while (low < high) {
-        const n = Math.ceil((low + high) / 2);
-        const size = measurePlaced(panel, candidate.slice(0, n), dot, padding);
-        if (size.width <= stock.width && size.height <= stock.height!) low = n;
-        else high = n - 1;
-      }
-      candidate = candidate.slice(0, low);
+      // A staggered row can have one fewer panel than its neighbor. An
+      // overflowing panel must not discard every valid placement after it.
+      const boxes = full.map((at) => {
+        const key = `${at.angle},${!!at.flipY}`;
+        let box = envelopes.get(key);
+        if (!box) {
+          box = measurePlaced(panel, [{ ...at, x: 0, y: 0 }], dot, padding);
+          envelopes.set(key, box);
+        }
+        return { ...box, minX: box.minX + at.x, minY: box.minY + at.y };
+      });
+      const origin = {
+        minX: Math.min(...boxes.map((b) => b.minX)),
+        minY: Math.min(...boxes.map((b) => b.minY)),
+      };
+      candidate = full
+        .filter((_, index) => {
+          const box = boxes[index];
+          return (
+            box.minX >= origin.minX - 1e-8 &&
+            box.minY >= origin.minY - 1e-8 &&
+            box.minX + box.width <= origin.minX + stock.width + 1e-8 &&
+            box.minY + box.height <= origin.minY + stock.height! + 1e-8
+          );
+        })
+        .slice(0, count);
       if (!candidate.length || candidate.length < best.length) return;
     }
     const size = measurePlaced(panel, candidate, dot, padding);
@@ -111,7 +128,7 @@ export function findNesting({
     ) {
       bestArea = score;
       best = candidate;
-      bestLattice = lattice;
+      bestLattice = candidate.every((at, i) => at === full[i]) ? lattice : undefined;
     }
   };
   const columns = stock
