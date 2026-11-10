@@ -133,9 +133,16 @@ the original candidates remain fallbacks.
 This is particularly useful for uneven-sided hexagons. For a 20 mm long side,
 40% short-side ratio, 144 straight panels, a 0.2 mm gap and zero padding, automatic
 utilization rises to approximately 86%. Capacity on 145 × 230 mm stock increases
-from 45 to 52 panels for the same geometry. These are specific benchmark inputs,
+from 45 to at least 52 panels for the same geometry. These are specific benchmark inputs,
 not a guarantee for other sizes, counts, curves, gaps or padding. Accepted patterns
 use the existing editable lattice and settings format; no migration is required.
+
+Truncated-hexagon long-side controls accept 0.1 mm increments and short-side
+ratios accept 0.01 increments. This keeps values such as 19.8 mm and 0.38 in the
+number fields, sliders, geometry and saved settings instead of rounding them to
+20 mm and 0.40. Existing fractional long-side settings also parse as decimals.
+The panel-side readout uses the truncated hexagon's long side, rather than the
+hidden regular-polygon side setting, before and after optimization.
 
 Stock searches explore several spacing starts for staggered patterns, retaining the
 original search as a fallback. The **Staggered columns, fill lower gaps** pattern
@@ -285,7 +292,7 @@ The third section converts the current layout into GRBL-style laser GCode. Gener
 
 Coordinates are mm, X right and Y up. Select the origin at any of the four sheet corners (including padding), or at the bounding-box center of all compensated cut paths. Lower-left remains the default for older settings files. Other origins can produce negative coordinates; the preview marks X0 Y0 and shifts the sheet to match. Custom start/end snippets are preserved without translation. The generated body explicitly sets `G21 G90 G94` and dynamic `M4 S0`; each travel starts at S0, and the body ends with S0/M5 before the end snippet. Homing, work offsets, and machine configuration belong to your machine setup/start snippet. The preview reads the exported G0/G1 text, including custom linear start/end moves, assuming an initial X0 Y0 position. Unsupported custom commands (such as homing, arcs, or machine-coordinate moves) remain in the file and are explicitly reported as not simulated. Distances exclude unsupported motion. Use the code view to inspect those commands. Start snippets cannot contain program-end M2/M30 commands.
 
-GCode generation rejects invalid layouts, self-crossing outlines, overlapping/insufficiently separated panels, compensated contours that cross, collapsed holes, and cuts outside sheet bounds. It uses the same accepted/manual placement data as the layout preview and revalidates synchronously before export. Test a small sample on your machine to confirm kerf, power and speed for the material.
+GCode generation rejects invalid layouts, self-crossing outlines, overlapping panel interiors, insufficient kerf clearance and collapsed holes. Compensated contours may touch at points or share segments; shared segments remain in each panel contour. Nominal panels and stitch cuts must fit the sheet, while outward panel kerf compensation may extend beyond the material edge at zero padding. Material limits describe the workpiece, not the machine travel envelope. It uses the same accepted/manual placement data as the layout preview and revalidates synchronously before export. Test a small sample on your machine to confirm kerf, power and speed for the material.
 
 Enable **Include panel settings and layout details in header** to add semicolon-prefixed JSON comments containing base panel settings, layout parameters, actual placements, scaled sheet dimensions and hole diameter. These comments appear before the start snippet and do not change the cutting commands. The choice is saved with machine settings; older files default to off.
 
@@ -301,3 +308,5 @@ GCode jobs are built from the renderer's validated layout model, independently o
 Edit `schema/gcode-controls.json` to change setting defaults, limits, enum choices and labels. Run `npm run settings:sync` to update generated TypeScript definitions, JSON schema, and HTML control defaults/options. Add any new control and its help text in `index.html`; do not edit `gcode-definitions.ts` manually. `npm run settings:check` detects drift.
 
 Run `npm run check` and `npm run test:browser` before submitting changes. Byte-for-byte pre-refactor fixtures in `tests/fixtures/gcode.json` cover straight, curved, star, rotated/flipped, scaled, power, origin and ordering combinations; semantic tests additionally check safety constraints and header metadata. Worker tests cover cancellation, stale responses, failure recovery, and cached export. Use `npm run benchmark:gcode` for repeatable 9-panel and 144-panel generation/preview timing; timings are diagnostic, not CI pass/fail thresholds.
+
+GCode failures display their specific reason and corrective settings directly in the preview banner as well as the settings status. Geometry errors name the kerf or hole dimensions and suggest changing the minimum cutting gap, panel positions, hole diameter or kerf as appropriate. Invalid numeric fields display their control label and permitted range. Editing a failed job marks it for regeneration; success clears the error. Boundary contact is accepted within the 0.00002 mm Clipper-coordinate rounding tolerance, while positive interior overlap remains blocked.

@@ -9,6 +9,7 @@ import type { CutPath, DesignSettings } from './gcode-types';
 import { gcodeHeader } from './gcode-metadata';
 import { serializeGcode } from './gcode-serialize';
 import { validateStartCode } from './gcode-dialect';
+import { checkCutInteriors } from './gcode-clearance';
 export { orderCuts } from './gcode-routing';
 export { flattenCutOutline, offsetOutline } from './gcode-geometry';
 export { gcodeNumber, type CutPath } from './gcode-types';
@@ -29,14 +30,17 @@ export function generateGcode(
   const placements = opts.optimized?.placements ?? manualPlacements(panel, opts);
   const coarse = flattenOutline(panel.outlinePath, 0.002);
   if (!isSimple(coarse)) throw new Error('Panel outline crosses itself');
-  if (!checkPlacements(coarse, placements, settings.kerf / scale + 0.005))
+  if (
+    settings.kerf > 0.00002 &&
+    !checkPlacements(coarse, placements, (settings.kerf - 0.00002) / scale)
+  )
     throw new Error(
-      'Panels overlap or have insufficient space for the laser kerf. Increase layout spacing.',
+      `Panels overlap or lack space for the ${settings.kerf.toFixed(3)} mm laser kerf. Increase Minimum cutting gap to at least ${settings.kerf.toFixed(3)} mm and optimize again, move panels apart, or reduce Laser kerf width.`,
     );
   const diameter = opts.dotDiameter * scale;
   if (panel.stitches.length && diameter - settings.kerf < 0.0001)
     throw new Error(
-      'Stitch-hole diameter must exceed the laser kerf. Increase hole diameter or reduce kerf.',
+      `Stitch-hole diameter (${diameter.toFixed(3)} mm after scaling) must exceed the laser kerf (${settings.kerf.toFixed(3)} mm). Increase Hole diameter or reduce Laser kerf width.`,
     );
   const outline = offsetOutline(
     flattenCutOutline(panel.outlinePath, settings.segmentLength / scale).map((p) => ({
@@ -46,13 +50,14 @@ export function generateGcode(
     settings.kerf / 2,
   );
   if (
-    !checkPlacements(
+    !checkCutInteriors(
       outline,
       placements.map((at) => ({ ...at, x: at.x * scale, y: at.y * scale })),
-      0.00001,
     )
   )
-    throw new Error('Kerf-compensated panel paths touch or cross. Increase layout spacing.');
+    throw new Error(
+      `Kerf compensation (${settings.kerf.toFixed(3)} mm) makes panel interiors overlap. Increase Minimum cutting gap and optimize again, move panels apart, or reduce Laser kerf width.`,
+    );
   const size = measureLayoutSvg(panel, opts);
   const minX = opts.optimized
     ? 'minX' in size
@@ -86,6 +91,19 @@ export function generateGcode(
       const q = transform(p, at);
       return { x: q.x - minX * scale, y: (minY + size.height) * scale - q.y };
     };
+    // Stock limits describe the material, not the laser's machine envelope.
+    // Nominal panels must fit, but their outside kerf compensation may extend
+    // beyond the material edge when padding is zero.
+    for (const p of coarse) {
+      const q = place({ x: p.x * scale, y: p.y * scale });
+      if (
+        q.x < -0.00001 ||
+        q.y < -0.00001 ||
+        q.x > size.width * scale + 0.00001 ||
+        q.y > size.height * scale + 0.00001
+      )
+        throw new Error('Panel outlines exceed the sheet. Adjust layout spacing or padding.');
+    }
     paths.push({ panel: i, kind: 'panel', closed: true, points: outline.map(place) });
     for (const hole of panel.stitches) {
       const center = { x: hole.x * scale, y: hole.y * scale };
@@ -102,10 +120,11 @@ export function generateGcode(
     for (const q of p.points) {
       if (
         !Number.isFinite(q.x + q.y) ||
-        q.x < -0.00001 ||
-        q.y < -0.00001 ||
-        q.x > size.width * scale + 0.00001 ||
-        q.y > size.height * scale + 0.00001
+        (p.kind === 'stitch' &&
+          (q.x < -0.00001 ||
+            q.y < -0.00001 ||
+            q.x > size.width * scale + 0.00001 ||
+            q.y > size.height * scale + 0.00001))
       )
         throw new Error('Kerf-compensated cuts exceed the sheet. Increase layout padding.');
     }
