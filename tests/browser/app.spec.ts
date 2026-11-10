@@ -1792,13 +1792,14 @@ test('placement pattern help illustrates shifts and optional rotations without c
     await icon.focus();
     await icon.press('Enter');
     await expect(help).toBeVisible();
-    await expect(help.locator('svg')).toHaveCount(5);
+    await expect(help.locator('svg')).toHaveCount(6);
     await expect(help.locator('strong')).toHaveText([
       'Aligned',
       'Alternating rows',
       'Staggered rows',
       'Alternating columns',
       'Staggered columns',
+      'Staggered columns, fill lower gaps',
     ]);
     await expect(help).toContainText('half the horizontal center spacing');
     await expect(help).toContainText('half the vertical center spacing');
@@ -1815,6 +1816,7 @@ test('placement pattern help illustrates shifts and optional rotations without c
     expect(transforms[2][3]).toBe('translate(26 34) rotate(180)');
     expect(transforms[3][1]).toBe('translate(40 10) rotate(180)');
     expect(transforms[4][1]).toBe('translate(40 22) rotate(180)');
+    expect(transforms[5][1]).toBe('translate(68 10) rotate(0)');
     const bounds = await help.boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(8);
     expect(bounds!.y).toBeGreaterThanOrEqual(8);

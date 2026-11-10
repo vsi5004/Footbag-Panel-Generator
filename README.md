@@ -123,6 +123,16 @@ Panels that overlap are counted separately. A ratio over 100% remains visible an
 
 ### Layout workflow and cutting constraints
 
+Stock searches explore several spacing starts for staggered patterns, retaining the
+original search as a fallback. The **Staggered columns, fill lower gaps** pattern
+places unshifted columns first in each row so partial final rows can use the shorter
+columns at the sheet edge. Existing patterns retain their placement order. This
+fits 36 straight pentagons with 19.8 mm sides on 145 × 230 mm stock, using a 0.2 mm
+gap, zero padding, 90° rotation increments, and no hole marks (previously 32).
+Saved layouts using the new pattern require an app version that supports pattern 5.
+These remain heuristic searches over repeating patterns, not proven maximum yields;
+extra spacing starts also increase search time.
+
 Configure the layout in the sidebar, optimize, compare the green candidate, then export. The preview contains zoom/grid controls, a compact count/dimensions/utilization summary, clearance status and **Optimize layout**. The minimum cutting gap, allowed rotations and optional physical material limits each have one shared control in the sidebar. **Advanced parameters** contains manual panel orientation and alternate rotation; basic Pattern layout controls remain visible. Help details live in tooltips.
 
 **Optimize layout** opens a keyboard-accessible dialog with the goal and a read-only summary of those shared constraints. **Find layout** begins the search; Cancel is shown only while searching. A candidate overlays the current sheet in translucent green with its panel count, scaled dimensions and sheet-area difference. **Apply layout** commits it to the editable Pattern controls; **Discard** restores the current drawing. Only these relevant actions appear during comparison. The arrangement selector returns to Grid layout. Cut geometry or placement edits invalidate pending searches/candidates. Padding resizes the border and updates comparison dimensions and stock fit without changing positions or discarding a candidate. Stitch-only edits refresh the marks and preserve candidates when actual cut geometry and positions are unchanged. Zoom and grid toggles stay available. The overlay is a separate image outside the exportable SVG, so downloads during comparison export the current arrangement.

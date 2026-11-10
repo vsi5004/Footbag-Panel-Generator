@@ -11,6 +11,10 @@ export function initializePlacementHelp(): void {
     ['Staggered rows', 'Every other row shifts right by half the horizontal center spacing.'],
     ['Alternating columns', 'Centers stay aligned. Every other column can turn 180°.'],
     ['Staggered columns', 'Every other column shifts down by half the vertical center spacing.'],
+    [
+      'Staggered columns, fill lower gaps',
+      'Same staggered columns, filling unshifted columns first in a partial final row.',
+    ],
   ];
   const ns = 'http://www.w3.org/2000/svg';
   descriptions.forEach(([name, description], pattern) => {
