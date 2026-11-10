@@ -11,6 +11,8 @@ import {
   type RotationMode,
 } from './nesting-types';
 import { flattenOutline, checkPlacements, isSimple } from './nesting-geometry';
+import { minimumSafePitch } from './pitch-search';
+import { fillStock } from './stock-fill';
 
 export interface NestingRequest {
   panel: Panel;
@@ -66,9 +68,18 @@ export function findNesting({
   if (!isSimple(outline))
     throw new Error('This outline crosses itself; automatic nesting is unavailable.');
   const clearance = gap + CLEARANCE_ALLOWANCE;
+  const turns = outline.map((a, i) => {
+    const b = outline[(i + 1) % outline.length],
+      c = outline[(i + 2) % outline.length];
+    return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+  });
+  const concave = turns.some((v) => v > 1e-9) && turns.some((v) => v < -1e-9);
   let best: Placement[] = [];
   let bestArea = Infinity;
   let bestLattice: Lattice | undefined;
+  // Stock pitch checks use a periodic local sample. Many column counts have
+  // exactly the same sample; solve it once, then validate each full candidate.
+  const pitches = new Map<string, [number, number]>();
   const columns = stock
     ? Array.from({ length: count }, (_, i) => i + 1)
     : [
@@ -116,32 +127,39 @@ export function findNesting({
             if (pattern === 2) px = (box.width + clearance + 0.01) * (0.5 + seed / 4);
             else py = (box.height + clearance + 0.01) * (0.5 + seed / 4);
           }
-          for (let pass = 0; pass < 2; pass++)
-            for (const axis of pattern === 2 ? ['y', 'x'] : ['x', 'y']) {
-              let low = 0,
-                high = axis === 'x' ? px : py;
-              for (let step = 0; step < 9; step++) {
-                const mid = (low + high) / 2;
-                if (axis === 'x') px = mid;
-                else py = mid;
-                if (
-                  checkPlacements(
-                    outline,
-                    stock
-                      ? build(
-                          Math.min(cols, 3) * Math.min(Math.ceil(count / cols), 3),
-                          Math.min(cols, 3),
-                        )
-                      : build(),
-                    clearance,
-                  )
-                )
-                  high = mid;
-                else low = mid;
+          const pitchKey = stock
+            ? [angle, pattern, seed, Math.min(cols, 3), Math.min(Math.ceil(count / cols), 3)].join(
+                ',',
+              )
+            : undefined;
+          const cached = pitchKey ? pitches.get(pitchKey) : undefined;
+          if (cached) [px, py] = cached;
+          else {
+            for (let pass = 0; pass < 2; pass++)
+              for (const axis of pattern === 2 ? ['y', 'x'] : ['x', 'y']) {
+                const high = minimumSafePitch(
+                  axis === 'x' ? px : py,
+                  (mid) => {
+                    if (axis === 'x') px = mid;
+                    else py = mid;
+                    return checkPlacements(
+                      outline,
+                      stock
+                        ? build(
+                            Math.min(cols, 3) * Math.min(Math.ceil(count / cols), 3),
+                            Math.min(cols, 3),
+                          )
+                        : build(),
+                      clearance,
+                    );
+                  },
+                  concave,
+                );
+                if (axis === 'x') px = high;
+                else py = high;
               }
-              if (axis === 'x') px = high;
-              else py = high;
-            }
+            if (pitchKey) pitches.set(pitchKey, [px, py]);
+          }
           for (const finalPattern of stock && pattern === 4 ? [4, 5] : [pattern]) {
             let candidate = latticePlacements(
               {
@@ -154,7 +172,7 @@ export function findNesting({
               },
               count,
             );
-            if (capacity && stock) {
+            if (stock?.height !== undefined) {
               // Prefix bounds are monotone for fixed placements. Find the largest
               // prefix fitting this lattice; final clearance checks use all panels.
               let low = 0,
@@ -178,7 +196,10 @@ export function findNesting({
             if (!checkPlacements(outline, candidate, clearance)) continue;
             const score =
               stock && stock.height === undefined ? size.height : size.width * size.height;
-            if ((capacity && candidate.length > best.length) || score < bestArea) {
+            if (
+              candidate.length > best.length ||
+              (candidate.length === best.length && score < bestArea)
+            ) {
               bestArea = score;
               best = candidate;
               bestLattice = {
@@ -193,7 +214,20 @@ export function findNesting({
           }
         }
   }
-  if (!best.length)
+  if (stock?.height && best.length < count) {
+    for (const seed of best.length ? [best, []] : [[]]) {
+      const filled = fillStock(panel, seed, count, stock, rotations, clearance, dot, padding);
+      if (
+        filled.length > best.length &&
+        (capacity || filled.length === count) &&
+        checkPlacements(outline, filled, clearance)
+      ) {
+        best = filled;
+        bestLattice = undefined;
+      }
+    }
+  }
+  if (!best.length || (!capacity && best.length !== count))
     throw new Error(
       stock
         ? 'No arrangement found within the stock limits. Try fewer panels, larger stock or more rotations.'

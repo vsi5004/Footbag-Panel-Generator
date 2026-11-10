@@ -130,8 +130,29 @@ columns at the sheet edge. Existing patterns retain their placement order. This
 fits 36 straight pentagons with 19.8 mm sides on 145 × 230 mm stock, using a 0.2 mm
 gap, zero padding, 90° rotation increments, and no hole marks (previously 32).
 Saved layouts using the new pattern require an app version that supports pattern 5.
-These remain heuristic searches over repeating patterns, not proven maximum yields;
-extra spacing starts also increase search time.
+Concave outlines also scan separate safe pitch intervals before refining spacing;
+they no longer rely on a single monotone collision boundary. Equivalent periodic
+stock samples reuse solved pitches; every complete candidate still gets checked.
+
+Bounded-stock searches then try individual placements in unused space, including
+mixed allowed orientations. A partial pattern can seed this pass for both capacity
+and fixed-count goals. Accepted patterns remain available as a fallback. The pass
+uses a bounded grid plus vertex-contact candidates, so the result is still a best
+found layout rather than a proven maximum.
+
+Automatic layouts use exact outline-stroke extents unioned with the hole circles
+that actually exist. An unused hole diameter no longer enlarges stock requirements;
+inset holes add no exterior margin. Curved extrema and serialized hole coordinates
+are included. Manual Grid spacing retains its existing cell/gutter convention.
+Tighter automatic sheet bounds can shift GCode coordinates when a sheet-corner
+origin is selected; compensated contours and panel dimensions are unchanged.
+
+Gap-filled layouts retain their individual X/Y positions and rotations in
+`layout.editable.placements`. Select a panel to edit its coordinates/rotation,
+duplicate it or remove it. **Edit individual panels** converts a regular pattern
+without moving it. Overlapping duplicates and invalid constraints block export.
+Saved individual layouts require an updated reader; older readers reject the new
+extension. Changing panel geometry retains positions and checks them again.
 
 Configure the layout in the sidebar, optimize, compare the green candidate, then export. The preview contains zoom/grid controls, a compact count/dimensions/utilization summary, clearance status and **Optimize layout**. The minimum cutting gap, allowed rotations and optional physical material limits each have one shared control in the sidebar. **Advanced parameters** contains manual panel orientation and alternate rotation; basic Pattern layout controls remain visible. Help details live in tooltips.
 
@@ -173,7 +194,7 @@ The panel grid updates only the single-panel grid layer. Sheet grid toggles repl
 
 `npm run benchmark:nesting -- --runs=5` measures six fixed searches covering curved panels, a 36-panel hexagon arrangement, stock fitting, 144-panel capacity and curved-star capacity. Each search warms up once, then reports median elapsed time, panel count, physical dimensions, sheet area and a SHA-256 of the exact result. Construction and independent finer-outline clearance checks are outside the timed region. These Node measurements are advisory, without CI timing thresholds; they do not measure browser interaction or establish optimal packing. [Recorded before/after measurements](benchmarks/nesting-2026-11-08.json) include runtime, platform and CPU. The sample searches take roughly 10–40 ms, 123 ms for square capacity, and 2.5 s for curved-star capacity on that host. This cleanup makes no speedup claim: placement results and sheet areas are unchanged.
 
-The engine takes a typed `NestingRequest` with named fields, and the optimizer and manual pattern use the same lattice placement function. A frozen fixture captured from merged commit `9e4d4f3` checks exact search outputs for 28 cases across every shape family, curvature, rotation policies and stock/capacity searches. Independent finer-outline clearance checks remain in addition to these hashes. Do not regenerate this fixture just to make a geometry change pass; inspect any output change and its safety/material effects explicitly. File schema versions and migrations are unchanged by this internal API cleanup.
+The engine takes a typed `NestingRequest` with named fields, and the optimizer and manual pattern use the same lattice placement function. A frozen fixture captured from merged commit `9e4d4f3` records historical exact search outputs for 28 cases across every shape family, curvature, rotation policies and stock/capacity searches. Current tests retain exact convex free-search comparisons; intentional concave/stock changes are covered by independent finer-outline clearance, fit/capacity and new behavior regressions. Do not regenerate this fixture just to make a geometry change pass; inspect any output change and its safety/material effects explicitly. File schema versions and migrations are unchanged by this internal API cleanup.
 
 `npm run benchmark:browser -- --runs=5 --out=work/browser-timings.json` measures the current production build in Chromium at 1280×900; run `npm run build` first and create the output directory if specifying one. The script starts/stops its own local preview on port 4322 and supports `--browser=firefox` or `--browser=webkit` when installed. Each workload has a warm-up and reports median handler time, time over two animation frames, sheet replacements and retained-node identity. Frame timing includes scheduling/rendering opportunities and is not a direct paint timestamp. Measurements are advisory, with no CI timing thresholds.
 

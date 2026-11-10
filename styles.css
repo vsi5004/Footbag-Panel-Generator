@@ -408,8 +408,8 @@ details.advanced .advanced-content { margin-top: 8px; }
 
 
 .pattern-controls { padding: 0 0 12px; }
-.pattern-controls > details.advanced { margin-top: 14px; }
-.pattern-controls > label { display: block; margin-top: 10px; }
+.pattern-controls details.advanced { margin-top: 14px; }
+.pattern-controls > label, #latticeLayoutControls > label, #individualLayoutControls > label { display: block; margin-top: 10px; }
 .pattern-controls input[type="number"], .pattern-controls select, #layoutMode { box-sizing: border-box; width: 100%; max-width: 100%; padding: 6px 8px; background: var(--panel); color: var(--text); border: 1px solid #2a2f43; border-radius: 6px; }
 .pattern-controls p { color: var(--muted); font-size: .85rem; }
 

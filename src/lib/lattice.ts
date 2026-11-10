@@ -11,6 +11,7 @@ export interface Lattice {
   rotateAlternates: boolean;
 }
 export interface EditableLayout extends Lattice {
+  placements?: Placement[];
   count: number;
   gap: number;
   rotations: RotationMode;
@@ -71,15 +72,47 @@ export function readEditableLayout(value: unknown): EditableLayout {
     v = value as Record<string, unknown>;
   if (!finite(v.count, 1, 144) || !Number.isInteger(v.count) || !finite(v.gap, 0, 20))
     throw new Error('Invalid editable layout');
+  let placements: Placement[] | undefined;
+  if ('placements' in v) {
+    if (!Array.isArray(v.placements) || v.placements.length !== v.count)
+      throw new Error('Invalid individual layout');
+    placements = v.placements.map((p) => {
+      if (
+        !p ||
+        typeof p !== 'object' ||
+        !finite(p.x, -100000, 100000) ||
+        !finite(p.y, -100000, 100000) ||
+        ![0, 90, 180, 270].includes(p.angle) ||
+        ('flipY' in p && typeof p.flipY !== 'boolean')
+      )
+        throw new Error('Invalid panel placement');
+      return { x: p.x, y: p.y, angle: p.angle, ...('flipY' in p ? { flipY: p.flipY } : {}) };
+    });
+  }
   return {
     ...lattice,
     count: v.count,
     gap: v.gap,
+    ...(placements ? { placements } : {}),
     rotations: readRotations(v.rotations),
     ...(v.stock !== undefined ? { stock: readStock(v.stock) } : {}),
   };
 }
 export function adoptPlan(plan: NestingPlan): EditableLayout {
+  if (!plan.lattice)
+    return readEditableLayout({
+      columns: 1,
+      pitchX: 0,
+      pitchY: 0,
+      pattern: 0,
+      angle: 0,
+      rotateAlternates: false,
+      count: plan.placements.length,
+      gap: plan.gap,
+      rotations: plan.rotations ?? 'half',
+      ...(plan.stock ? { stock: plan.stock } : {}),
+      placements: plan.placements,
+    });
   const lattice = readLattice(plan.lattice);
   // Never silently replace imported/custom positions with a different pattern.
   if (

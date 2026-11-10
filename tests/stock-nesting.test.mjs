@@ -560,7 +560,9 @@ test('stock fit includes scaled drawing allowances and padding, and capacity uti
   assert.equal(fitsStock(panel, plan, 1, 10, 100), true);
   assert.equal(fitsStock(panel, plan, 1, 10, 125), false);
   assert.equal(fitsStock(panel, plan, 1, 20, 100), false);
-  assert.equal(fitsStock(panel, plan, 10, 10, 100), false);
+  assert.equal(fitsStock(panel, plan, 10, 10, 100), true); // No circles exist.
+  const marked = computePanel({ ...config, seamOffset: 0, stitchCount: 3 });
+  assert.equal(fitsStock(marked, plan, 10, 10, 100), false);
   const size = measurePlaced(panel, plan.placements, 1, 10);
   assert.ok(
     Math.abs(

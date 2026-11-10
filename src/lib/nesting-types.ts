@@ -1,5 +1,5 @@
 import type { Lattice } from './lattice';
-import { CONSTANTS } from './constants';
+import { panelExtents } from './panel-extents';
 import type { Point, Panel, PanelConfig } from '../types';
 export interface Placement {
   x: number;
@@ -87,12 +87,11 @@ export function bounds(points: Point[]) {
   return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
 }
 export function measurePlaced(panel: Panel, placements: Placement[], dot: number, padding: number) {
-  const b = panel.bounds,
-    pad = Math.max(CONSTANTS.STROKES.cut / 2, dot / 2);
-  const x = b.viewMinX + CONSTANTS.LAYOUT.MARGIN_MM - pad,
-    y = b.viewMinY + CONSTANTS.LAYOUT.MARGIN_MM - pad,
-    w = b.width - 2 * CONSTANTS.LAYOUT.MARGIN_MM + 2 * pad,
-    h = b.height - 2 * CONSTANTS.LAYOUT.MARGIN_MM + 2 * pad;
+  const b = panelExtents(panel, dot);
+  const x = b.minX,
+    y = b.minY,
+    w = b.width,
+    h = b.height;
   const corners = [
     { x, y },
     { x: x + w, y },
