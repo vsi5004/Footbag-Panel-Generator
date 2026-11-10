@@ -358,6 +358,15 @@
           <select id="layoutMode"><option value="grid">Grid layout</option><option value="pattern">Pattern layout</option></select>
         </div>
         <div id="patternLayoutControls" class="hidden pattern-controls">
+<div id="individualLayoutControls" hidden>
+<p id="individualCount"></p>
+<label for="individualPanel">Selected panel</label><select id="individualPanel"></select>
+<label for="individualX">Panel X (mm)</label><input id="individualX" type="number" min="-100000" max="100000" step="any" />
+<label for="individualY">Panel Y (mm)</label><input id="individualY" type="number" min="-100000" max="100000" step="any" />
+<label for="individualAngle">Selected panel rotation</label><select id="individualAngle"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+<button type="button" id="individualDuplicate">Duplicate selected panel</button>
+<button type="button" id="individualRemove">Remove selected panel</button>
+</div><div id="latticeLayoutControls"><button type="button" id="individualConvert">Edit individual panels</button>
           <p>Spacing is measured between panel centers. The final row can be partially filled.</p>
           <label for="layoutCount">Panel count</label><input id="layoutCount" type="number" min="1" max="144" step="1" value="9" />
           <label for="layoutColumns">Columns</label><input id="layoutColumns" type="number" min="1" max="144" step="1" value="3" />
@@ -369,7 +378,7 @@
             <button type="button" class="tooltip-icon" aria-label="About placement patterns" aria-describedby="placementPatternHelp">?</button>
             <div id="placementPatternHelp" class="tooltip-content placement-help" role="tooltip"></div>
           </div>
-          <select id="layoutPattern"><option value="0">Aligned</option><option value="1">Alternating rows</option><option value="2">Staggered rows</option><option value="3">Alternating columns</option><option value="4">Staggered columns</option></select>
+          <select id="layoutPattern"><option value="0">Aligned</option><option value="1">Alternating rows</option><option value="2">Staggered rows</option><option value="3">Alternating columns</option><option value="4">Staggered columns</option><option value="5">Staggered columns, fill lower gaps</option></select>
           <details id="patternAdvanced" class="advanced">
             <summary>Advanced parameters</summary>
             <div class="advanced-content">
@@ -380,7 +389,7 @@
             </div>
           </details>
         </div>
-        <div id="gridLayoutControls">
+        </div><div id="gridLayoutControls">
         <div class="control">
           <label for="pageRows">Panel rows</label>
           <div class="range-row">

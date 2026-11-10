@@ -10,6 +10,7 @@ import { numberFieldError, setFieldError } from './field-feedback';
 import type { LayoutElements, Panel, PanelConfig } from '../types';
 import { designKey, type NestingPlan } from './nesting-types';
 import { latticePlacements, readEditableLayout, type EditableLayout } from './lattice';
+import { initializeIndividualControls, updateIndividualControls } from './individual-layout';
 
 const input = (id: string) => document.getElementById(id) as HTMLInputElement;
 const select = (id: string) => document.getElementById(id) as HTMLSelectElement;
@@ -41,6 +42,16 @@ export function applyEditableLayout(layout: LayoutElements, model?: EditableLayo
   document.getElementById('gridLayoutControls')?.classList.toggle('hidden', !!model);
   document.getElementById('patternLayoutControls')?.classList.toggle('hidden', !model);
   if (!model) return;
+  const individual = !!model.placements;
+  const controls = document.getElementById('individualLayoutControls');
+  if (controls) controls.hidden = !individual;
+  const latticeControls = document.getElementById('latticeLayoutControls');
+  if (latticeControls) latticeControls.hidden = individual;
+  for (const id of patternFields) {
+    const field = input(id);
+    field.disabled = individual;
+  }
+  if (individual) updateIndividualControls(model);
   writeConstraints(layout, model);
   for (const [id, value] of [
     ['layoutCount', model.count],
@@ -64,6 +75,8 @@ export function applyEditableLayout(layout: LayoutElements, model?: EditableLayo
   if (rows) rows.textContent = String(Math.ceil(model.count / model.columns));
 }
 function readControls(layout: LayoutElements): EditableLayout {
+  if (layout.editable?.current?.placements)
+    return readEditableLayout({ ...layout.editable.current, ...readConstraints(layout) });
   const n = (id: string) => {
     const field = input(id),
       precise = precisePitches.get(field);
@@ -91,7 +104,7 @@ export function editablePlan(model: EditableLayout, config: PanelConfig, dot: nu
     gap: model.gap,
     rotations: model.rotations,
     ...(model.stock ? { stock: model.stock } : {}),
-    placements: latticePlacements(model, model.count),
+    placements: model.placements ?? latticePlacements(model, model.count),
   };
   plans.set(model, { source, plan });
   return plan;
@@ -101,12 +114,19 @@ export function initializeEditableLayout(
   getPanel: () => { panel: Panel | null; dot: number },
   refresh: () => void,
 ): void {
+  initializeIndividualControls(layout, () => update(), applyEditableLayout);
   const update = (constraintId?: string) => {
     const errors = validateConstraints(layout);
     updateMaterialSummary(layout);
     const notice = document.getElementById('layoutImportNotice');
     if (notice) notice.textContent = '';
     const pattern = select('layoutMode').value === 'pattern';
+    if (layout.editable?.current?.placements) {
+      for (const id of ['individualX', 'individualY']) {
+        const error = numberFieldError(input(id), 'panel coordinate');
+        if (error) errors.push(error);
+      }
+    }
     for (const id of patternFields) {
       const field = input(id);
       const error =
@@ -210,11 +230,17 @@ export function showPatternFeedback(
   if ((layout.editable?.current || layout.nesting?.constraintsEdited) && problem === 'rotations') {
     const message =
       'Panel rotations exceed the allowed policy. Change the panel rotation, alternate rotation or allowed rotations.';
-    for (const id of ['layoutAngle', 'layoutAlternate', 'nestingRotation']) errors[id] = message;
+    for (const id of layout.editable?.current?.placements
+      ? ['individualAngle', 'nestingRotation']
+      : ['layoutAngle', 'layoutAlternate', 'nestingRotation'])
+      errors[id] = message;
   } else if (problem === 'clearance') {
-    for (const id of ['layoutPitchX', 'layoutPitchY', 'nestingGap'])
-      errors[id] =
-        'Cut outlines overlap or are too close. Increase center spacing, change the pattern, or reduce the cutting gap.';
+    for (const id of layout.editable?.current?.placements
+      ? ['individualX', 'individualY', 'nestingGap']
+      : ['layoutPitchX', 'layoutPitchY', 'nestingGap'])
+      errors[id] = layout.editable?.current?.placements
+        ? 'Cut outlines overlap or are too close. Move or rotate panels, or reduce the cutting gap.'
+        : 'Cut outlines overlap or are too close. Increase center spacing, change the pattern, or reduce the cutting gap.';
   }
   for (const [id, dimension, size, limit] of [
     ['nestingStockWidth', 'width', width, plan?.stock?.width],
@@ -228,5 +254,12 @@ export function showPatternFeedback(
       errors[id] =
         `This arrangement needs at least ${(Math.ceil(size * scale * 10) / 10).toFixed(1)} mm ${dimension} at the current export scale and padding. Increase stock ${dimension} or reduce scale, padding or spacing.`;
   }
-  for (const id of [...patternFields, ...constraintFields]) setFieldError(id, errors[id]);
+  for (const id of [
+    ...patternFields,
+    ...constraintFields,
+    'individualX',
+    'individualY',
+    'individualAngle',
+  ])
+    setFieldError(id, errors[id]);
 }

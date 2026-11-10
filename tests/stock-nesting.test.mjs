@@ -329,6 +329,59 @@ function verify(panel, plan, stock, rotations) {
   assert.ok(plan.placements.every((p) => !p.flipY && rotations.includes(p.angle)));
 }
 
+test('19.8 mm pentagons fill the lower staggered gaps on 145 by 230 stock', () => {
+  const { el, layout } = fresh();
+  const c = { ...config, nSides: 5, sideLen: 19.8, seamOffset: 0 };
+  const panel = computePanel(c);
+  const request = {
+    panel,
+    gap: 0.2,
+    rotations: 'quarter',
+    source: 'pentagon-stock',
+    padding: 0,
+    dot: 0,
+    stock: { width: 145, height: 230 },
+  };
+  const plan = findCapacity(request);
+  assert.ok(plan.placements.length >= 36); // Previous solver placed only 32.
+  const size = measurePlaced(panel, plan.placements, 0, 0);
+  assert.ok(size.width <= 145 && size.height <= 230);
+  assert.ok(checkPlacements(flattenOutline(panel.outlinePath, 0.002), plan.placements, 0.201));
+  const model = adoptPlan({ ...plan, rotations: 'quarter' });
+  assert.deepEqual(latticePlacements(model, model.count), plan.placements);
+  applyEditableLayout(layout, model);
+  const saved = state.collect(el, layout);
+  const schema = JSON.parse(
+    readFileSync(new URL('../schema/settings.schema.json', import.meta.url), 'utf8'),
+  );
+  assert.ok(new Ajv2020({ strict: false }).validate(schema, saved));
+  state.apply(el, JSON.parse(JSON.stringify(saved)), layout);
+  assert.deepEqual(layout.editable.current, model);
+  assert.deepEqual(editablePlan(layout.editable.current, c, 0).placements, plan.placements);
+  const fitted = findNesting({ ...request, count: 36, currentCols: 8 });
+  assert.equal(fitted.placements.length, 36);
+  assert.ok(checkPlacements(flattenOutline(panel.outlinePath, 0.002), fitted.placements, 0.201));
+});
+
+test('lower-gap staggered patterns have unique, stable prefixes for odd and even columns', () => {
+  for (const columns of [1, 2, 3, 4, 7, 8]) {
+    const lattice = {
+      columns,
+      pitchX: 10,
+      pitchY: 20,
+      pattern: 5,
+      angle: 90,
+      rotateAlternates: true,
+    };
+    const full = latticePlacements(lattice, columns * 3);
+    assert.equal(new Set(full.map((p) => `${p.x},${p.y}`)).size, full.length);
+    for (let count = 1; count <= full.length; count++)
+      assert.deepEqual(latticePlacements(lattice, count), full.slice(0, count));
+    const finalRow = full.slice(2 * columns, 2 * columns + Math.ceil(columns / 2));
+    assert.ok(finalRow.every((p) => p.y === 40 && p.angle === 90));
+  }
+});
+
 test('stock fit honors width-only limits, both dimensions, and explicit rotations', () => {
   const panel = computePanel(config);
   const stock = { width: 55 };
@@ -507,7 +560,9 @@ test('stock fit includes scaled drawing allowances and padding, and capacity uti
   assert.equal(fitsStock(panel, plan, 1, 10, 100), true);
   assert.equal(fitsStock(panel, plan, 1, 10, 125), false);
   assert.equal(fitsStock(panel, plan, 1, 20, 100), false);
-  assert.equal(fitsStock(panel, plan, 10, 10, 100), false);
+  assert.equal(fitsStock(panel, plan, 10, 10, 100), true); // No circles exist.
+  const marked = computePanel({ ...config, seamOffset: 0, stitchCount: 3 });
+  assert.equal(fitsStock(marked, plan, 10, 10, 100), false);
   const size = measurePlaced(panel, plan.placements, 1, 10);
   assert.ok(
     Math.abs(

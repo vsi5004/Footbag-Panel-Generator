@@ -6,11 +6,12 @@ export interface Lattice {
   columns: number;
   pitchX: number;
   pitchY: number;
-  pattern: 0 | 1 | 2 | 3 | 4;
+  pattern: 0 | 1 | 2 | 3 | 4 | 5;
   angle: Placement['angle'];
   rotateAlternates: boolean;
 }
 export interface EditableLayout extends Lattice {
+  placements?: Placement[];
   count: number;
   gap: number;
   rotations: RotationMode;
@@ -20,13 +21,23 @@ export function latticePlacements(lattice: Lattice, count: number): Placement[] 
   const { columns, pitchX, pitchY, pattern, angle, rotateAlternates } = lattice;
   return Array.from({ length: count }, (_, i) => {
     const row = Math.floor(i / columns),
-      col = i % columns;
+      index = i % columns,
+      // Fill the unshifted columns first so a partial final row can use the
+      // bottom edge without a shifted column prematurely ending the search.
+      col =
+        pattern === 5
+          ? index < Math.ceil(columns / 2)
+            ? index * 2
+            : (index - Math.ceil(columns / 2)) * 2 + 1
+          : index;
     const alternating =
       ((pattern === 1 || pattern === 2) && row % 2) ||
-      ((pattern === 3 || pattern === 4) && col % 2);
+      ((pattern === 3 || pattern === 4 || pattern === 5) && col % 2);
     return {
       x: Number(((col + (pattern === 2 && row % 2 ? 0.5 : 0)) * pitchX).toFixed(4)),
-      y: Number(((row + (pattern === 4 && col % 2 ? 0.5 : 0)) * pitchY).toFixed(4)),
+      y: Number(
+        ((row + ((pattern === 4 || pattern === 5) && col % 2 ? 0.5 : 0)) * pitchY).toFixed(4),
+      ),
       angle: ((angle + (rotateAlternates && alternating ? 180 : 0)) % 360) as Placement['angle'],
     };
   });
@@ -42,7 +53,7 @@ export function readLattice(value: unknown): Lattice {
     !Number.isInteger(v.columns) ||
     !finite(v.pitchX, 0, 10000) ||
     !finite(v.pitchY, 0, 10000) ||
-    ![0, 1, 2, 3, 4].includes(v.pattern as number) ||
+    ![0, 1, 2, 3, 4, 5].includes(v.pattern as number) ||
     ![0, 90, 180, 270].includes(v.angle as number) ||
     typeof v.rotateAlternates !== 'boolean'
   )
@@ -61,15 +72,47 @@ export function readEditableLayout(value: unknown): EditableLayout {
     v = value as Record<string, unknown>;
   if (!finite(v.count, 1, 144) || !Number.isInteger(v.count) || !finite(v.gap, 0, 20))
     throw new Error('Invalid editable layout');
+  let placements: Placement[] | undefined;
+  if ('placements' in v) {
+    if (!Array.isArray(v.placements) || v.placements.length !== v.count)
+      throw new Error('Invalid individual layout');
+    placements = v.placements.map((p) => {
+      if (
+        !p ||
+        typeof p !== 'object' ||
+        !finite(p.x, -100000, 100000) ||
+        !finite(p.y, -100000, 100000) ||
+        ![0, 90, 180, 270].includes(p.angle) ||
+        ('flipY' in p && typeof p.flipY !== 'boolean')
+      )
+        throw new Error('Invalid panel placement');
+      return { x: p.x, y: p.y, angle: p.angle, ...('flipY' in p ? { flipY: p.flipY } : {}) };
+    });
+  }
   return {
     ...lattice,
     count: v.count,
     gap: v.gap,
+    ...(placements ? { placements } : {}),
     rotations: readRotations(v.rotations),
     ...(v.stock !== undefined ? { stock: readStock(v.stock) } : {}),
   };
 }
 export function adoptPlan(plan: NestingPlan): EditableLayout {
+  if (!plan.lattice)
+    return readEditableLayout({
+      columns: 1,
+      pitchX: 0,
+      pitchY: 0,
+      pattern: 0,
+      angle: 0,
+      rotateAlternates: false,
+      count: plan.placements.length,
+      gap: plan.gap,
+      rotations: plan.rotations ?? 'half',
+      ...(plan.stock ? { stock: plan.stock } : {}),
+      placements: plan.placements,
+    });
   const lattice = readLattice(plan.lattice);
   // Never silently replace imported/custom positions with a different pattern.
   if (

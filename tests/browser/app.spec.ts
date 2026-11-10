@@ -77,6 +77,51 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
 });
 
+test('individual placements edit, duplicate, remove, validate and round trip without losing positions', async ({
+  page,
+}) => {
+  await optimizeLayout(page);
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  await page.locator('#individualConvert').click();
+  await expect(page.locator('#individualLayoutControls')).toBeVisible();
+  await expect(page.locator('#latticeLayoutControls')).toBeHidden();
+  const original = await settingsDownload(page);
+  const model = original.layout.editable;
+  expect(model.placements).toHaveLength(model.count);
+  const first = model.placements[0];
+  await page.locator('#individualX').fill(String(first.x - 100));
+  await expect(page.locator('#pageSvgHost svg')).toHaveCount(1);
+  await page.locator('#individualAngle').selectOption('180');
+  const edited = await settingsDownload(page);
+  expect(edited.layout.editable.placements[0]).toMatchObject({ x: first.x - 100, angle: 180 });
+  expect(edited.layout.editable.placements.slice(1)).toEqual(model.placements.slice(1));
+  await page.locator('#individualDuplicate').click();
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await page.locator('#individualPanel').selectOption(String(model.count));
+  await page.locator('#individualRemove').click();
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  const saved = await settingsDownload(page);
+  await importSettings(page, saved);
+  expect((await settingsDownload(page)).layout.editable).toEqual(saved.layout.editable);
+  await page.locator('#individualX').fill('');
+  await expect(page.locator('#individualX')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await page.locator('#nestingGap').fill('0.5');
+  await expect(page.locator('#downloadPageSvg')).toBeDisabled();
+  await page.locator('#individualX').fill(String(first.x - 100));
+  await expect(page.locator('#downloadPageSvg')).toBeEnabled();
+  const bad = structuredClone(saved);
+  bad.layout.editable.placements[0].angle = 45;
+  await page.locator('#importFile').setInputFiles({
+    name: 'bad.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(bad)),
+  });
+  await expect(page.locator('#individualLayoutControls')).toBeVisible();
+  expect((await settingsDownload(page)).layout.editable.placements[0].angle).toBe(180);
+});
+
 test('built app starts without globals or errors and renders every shape and hole mode', async ({
   page,
 }) => {
@@ -1792,13 +1837,14 @@ test('placement pattern help illustrates shifts and optional rotations without c
     await icon.focus();
     await icon.press('Enter');
     await expect(help).toBeVisible();
-    await expect(help.locator('svg')).toHaveCount(5);
+    await expect(help.locator('svg')).toHaveCount(6);
     await expect(help.locator('strong')).toHaveText([
       'Aligned',
       'Alternating rows',
       'Staggered rows',
       'Alternating columns',
       'Staggered columns',
+      'Staggered columns, fill lower gaps',
     ]);
     await expect(help).toContainText('half the horizontal center spacing');
     await expect(help).toContainText('half the vertical center spacing');
@@ -1815,6 +1861,7 @@ test('placement pattern help illustrates shifts and optional rotations without c
     expect(transforms[2][3]).toBe('translate(26 34) rotate(180)');
     expect(transforms[3][1]).toBe('translate(40 10) rotate(180)');
     expect(transforms[4][1]).toBe('translate(40 22) rotate(180)');
+    expect(transforms[5][1]).toBe('translate(68 10) rotate(0)');
     const bounds = await help.boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(8);
     expect(bounds!.y).toBeGreaterThanOrEqual(8);

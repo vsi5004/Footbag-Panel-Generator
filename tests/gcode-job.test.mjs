@@ -22,7 +22,21 @@ for (const fixture of fixtures) {
       fixture.settings,
       fixture.designSettings,
     );
-    assert.equal(result.code, fixture.code);
+    if (fixture.name === 'rotated') {
+      // Exact rendered extents remove the old hole-radius margin. With the
+      // sheet-corner origin, cuts translate together; their geometry is fixed.
+      const oldCuts = parseGcode(fixture.code).moves.filter((m) => m.cut);
+      const newCuts = parseGcode(result.code).moves.filter((m) => m.cut);
+      assert.equal(newCuts.length, oldCuts.length);
+      const dx = newCuts[0].from.x - oldCuts[0].from.x;
+      const dy = newCuts[0].from.y - oldCuts[0].from.y;
+      newCuts.forEach((move, i) => {
+        for (const end of ['from', 'to']) {
+          assert.ok(Math.abs(move[end].x - oldCuts[i][end].x - dx) < 0.00003);
+          assert.ok(Math.abs(move[end].y - oldCuts[i][end].y - dy) < 0.00003);
+        }
+      });
+    } else assert.equal(result.code, fixture.code);
     const snapshot = createJobSnapshot(
       { panel, opts: fixture.opts },
       fixture.scale,
@@ -30,8 +44,8 @@ for (const fixture of fixtures) {
       fixture.designSettings,
     );
     const job = runGcodeJob(snapshot);
-    assert.equal(job.code, fixture.code);
-    const parsed = parseGcode(fixture.code);
+    assert.equal(job.code, result.code);
+    const parsed = parseGcode(result.code);
     assert.equal(job.cutDistance, parsed.cutDistance);
     assert.equal(job.travelDistance, parsed.travelDistance);
     assert.equal(job.cutCount, result.paths.length);
