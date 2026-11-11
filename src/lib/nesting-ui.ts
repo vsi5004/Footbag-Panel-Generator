@@ -297,8 +297,19 @@ export function initializeNesting(
         event.preventDefault();
         fail(event.message);
       };
-      worker.onmessage = (event: MessageEvent<{ plan?: NestingPlan; error?: string }>) => {
+      worker.onmessage = (
+        event: MessageEvent<{
+          plan?: NestingPlan;
+          error?: string;
+          phase?: 'compact';
+          count?: number;
+        }>,
+      ) => {
         if (generation !== searchGeneration) return;
+        if (event.data.phase === 'compact') {
+          announce(`${event.data.count} panels found · Optimizing density…`);
+          return;
+        }
         worker?.terminate();
         worker = undefined;
         if (event.data.error || !event.data.plan) {

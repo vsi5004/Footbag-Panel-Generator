@@ -14,6 +14,7 @@ import {
 import { flattenOutline, checkPlacements, isSimple } from './nesting-geometry';
 import { minimumSafePitch } from './pitch-search';
 import { fillStock } from './stock-fill';
+import { compactPlacements } from './compact-nesting';
 
 export interface NestingRequest {
   panel: Panel;
@@ -244,11 +245,95 @@ export function findNesting({
         ? 'No arrangement found within the stock limits. Try fewer panels, larger stock or more rotations.'
         : 'No safe arrangement found.',
     );
-  return { version: 1, source, gap, lattice: bestLattice, placements: best };
+  return {
+    version: 1,
+    source,
+    gap,
+    ...(bestLattice ? { lattice: bestLattice } : {}),
+    placements: best,
+  };
 }
 
 export function findCapacity(
-  request: Omit<NestingRequest, 'count' | 'currentCols' | 'capacity'> & { stock: StockSize },
+  request: Omit<NestingRequest, 'count' | 'currentCols' | 'capacity'> & {
+    stock: StockSize;
+    onCompact?: (count: number) => void;
+  },
 ): NestingPlan {
-  return findNesting({ ...request, count: 144, currentCols: 12, capacity: true });
+  const { onCompact, ...input } = request;
+  let best = findNesting({ ...input, count: 144, currentCols: 12, capacity: true });
+  const capacityPlan = best;
+  const count = best.placements.length;
+  onCompact?.(count);
+  let size = measurePlaced(input.panel, best.placements, input.dot, input.padding);
+  let area = size.width * size.height;
+  const outline = flattenOutline(input.panel.outlinePath);
+  const clearance = input.gap + CLEARANCE_ALLOWANCE;
+  const consider = (candidate: NestingPlan) => {
+    if (candidate.placements.length !== count) return;
+    const bounds = measurePlaced(input.panel, candidate.placements, input.dot, input.padding);
+    const score = bounds.width * bounds.height;
+    if (
+      score >= area - 1e-8 ||
+      bounds.width > input.stock.width ||
+      bounds.height > input.stock.height! ||
+      !checkPlacements(outline, candidate.placements, clearance)
+    )
+      return;
+    best = candidate;
+    size = bounds;
+    area = score;
+  };
+  // Search again for exactly the best count, then tighten individual panels.
+  // A failed or worse refinement always retains the original capacity result.
+  try {
+    consider(
+      findNesting({
+        ...input,
+        count,
+        capacity: false,
+        currentCols: best.lattice?.columns ?? Math.ceil(Math.sqrt(count)),
+      }),
+    );
+  } catch {
+    // The original complete, validated arrangement remains the fallback.
+  }
+  // Probe smaller envelopes with the count locked. The other dimension may
+  // still use the stock limit, allowing a different aspect ratio to pack better.
+  for (const axis of ['width', 'height'] as const) {
+    let high = size[axis],
+      low = high * 0.85;
+    for (let attempt = 0; attempt < 3 && high - low > 0.001; attempt++) {
+      const target = (low + high) / 2;
+      try {
+        const candidate = findNesting({
+          ...input,
+          count,
+          capacity: false,
+          currentCols: best.lattice?.columns ?? Math.ceil(Math.sqrt(count)),
+          stock: { ...input.stock, [axis]: target },
+        });
+        consider(candidate);
+        high = target;
+      } catch {
+        low = target;
+      }
+    }
+  }
+  const seeds = best === capacityPlan ? [best] : [capacityPlan, best];
+  for (const seed of seeds)
+    for (const axis of ['x', 'y'] as const) {
+      const placements = compactPlacements(
+        input.panel,
+        seed.placements,
+        clearance,
+        input.dot,
+        input.padding,
+        axis,
+      );
+      const candidate = { ...seed, placements };
+      delete candidate.lattice;
+      consider(candidate);
+    }
+  return best;
 }

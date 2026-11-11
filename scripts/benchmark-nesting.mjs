@@ -2,7 +2,7 @@ import { performance } from 'node:perf_hooks';
 import { cpus } from 'node:os';
 import { createHash } from 'node:crypto';
 import { computePanel } from '../src/lib/renderer.ts';
-import { findNesting } from '../src/lib/nesting.ts';
+import { findNesting, findCapacity } from '../src/lib/nesting.ts';
 import { measurePlaced } from '../src/lib/nesting-types.ts';
 import { flattenOutline, checkPlacements } from '../src/lib/nesting-geometry.ts';
 import { benchmarkCases } from '../tests/nesting-cases.mjs';
@@ -12,7 +12,13 @@ if (!Number.isInteger(runs) || runs < 1 || runs > 20) throw new Error('Use --run
 const cases = [];
 for (const { config, name, ...options } of benchmarkCases) {
   const panel = computePanel(config);
-  const search = () => findNesting({ panel, ...options });
+  const { capacity, count, currentCols, ...capacityOptions } = options;
+  const initial = capacity ? findNesting({ panel, ...options }) : undefined;
+  const initialSize = initial
+    ? measurePlaced(panel, initial.placements, options.dot, options.padding)
+    : undefined;
+  const search = () =>
+    capacity ? findCapacity({ panel, ...capacityOptions }) : findNesting({ panel, ...options });
   let plan = search(); // Warm-up; panel construction and verification are outside timing.
   const times = [];
   for (let i = 0; i < runs; i++) {
@@ -25,6 +31,12 @@ for (const { config, name, ...options } of benchmarkCases) {
   )
     throw new Error(`Unsafe result: ${name}`);
   const size = measurePlaced(panel, plan.placements, options.dot, options.padding);
+  if (
+    initialSize &&
+    (plan.placements.length !== initial.placements.length ||
+      size.width * size.height > initialSize.width * initialSize.height + 1e-6)
+  )
+    throw new Error(`Density refinement regressed count or area: ${name}`);
   cases.push({
     name,
     medianMs: Number(times.sort((a, b) => a - b)[Math.floor(runs / 2)].toFixed(2)),
@@ -32,6 +44,14 @@ for (const { config, name, ...options } of benchmarkCases) {
     widthMm: size.width,
     heightMm: size.height,
     sheetAreaMm2: size.width * size.height,
+    ...(initialSize
+      ? {
+          capacityStageCount: initial.placements.length,
+          capacityStageAreaMm2: initialSize.width * initialSize.height,
+          densityAreaReductionPercent:
+            100 * (1 - (size.width * size.height) / (initialSize.width * initialSize.height)),
+        }
+      : {}),
     resultHash: createHash('sha256').update(JSON.stringify(plan)).digest('hex'),
   });
 }
