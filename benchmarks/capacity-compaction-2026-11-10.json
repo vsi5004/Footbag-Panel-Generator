@@ -1,0 +1,89 @@
+{
+  "runtime": "v22.22.2",
+  "platform": "win32",
+  "cpu": "AMD Ryzen 9 5950X 16-Core Processor            ",
+  "runs": 1,
+  "cases": [
+    {
+      "name": "5-regular-curved-half",
+      "medianMs": 28.26,
+      "count": 7,
+      "widthMm": 111.4676,
+      "heightMm": 215.59784980688872,
+      "sheetAreaMm2": 24032.17488313435,
+      "resultHash": "2921ec2990218b2b930f5b2277d619733d003bd8d191f819e1dbe97b0e7e4c56"
+    },
+    {
+      "name": "10-regular-curved-quarter",
+      "medianMs": 205.53,
+      "count": 7,
+      "widthMm": 122.4513,
+      "heightMm": 213.017,
+      "sheetAreaMm2": 26084.2085721,
+      "resultHash": "2f78c782af4ab56fd1b7c36fddc121b11839df6cb6c82bb96baafb3467c7fe9e"
+    },
+    {
+      "name": "hexagon-36",
+      "medianMs": 23.32,
+      "count": 36,
+      "widthMm": 309.72249999999997,
+      "heightMm": 363.7255,
+      "sheetAreaMm2": 112653.97117374999,
+      "resultHash": "87f105caad33241fb7fb41c81c05e32c6a43067f09e275f2336f2d35cb0055fb"
+    },
+    {
+      "name": "curved-stock-fit",
+      "medianMs": 99.19,
+      "count": 9,
+      "widthMm": 143.9195,
+      "heightMm": 149.6119,
+      "sheetAreaMm2": 21532.069842049998,
+      "resultHash": "769fcd36a53b5943a822284cb502b2b88101d33b37fc633dfdcbb9a6f32af3d1"
+    },
+    {
+      "name": "square-capacity-144",
+      "medianMs": 4421.42,
+      "count": 144,
+      "widthMm": 380.69428588867186,
+      "heightMm": 380.69428588867186,
+      "sheetAreaMm2": 144928.1393082858,
+      "capacityStageCount": 144,
+      "capacityStageAreaMm2": 144989.600625,
+      "densityAreaReductionPercent": 0.04239015518991973,
+      "resultHash": "d84bccf62b39792a318a3dbcaae86d83b3a118056f7dfe2ed71a5bcf69ae9e3d"
+    },
+    {
+      "name": "curved-star-capacity",
+      "medianMs": 9303.3,
+      "count": 4,
+      "widthMm": 123.491,
+      "heightMm": 124.62769260253907,
+      "sheetAreaMm2": 15390.398387180152,
+      "capacityStageCount": 4,
+      "capacityStageAreaMm2": 15757.414552700002,
+      "densityAreaReductionPercent": 2.3291648784918406,
+      "resultHash": "e0a56b434bec3bc457439b957a12ab97e5f754656bb149f2e48f402ed1388d48"
+    },
+    {
+      "name": "uneven-hexagon-40-144",
+      "medianMs": 379.51,
+      "count": 144,
+      "widthMm": 176.6536,
+      "heightMm": 453.14059999999995,
+      "sheetAreaMm2": 80048.91829616,
+      "resultHash": "bf4dd9716be1f9157be7cc0259ce01c81504d6d222d81604699b6813f10ec0f8"
+    },
+    {
+      "name": "uneven-hexagon-40-stock",
+      "medianMs": 5553.57,
+      "count": 52,
+      "widthMm": 143.32269360351563,
+      "heightMm": 229.42000000000002,
+      "sheetAreaMm2": 32881.09236651856,
+      "capacityStageCount": 52,
+      "capacityStageAreaMm2": 32974.65131,
+      "densityAreaReductionPercent": 0.2837298948270228,
+      "resultHash": "ac44aa67d183ccf18b06881991273c6f0f6ee3f97b78d3b8bcf6f64e8448ab03"
+    }
+  ]
+}

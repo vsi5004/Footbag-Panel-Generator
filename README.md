@@ -123,6 +123,20 @@ Panels that overlap are counted separately. A ratio over 100% remains visible an
 
 ### Layout workflow and cutting constraints
 
+**Find stock capacity** now runs in two stages. First it finds the best panel
+count under the material limits. It then locks that count and optimizes density
+inside the same stock: repeat the fixed-count pattern search, probe smaller
+packing rectangles, and compact individual panels toward a corner using both
+axis orders. The UI reports the count followed by “Optimizing density” while the
+worker continues; Cancel remains available until the refined candidate is ready.
+
+Refinement accepts only a strictly smaller cropped rectangle with the same panel
+count, cutting gap, permitted rotations, padding and stock limits. Failed or worse
+attempts retain the original capacity result. Already tight layouts may therefore
+remain unchanged. This minimizes the rectangle used by the panels so more usable
+fabric remains along the edges; it is still a bounded heuristic. Irregular
+refinements use the existing individual-placement editor and settings format.
+
 The optimizer also tests staggered arrangements with every panel facing the same
 way, independently of the allowed rotation policy. Allowing 180° or 90° rotations
 does not require alternate panels to turn. These trials search every column count
@@ -213,7 +227,7 @@ Layout changes are coalesced into one animation frame and read the latest contro
 
 The panel grid updates only the single-panel grid layer. Sheet grid toggles replace only that grid layer; unchanged grids and attributes are retained. Downloads, settings export and nesting actions synchronously flush both pending panel edits and queued layout frames before reading state. This prevents immediate exports or clearance checks from using a previous frame.
 
-`npm run benchmark:nesting -- --runs=5` measures six fixed searches covering curved panels, a 36-panel hexagon arrangement, stock fitting, 144-panel capacity and curved-star capacity. Each search warms up once, then reports median elapsed time, panel count, physical dimensions, sheet area and a SHA-256 of the exact result. Construction and independent finer-outline clearance checks are outside the timed region. These Node measurements are advisory, without CI timing thresholds; they do not measure browser interaction or establish optimal packing. [Recorded before/after measurements](benchmarks/nesting-2026-11-08.json) include runtime, platform and CPU. The sample searches take roughly 10–40 ms, 123 ms for square capacity, and 2.5 s for curved-star capacity on that host. This cleanup makes no speedup claim: placement results and sheet areas are unchanged.
+`npm run benchmark:nesting -- --runs=5` measures eight fixed searches, including uneven hexagons and three capacity cases. Capacity cases record the first-stage count and area, then time the complete count-plus-density workflow. The report includes final count, dimensions, area, area reduction and exact-result hash; it rejects count loss or area growth. Each search warms up before measurement. Independent finer-outline clearance checks remain outside timing. These are advisory Node measurements rather than browser interaction or optimal-packing guarantees. [Capacity refinement results](benchmarks/capacity-compaction-2026-11-10.json) include the first-stage comparison; earlier [search measurements](benchmarks/nesting-2026-11-08.json) are retained as historical data.
 
 The engine takes a typed `NestingRequest` with named fields, and the optimizer and manual pattern use the same lattice placement function. A frozen fixture captured from merged commit `9e4d4f3` records historical exact search outputs for 28 cases across every shape family, curvature, rotation policies and stock/capacity searches. Current tests compare count and sheet area with a separate quality baseline captured from merged main 4484cf9, permitting changed placements while retaining or improving yield. Independent finer-outline clearance, stock fit, policy, save/import and export checks cover the expanded search. Do not regenerate this fixture just to make a geometry change pass; inspect any output change and its safety/material effects explicitly. File schema versions and migrations are unchanged by this internal API cleanup.
 

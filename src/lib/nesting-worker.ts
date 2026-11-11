@@ -52,6 +52,7 @@ self.onmessage = (
               padding: r.padding,
               dot: r.dot,
               stock: limits!,
+              onCompact: (count) => self.postMessage({ phase: 'compact', count }),
             })
           : findNesting({
               panel: r.panel,
