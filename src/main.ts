@@ -33,6 +33,7 @@ import { ui as UI } from './lib/ui';
 import { panelControlPairs, layoutControlPairs } from './lib/controls';
 import { initializeNesting } from './lib/nesting-ui';
 import { initializeTooltips } from './lib/tooltips';
+import { initializeSessionState } from './lib/session-state';
 
 function initializeApp(): void {
   const { PERFORMANCE } = CONSTANTS;
@@ -330,6 +331,23 @@ function initializeApp(): void {
     },
     () => cutLayout,
     () => state.collect(el, { ...layoutElements, pageEl }),
+  );
+  initializeSessionState(
+    () => state.collect(el, { ...layoutElements, pageEl }),
+    (settings) => {
+      state.apply(el, settings, { ...layoutElements, pageEl });
+      UI.updateVisibility(el);
+      layoutElements.nestingOffsetRow?.classList.toggle(
+        'hidden',
+        !layoutElements.pageInvert?.checked,
+      );
+      render();
+      flushRenders();
+    },
+    () => {
+      debouncedRender.flush();
+      layoutFrame.flush();
+    },
   );
 } // End of initializeApp
 

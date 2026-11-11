@@ -924,37 +924,93 @@ test('worker loading and startup failures explain the app error, preserve the la
   const original = await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.route('**/nesting-worker-*.js', (route) => route.abort());
+  await expect(page.locator('#clearanceStatus')).toHaveText(/Clearance OK|Overlaps/);
+  await page.evaluate(() => {
+    const original = Worker.prototype.postMessage;
+    let attempts = 0;
+    Worker.prototype.postMessage = function () {
+      attempts++;
+      queueMicrotask(() => this.dispatchEvent(new Event('error', { cancelable: true })));
+      if (attempts === 2) Worker.prototype.postMessage = original;
+    };
+  });
   await optimizeLayout(page);
   await expect(page.locator('#nestingStatus')).toContainText(
-    'Could not load or run the background nesting worker',
+    'Your layout is preserved. Try optimizing again.',
   );
   await expect(page.locator('#optimizeLayout')).toBeEnabled();
   await expect(page.locator('#applyNesting')).toBeDisabled();
   expect(await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML)).toBe(original);
-  await page.unroute('**/nesting-worker-*.js');
-  await page.evaluate(() => {
-    const originalWorker = window.Worker;
-    window.Worker = class {
-      constructor() {
-        throw new Error('Blocked worker startup');
-      }
-    } as unknown as typeof Worker;
-    try {
-      document.getElementById('optimizeLayout')!.click();
-      document.getElementById('startNesting')!.click();
-    } finally {
-      window.Worker = originalWorker;
-    }
-  });
-  await expect(page.locator('#nestingStatus')).toContainText(
-    'keep the local preview server running',
-  );
-  await expect(page.locator('#optimizeLayout')).toBeEnabled();
   await optimizeLayout(page);
   await expect(page.locator('#applyNesting')).toBeEnabled();
   expect(await page.locator('#pageSvgHost svg').evaluate((svg) => svg.outerHTML)).toBe(original);
   expect(errors).toEqual([]);
+});
+
+test('a suspended optimization restarts without fetching a worker asset', async ({ page }) => {
+  await expect(page.locator('#clearanceStatus')).toHaveText(/Clearance OK|Overlaps/);
+  const fetchedAssets: string[] = [];
+  const assetBase = new URL('assets/', page.url()).href;
+  page.on('request', (request) => {
+    if (request.url().startsWith(assetBase)) fetchedAssets.push(request.url());
+  });
+  await page.evaluate(() => {
+    const original = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function () {
+      Worker.prototype.postMessage = original;
+      // Keep this attempt pending until the tab is suspended.
+    };
+  });
+  await optimizeLayout(page);
+  await expect(page.locator('#nestingStatus')).toContainText('Searching');
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.locator('#nestingStatus')).toContainText('Searching');
+  await page.evaluate(() => document.dispatchEvent(new Event('freeze')));
+  await expect(page.locator('#nestingStatus')).toContainText('paused');
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('resume'));
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  expect(fetchedAssets).toEqual([]);
+});
+
+test('tabs restore their own designs, accepted layouts, and GCode settings on reload', async ({
+  page,
+  context,
+}) => {
+  await page.locator('#shape').selectOption('6');
+  await page.locator('#hexType').selectOption('truncated');
+  await page.locator('#hexLongNumber').fill('19.8');
+  await page.locator('#hexRatioNumber').fill('0.38');
+  await page.locator('#nestingGap').fill('0.2');
+  await page.locator('#gcode-cutPower').fill('35');
+  await optimizeLayout(page);
+  await expect(page.locator('#applyNesting')).toBeEnabled();
+  await page.locator('#applyNesting').click();
+  const accepted = await settingsDownload(page);
+  expect(accepted.layout.editable.count).toBe(9);
+
+  const second = await context.newPage();
+  await second.goto('/');
+  await second.locator('#shape').selectOption('5');
+  await second.locator('#sideNumber').fill('26');
+  await second.locator('#gcode-cutPower').fill('65');
+  await page.bringToFront();
+  await page.reload();
+  await expect(page.locator('#hexLongNumber')).toHaveValue('19.8');
+  await expect(page.locator('#panelSideLengthValue')).toHaveText('19.8 mm');
+  await expect(page.locator('#gcode-cutPower')).toHaveValue('35');
+  expect((await settingsDownload(page)).layout).toEqual(accepted.layout);
+  await second.bringToFront();
+  await second.reload();
+  await expect(second.locator('#shape')).toHaveValue('5');
+  await expect(second.locator('#sideNumber')).toHaveValue('26');
+  await expect(second.locator('#gcode-cutPower')).toHaveValue('65');
 });
 
 test('green candidate overlays are transient, rejectable and excluded from current-layout downloads', async ({
@@ -1782,12 +1838,16 @@ test('automatic clearance cancels stale checks and remains advisory for manual g
   page,
 }) => {
   const original = await page.locator('#pageSvgHost svg').evaluate((node) => node.outerHTML);
-  await page.route('**/nesting-worker-*.js', (route) =>
-    route.fulfill({
-      contentType: 'text/javascript',
-      body: 'self.onmessage = e => setTimeout(() => self.postMessage({safe: e.data.gap === 0}), e.data.gap === 0 ? 10 : 500);',
-    }),
-  );
+  await page.evaluate(() => {
+    Worker.prototype.postMessage = function (message: { gap: number }) {
+      // Deliver the old response even if the worker is terminated.
+      const reply = this.onmessage;
+      setTimeout(
+        () => reply?.call(this, new MessageEvent('message', { data: { safe: message.gap === 0 } })),
+        message.gap === 0 ? 10 : 500,
+      );
+    };
+  });
   await page.locator('#nestingGap').fill('2');
   await expect(page.locator('#clearanceStatus')).toContainText('Checking');
   await page.waitForTimeout(250);

@@ -1,25 +1,27 @@
 import type { GcodeJobResult } from './gcode-runner';
 import type { JobSnapshot } from './gcode-job';
+import { RecoverableWorker, type WorkerStatus } from './recoverable-worker';
+import { createGcodeWorker } from './worker-factory';
 
 /** One worker per job makes cancellation immediate, even during synchronous CAM
  * work. Superseded workers cannot publish into a newer request's handlers.
  */
 export class GcodeService {
-  private pending?: { worker: Worker; reject: (error: Error) => void };
-  constructor(
-    private createWorker = () =>
-      new Worker(new URL('./gcode-worker.ts', import.meta.url), { type: 'module' }),
-  ) {}
+  private pending?: { worker: RecoverableWorker; reject: (error: Error) => void };
+  constructor(private createWorker = createGcodeWorker) {}
   cancel() {
     if (!this.pending) return;
     this.pending.worker.terminate();
     this.pending.reject(new DOMException('Generation cancelled', 'AbortError'));
     this.pending = undefined;
   }
-  generate(snapshot: JobSnapshot): Promise<GcodeJobResult> {
+  generate(
+    snapshot: JobSnapshot,
+    status?: (status: WorkerStatus) => void,
+  ): Promise<GcodeJobResult> {
     this.cancel();
     return new Promise((resolve, reject) => {
-      const worker = this.createWorker();
+      const worker = new RecoverableWorker(this.createWorker, status);
       const pending = { worker, reject };
       this.pending = pending;
       const finish = () => {
@@ -32,15 +34,10 @@ export class GcodeService {
         if (event.data.result) resolve(event.data.result);
         else reject(new Error(event.data.error || 'Unable to generate GCode'));
       };
-      worker.onerror = () => {
+      worker.onerror = (message) => {
         if (this.pending !== pending) return;
         finish();
-        reject(new Error('Unable to start GCode worker. Try generating again.'));
-      };
-      worker.onmessageerror = () => {
-        if (this.pending !== pending) return;
-        finish();
-        reject(new Error('Unable to read GCode worker result. Try generating again.'));
+        reject(new Error(message));
       };
       try {
         worker.postMessage(snapshot);

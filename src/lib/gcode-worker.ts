@@ -1,6 +1,7 @@
 import { runGcodeJob } from './gcode-runner';
 import type { JobSnapshot } from './gcode-job';
 self.onmessage = (event: MessageEvent<JobSnapshot>) => {
+  self.postMessage({ phase: 'started' });
   try {
     self.postMessage({ result: runGcodeJob(event.data) });
   } catch (error) {

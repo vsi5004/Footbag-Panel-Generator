@@ -428,6 +428,45 @@ test('compact program-end commands fail before starting a worker', async ({ page
   await expect(page.locator('#gcodeCode')).toHaveValue('');
 });
 
+test('GCode generation recovers after suspension and a transient worker error', async ({
+  page,
+}) => {
+  await expect(page.locator('#clearanceStatus')).toHaveText(/Clearance OK|Overlaps/);
+  const fetchedAssets: string[] = [];
+  const assetBase = new URL('assets/', page.url()).href;
+  page.on('request', (request) => {
+    if (request.url().startsWith(assetBase)) fetchedAssets.push(request.url());
+  });
+  await page.evaluate(() => {
+    const original = Worker.prototype.postMessage;
+    let attempts = 0;
+    Worker.prototype.postMessage = function (message) {
+      if (!message || typeof message !== 'object' || !('key' in message)) {
+        return original.call(this, message, []);
+      }
+      attempts++;
+      if (attempts === 1) return;
+      Worker.prototype.postMessage = original;
+      queueMicrotask(() => this.dispatchEvent(new Event('error', { cancelable: true })));
+    };
+  });
+  await page.locator('#generateGcode').click();
+  await expect(page.locator('#gcodeFreshnessText')).toHaveText('Generating GCode…');
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await expect(page.locator('#gcodeFreshnessText')).toContainText('paused');
+  await expect(page.locator('#exportGcode')).toBeDisabled();
+  await page.evaluate(() => window.dispatchEvent(new Event('pageshow')));
+  await expect(page.locator('#exportGcode')).toBeEnabled();
+  await expect(page.locator('#gcodeCode')).not.toHaveValue('');
+  // An already generated result remains available across later tab switches.
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('pagehide'));
+    window.dispatchEvent(new Event('pageshow'));
+  });
+  await expect(page.locator('#exportGcode')).toBeEnabled();
+  expect(fetchedAssets).toEqual([]);
+});
+
 test('generation is cancellable, obsolete responses stay stale, and export reuses the ready job', async ({
   page,
 }) => {
@@ -437,14 +476,11 @@ test('generation is cancellable, obsolete responses stay stale, and export reuse
     (window as unknown as { gcodeJobs: typeof jobs }).gcodeJobs = jobs;
     window.Worker = class extends NativeWorker {
       tracked?: (typeof jobs)[number];
-      constructor(url: string | URL, options?: WorkerOptions) {
-        super(url, options);
-        if (String(url).includes('gcode-worker')) {
+      postMessage(message: unknown) {
+        if (message && typeof message === 'object' && 'key' in message) {
           this.tracked = { terminated: false };
           jobs.push(this.tracked);
         }
-      }
-      postMessage(message: unknown) {
         if (this.tracked && jobs.length === 1) {
           const callback = this.onmessage;
           this.tracked.replay = () =>

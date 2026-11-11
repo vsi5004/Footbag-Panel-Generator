@@ -105,7 +105,16 @@ export function initializeGcode(
       freshnessText.textContent = 'Generating GCode…';
       regenerate.textContent = 'Restart';
       status.textContent = 'Generating cutting paths…';
-      const result = await service.generate(requested);
+      const result = await service.generate(requested, (workerStatus) => {
+        if (state.kind !== 'generating' || state.snapshot !== requested) return;
+        const messages = {
+          paused: 'GCode generation paused while this tab is inactive. Resumes automatically.',
+          resuming: 'Resuming GCode generation…',
+          retrying: 'Restarting the background GCode worker…',
+        };
+        freshnessText.textContent = messages[workerStatus];
+        status.textContent = messages[workerStatus];
+      });
       if (state.kind !== 'generating' || state.snapshot !== requested) return;
       // Flush same-task/debounced edits before publishing a worker response.
       const current = snapshot(true);
