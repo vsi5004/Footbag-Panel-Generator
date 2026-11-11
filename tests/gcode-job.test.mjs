@@ -171,7 +171,11 @@ test('worker failures terminate resources and allow retry', async () => {
       rejected = assert.rejects(pending, /problem|Unable/);
     const worker = workers.at(-1);
     if (failure === 'reported') worker.complete({ error: 'problem' });
-    else worker[`on${failure}`]();
+    else {
+      worker[`on${failure}`]();
+      assert.equal(worker.terminated, true);
+      workers.at(-1)[`on${failure}`]();
+    }
     await rejected;
     assert.equal(worker.terminated, true);
   }

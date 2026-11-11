@@ -23,6 +23,7 @@ self.onmessage = (
     placements?: Placement[];
   }>,
 ) => {
+  self.postMessage({ phase: 'started' });
   const r = event.data;
   try {
     if (r.placements) {

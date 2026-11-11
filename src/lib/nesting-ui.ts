@@ -9,6 +9,8 @@ import { manualPlacements, measureLayoutSvg, type LayoutSvgOptions } from './lay
 import { normalizeExportScale } from './export';
 import { fitsStock } from './stock-nesting';
 import { designKey, measurePlaced, type NestingPlan } from './nesting-types';
+import { RecoverableWorker } from './recoverable-worker';
+import { createNestingWorker } from './worker-factory';
 
 export function initializeNesting(
   layout: LayoutElements,
@@ -25,7 +27,7 @@ export function initializeNesting(
   const mode = element<HTMLSelectElement>('nestingMode');
   const status = element('nestingStatus');
   const clearanceStatus = element('clearanceStatus');
-  let worker: Worker | undefined, candidate: NestingPlan | undefined;
+  let worker: RecoverableWorker | undefined, candidate: NestingPlan | undefined;
   let searchBaselineKey = '';
   let clearanceKey = '',
     checkedKey = '';
@@ -33,7 +35,7 @@ export function initializeNesting(
   let markingTimer: ReturnType<typeof setTimeout> | undefined;
   let searchGeneration = 0,
     clearanceGeneration = 0;
-  let clearanceWorker: Worker | undefined,
+  let clearanceWorker: RecoverableWorker | undefined,
     clearanceTimer: ReturnType<typeof setTimeout> | undefined;
 
   const phase = (value: 'idle' | 'searching' | 'candidate') => {
@@ -160,13 +162,13 @@ export function initializeNesting(
         clearanceStatus.textContent = 'Clearance check unavailable';
       };
       try {
-        clearanceWorker = new Worker(new URL('./nesting-worker.ts', import.meta.url), {
-          type: 'module',
+        clearanceWorker = new RecoverableWorker(createNestingWorker, (state) => {
+          clearanceStatus.textContent =
+            state === 'paused'
+              ? 'Clearance check paused while this tab is inactive'
+              : 'Checking clearance…';
         });
-        clearanceWorker.onerror = (event) => {
-          event.preventDefault();
-          fail();
-        };
+        clearanceWorker.onerror = fail;
         clearanceWorker.onmessage = (event: MessageEvent<{ safe?: boolean; error?: string }>) => {
           if (generation !== clearanceGeneration) return;
           clearanceWorker?.terminate();
@@ -288,15 +290,20 @@ export function initializeNesting(
       stopSearch();
       console.error('Nesting worker failed:', error);
       announce(
-        'Could not load or run the background nesting worker. Reload and retry; keep the local preview server running.',
+        'Could not load or run the background nesting worker after retrying. Your layout is preserved. Try optimizing again.',
       );
     };
     try {
-      worker = new Worker(new URL('./nesting-worker.ts', import.meta.url), { type: 'module' });
-      worker.onerror = (event) => {
-        event.preventDefault();
-        fail(event.message);
-      };
+      worker = new RecoverableWorker(createNestingWorker, (state) => {
+        if (generation !== searchGeneration) return;
+        const messages = {
+          paused: 'Optimization paused while this tab is inactive. Resumes automatically.',
+          resuming: 'Resuming optimization…',
+          retrying: 'Restarting the background optimization worker…',
+        };
+        announce(messages[state]);
+      });
+      worker.onerror = fail;
       worker.onmessage = (
         event: MessageEvent<{
           plan?: NestingPlan;
